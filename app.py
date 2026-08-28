@@ -1,1 +1,4 @@
-```python import streamlit as st st.set_page_config( page_title="EcoFlux Brasil", page_icon="🌱", layout="wide" ) st.title("🌱 EcoFlux Brasil") st.subheader("Plataforma de Dados Micrometeorológicos e Fluxos Ecossistêmicos") st.write( "Visualização científica de dados micrometeorológicos, " "Eddy Covariance e trocas superfície-atmosfera." ) ```
+import streamlit as st
+
+st.title("Ecoflux Brasil")
+
