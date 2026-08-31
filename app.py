@@ -139,18 +139,18 @@ def base_variable_for_unit(var, units):
     return None
 
 def unit_only(var, units):
-    # 1) usa exatamente a unidade registrada para a própria coluna
-    direct = units.get(var)
-    if direct is not None and str(direct).strip():
-        return str(direct).strip()
-
-    # 2) se for variável correlata sem unidade própria, herda exatamente
-    #    a unidade textual da variável-base
+    # Para variáveis correlatas (ex.: qc_LE, qc_co2_flux), a unidade da variável-base
+    # tem prioridade, inclusive quando a planilha traz marcadores genéricos como [#].
     base = base_variable_for_unit(var, units)
     if base:
         inherited = units.get(base)
         if inherited is not None and str(inherited).strip():
             return str(inherited).strip()
+
+    # Demais variáveis usam exatamente a unidade registrada na própria coluna.
+    direct = units.get(var)
+    if direct is not None and str(direct).strip():
+        return str(direct).strip()
 
     return "unidade não informada"
 
@@ -406,26 +406,72 @@ def normalize_zscore(series):
     return (s - s.mean()) / sd
 
 def comparison_same_axis(data, variables, title, units):
+    var_units = [unit_only(v, units) for v in variables]
+    informed = [u for u in var_units if u != "unidade não informada"]
+    same_unit = bool(informed) and len(set(informed)) == 1 and len(informed) == len(variables)
+
+    # Se houver duas variáveis na mesma unidade, mas em escalas muito diferentes
+    # (caso típico de uma variável e seu qc_), mantém os valores originais e usa
+    # um segundo eixo Y para não "achatar" a série de menor magnitude.
+    use_secondary = False
+    if len(variables) == 2 and same_unit:
+        ranges = []
+        for v in variables:
+            s = pd.to_numeric(data[v], errors="coerce").dropna()
+            if s.empty:
+                ranges.append(np.nan)
+            else:
+                r = float(s.max() - s.min())
+                if r == 0:
+                    r = float(s.abs().max())
+                ranges.append(r)
+
+        finite = [r for r in ranges if pd.notna(r) and r > 0]
+        if len(finite) == 2:
+            ratio = max(finite) / min(finite)
+            use_secondary = ratio >= 10
+
     fig = go.Figure()
-    for var in variables:
-        fig.add_trace(
-            go.Scattergl(
-                x=data["TIMESTAMP_parsed"],
-                y=data[var],
-                mode="lines",
-                name=unit_label(var, units),
-                connectgaps=False,
-            )
+    for i, var in enumerate(variables):
+        trace_kwargs = dict(
+            x=data["TIMESTAMP_parsed"],
+            y=data[var],
+            mode="lines",
+            name=unit_label(var, units),
+            connectgaps=False,
         )
-    fig.update_layout(
+        if use_secondary and i == 1:
+            trace_kwargs["yaxis"] = "y2"
+        fig.add_trace(go.Scattergl(**trace_kwargs))
+
+    common_unit = informed[0] if same_unit else None
+    y_title = common_unit if common_unit else "Valor"
+
+    layout_kwargs = dict(
         title=title,
         xaxis_title="Data e hora",
-        yaxis_title="Valor",
+        yaxis=dict(title=y_title),
         hovermode="x unified",
         height=500,
-        margin=dict(l=20, r=20, t=55, b=20),
+        margin=dict(l=20, r=70 if use_secondary else 20, t=55, b=20),
     )
+
+    if use_secondary:
+        layout_kwargs["yaxis2"] = dict(
+            title=common_unit,
+            overlaying="y",
+            side="right",
+        )
+
+    fig.update_layout(**layout_kwargs)
     st.plotly_chart(fig, use_container_width=True)
+
+    if use_secondary:
+        st.caption(
+            "As duas séries estão em valores originais e na mesma unidade, mas usam eixos Y "
+            "independentes porque suas magnitudes são muito diferentes. Isso evita que a série "
+            "de menor amplitude pareça zerada."
+        )
 
 def comparison_two_axes(data, variables, title, units):
     if len(variables) != 2:
@@ -741,10 +787,12 @@ elif page == "Comparar Variáveis":
                 comparison_separate(data, selected_vars, units)
 
             elif mode == "Mesmo gráfico — valores originais":
-                st.warning(
-                    "Variáveis com unidades ou escalas diferentes podem parecer distorcidas "
-                    "quando compartilharem o mesmo eixo Y."
-                )
+                selected_units = [unit_only(v, units) for v in selected_vars]
+                if len(set(selected_units)) > 1:
+                    st.warning(
+                        "As variáveis selecionadas têm unidades diferentes. O gráfico preserva "
+                        "os valores originais; para comparação de padrão, considere o modo normalizado."
+                    )
                 comparison_same_axis(
                     data,
                     selected_vars,
@@ -971,9 +1019,10 @@ elif page == "Sobre os Dados":
         ### Unidades de medida
         Quando a planilha original informa a unidade na linha de metadados, o EcoFlux a exibe
         exatamente como está registrada, sem corrigir, substituir ou reinterpretar caracteres.
-        Variáveis correlatas, como `qc_LE` e `qc_co2_flux`, usam a mesma unidade textual da
-        variável-base correspondente. Assim, por exemplo, `LE [W+1m-2]` e `qc_LE [W+1m-2]`
-        permanecem iguais, assim como `co2_flux [Âµmol+1s-1m-2]` e
+        Variáveis correlatas, como `qc_LE` e `qc_co2_flux`, usam prioritariamente a mesma
+        unidade textual da variável-base correspondente, mesmo que a coluna correlata traga
+        um marcador genérico como `[#]`. Assim, `LE [W+1m-2]` e `qc_LE [W+1m-2]`
+        aparecem com a mesma unidade, assim como `co2_flux [Âµmol+1s-1m-2]` e
         `qc_co2_flux [Âµmol+1s-1m-2]`.
 
         ### Variáveis científicas
