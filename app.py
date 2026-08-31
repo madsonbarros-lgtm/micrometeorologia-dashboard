@@ -83,6 +83,47 @@ def load_original_xlsx(uploaded_file):
 
     return df, sheet, timestamp_col, units
 
+
+def is_qc_variable_name(name):
+    """Identifica colunas de controle de qualidade, como qc_LE, qc_co2_flux e *_qc."""
+    n = str(name).strip().lower()
+    return n.startswith("qc_") or n.endswith("_qc") or "_qc_" in n
+
+def associated_qc_variable(var, columns):
+    """
+    Procura a coluna QC associada à variável física.
+    Prioridade: qc_<variável>, depois <variável>_qc.
+    """
+    cols = {str(c).strip().lower(): c for c in columns}
+    name = str(var).strip()
+
+    candidates = [
+        f"qc_{name}".lower(),
+        f"{name}_qc".lower(),
+    ]
+    for candidate in candidates:
+        if candidate in cols:
+            return cols[candidate]
+    return None
+
+def physical_scientific_columns(df):
+    """
+    Variáveis físicas/científicas comparáveis:
+    numéricas, não temporais/administrativas e não QC.
+    """
+    cols = []
+    for c in df.columns:
+        if is_scientific_variable(df, c) and not is_qc_variable_name(c):
+            cols.append(c)
+    return cols
+
+def qc_columns(df):
+    """Colunas numéricas de controle de qualidade."""
+    return [
+        c for c in df.columns
+        if is_qc_variable_name(c) and pd.api.types.is_numeric_dtype(df[c])
+    ]
+
 def is_scientific_variable(col, df):
     name = str(col).strip().lower()
     if name in NON_SCIENTIFIC_NAMES:
@@ -139,19 +180,17 @@ def base_variable_for_unit(var, units):
     return None
 
 def unit_only(var, units):
-    # Variáveis correlatas usam prioritariamente a unidade da variável-base.
-    base = base_variable_for_unit(var, units)
-    if base is not None:
-        inherited = units.get(base)
-        if inherited is not None and str(inherited).strip():
-            return str(inherited).strip()
+    """
+    QC representa classe/nível de qualidade e não possui unidade física.
+    Demais variáveis mantêm exatamente a unidade registrada na planilha.
+    """
+    if is_qc_variable_name(var):
+        return "sem unidade"
 
-    # Demais variáveis mantêm exatamente a unidade registrada na própria coluna.
     direct = units.get(var)
     if direct is not None and str(direct).strip():
         return str(direct).strip()
 
-    # Fallback case-insensitive.
     lookup = _unit_key_lookup(units)
     real_key = lookup.get(str(var).strip().lower())
     if real_key is not None:
@@ -163,7 +202,7 @@ def unit_only(var, units):
 
 def unit_label(var, units):
     unit = unit_only(var, units)
-    if unit == "unidade não informada":
+    if unit in {"unidade não informada", "sem unidade"}:
         return str(var)
     return f"{var} [{unit}]"
 
@@ -354,6 +393,90 @@ def period_controls(key_prefix, full_start, full_end):
 
     return start_dt, end_dt
 
+
+def qc_quality_panel(df_period, var, all_columns, resolution):
+    """
+    Mostra a série QC associada à variável selecionada, sem tratá-la como grandeza física.
+    Não interpreta o significado dos códigos QC; apenas apresenta os valores existentes.
+    """
+    qc_var = associated_qc_variable(var, all_columns)
+    if qc_var is None:
+        return
+
+    st.markdown("#### Controle de qualidade associado")
+    st.caption(
+        f"`{qc_var}` é um indicador de qualidade associado a `{var}`. "
+        "Os códigos são apresentados como registrados no arquivo e não possuem unidade física."
+    )
+
+    show_qc = st.checkbox(
+        f"Mostrar {qc_var}",
+        value=False,
+        key=f"show_qc_{var}_{resolution}",
+    )
+    if not show_qc:
+        return
+
+    q = df_period[["TIMESTAMP_parsed", qc_var]].copy()
+    q[qc_var] = pd.to_numeric(q[qc_var], errors="coerce")
+    q = q.dropna(subset=[qc_var])
+
+    if q.empty:
+        st.info(f"Não há valores de {qc_var} no período selecionado.")
+        return
+
+    # QC é categórico/ordinal; não aplicar média em agregações.
+    if resolution != "30 min":
+        rule = {
+            "Horário": "1h",
+            "Diário": "1D",
+            "Semanal": "1W",
+            "Mensal": "1MS",
+        }[resolution]
+
+        # Usa a moda em cada janela; em empate, pandas retorna a primeira moda.
+        def _mode_or_nan(s):
+            m = s.mode(dropna=True)
+            return m.iloc[0] if not m.empty else np.nan
+
+        q = (
+            q.set_index("TIMESTAMP_parsed")
+             .resample(rule)[qc_var]
+             .apply(_mode_or_nan)
+             .reset_index()
+             .dropna(subset=[qc_var])
+        )
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scattergl(
+            x=q["TIMESTAMP_parsed"],
+            y=q[qc_var],
+            mode="markers+lines",
+            name=qc_var,
+            connectgaps=False,
+        )
+    )
+    fig.update_layout(
+        title=f"Controle de qualidade — {qc_var}",
+        xaxis_title="Data e hora",
+        yaxis_title="Código de qualidade (sem unidade)",
+        hovermode="x unified",
+        height=320,
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    counts = (
+        pd.to_numeric(df_period[qc_var], errors="coerce")
+        .dropna()
+        .value_counts()
+        .sort_index()
+        .rename_axis("Código QC")
+        .reset_index(name="Número de registros")
+    )
+    st.dataframe(counts, use_container_width=True, hide_index=True)
+
 def variable_analysis_panel(df, variable_options, key_prefix, full_start, full_end, units, heading=None):
     if not variable_options:
         st.info("Nenhuma variável científica correspondente foi encontrada.")
@@ -409,6 +532,7 @@ def variable_analysis_panel(df, variable_options, key_prefix, full_start, full_e
         units=units,
     )
     stats_block(selected, var, units=units)
+    qc_quality_panel(selected, var, df.columns, resolution)
 
 
 def aggregate_multiple(df, variables, resolution):
@@ -653,6 +777,7 @@ except Exception as e:
 full_start = df["TIMESTAMP_parsed"].min()
 full_end = df["TIMESTAMP_parsed"].max()
 sci_vars = scientific_columns(df)
+qc_vars = qc_columns(df)
 
 # ------------------------------------------------------------
 # VISÃO GERAL
@@ -753,8 +878,8 @@ elif page == "Comparar Variáveis":
     st.header("Comparar Variáveis")
 
     st.write(
-        "Selecione duas ou mais variáveis científicas e informe o período comum da comparação. "
-        "TIMESTAMP, DOY, DAYTIME e outros campos temporais não aparecem como variáveis científicas."
+        "Selecione duas ou mais variáveis físicas/científicas e informe o período comum da comparação. "
+        "Campos temporais e colunas qc_ não aparecem nesta lista. As qc_ são indicadores de qualidade e são tratadas separadamente."
     )
 
     search = st.text_input(
@@ -770,7 +895,7 @@ elif page == "Comparar Variáveis":
         ]
 
     selected_vars = st.multiselect(
-        "Variáveis científicas para comparação",
+        "Variáveis físicas/científicas para comparação",
         compare_options,
         format_func=lambda x: unit_label(x, units),
         key="compare_variables",
@@ -1007,54 +1132,123 @@ elif page == "Água e Evapotranspiração":
 elif page == "Qualidade dos Dados":
     st.header("Qualidade dos Dados")
 
-    qc_vars = [
-        c for c in sci_vars
-        if str(c).lower().startswith("qc_")
-        or "quality" in str(c).lower()
-        or "error" in str(c).lower()
-    ]
+    st.write(
+        "As colunas `qc_` são tratadas como indicadores de controle de qualidade, "
+        "não como variáveis físicas. Seus valores são códigos/classes e não possuem unidade de medida."
+    )
 
     if not qc_vars:
-        st.info("Nenhuma variável de qualidade foi identificada.")
+        st.info("Nenhuma coluna de controle de qualidade `qc_` foi identificada no arquivo.")
     else:
-        chosen = st.selectbox("Indicador de qualidade", qc_vars, key="qc_variable")
-        start_dt, end_dt = period_controls("qc", full_start, full_end)
+        qc_choice = st.selectbox(
+            "Indicador de qualidade",
+            qc_vars,
+            key="quality_qc_choice",
+        )
 
-        if start_dt <= end_dt:
-            selected = filter_period(df, start_dt, end_dt)
+        # tenta localizar variável física associada
+        qc_name = str(qc_choice)
+        base_candidates = []
+        if qc_name.lower().startswith("qc_"):
+            base_candidates.append(qc_name[3:])
+        if qc_name.lower().endswith("_qc"):
+            base_candidates.append(qc_name[:-3])
+
+        base_var = next(
+            (c for c in df.columns if str(c).lower() in {b.lower() for b in base_candidates}),
+            None,
+        )
+
+        c1, c2 = st.columns(2)
+        c1.metric("Indicador QC", qc_choice)
+        c2.metric("Variável associada", base_var if base_var else "não identificada")
+
+        start_dt, end_dt = period_controls("quality", full_start, full_end)
+
+        if start_dt > end_dt:
+            st.error("A data/hora inicial deve ser anterior à data/hora final.")
+        else:
+            qperiod = filter_period(df, start_dt, end_dt)
+            qseries = pd.to_numeric(qperiod[qc_choice], errors="coerce").dropna()
 
             st.markdown(
-                f"**Período selecionado:** {start_dt:%d/%m/%Y %H:%M} → "
-                f"{end_dt:%d/%m/%Y %H:%M}"
+                f"**Período:** {start_dt:%d/%m/%Y %H:%M} → {end_dt:%d/%m/%Y %H:%M}"
             )
+            st.caption("Unidade: **sem unidade**")
 
-            if selected.empty:
-                st.warning("Não há registros nesse período.")
+            if qseries.empty:
+                st.info("Não há códigos QC disponíveis nesse período.")
             else:
-                s = selected[chosen].astype("string").fillna("NA")
-                q = (
-                    s.value_counts()
-                    .rename_axis("Código")
-                    .reset_index(name="Frequência")
+                counts = (
+                    qseries.value_counts()
+                    .sort_index()
+                    .rename_axis("Código QC")
+                    .reset_index(name="Número de registros")
                 )
-                q["Percentual (%)"] = (
-                    100 * q["Frequência"] / q["Frequência"].sum()
-                )
+                counts["Percentual (%)"] = (
+                    counts["Número de registros"] / counts["Número de registros"].sum() * 100
+                ).round(2)
+
+                st.subheader("Distribuição dos códigos de qualidade")
+                st.dataframe(counts, use_container_width=True, hide_index=True)
 
                 fig = px.bar(
-                    q,
-                    x="Código",
-                    y="Frequência",
-                    text="Percentual (%)",
-                    title=f"{chosen} — período selecionado",
+                    counts,
+                    x="Código QC",
+                    y="Número de registros",
+                    title=f"Distribuição de {qc_choice}",
                 )
-                fig.update_traces(texttemplate="%{text:.1f}%")
+                fig.update_layout(
+                    xaxis_title="Código de qualidade (sem unidade)",
+                    yaxis_title="Número de registros",
+                    height=380,
+                )
                 st.plotly_chart(fig, use_container_width=True)
-                st.dataframe(q, use_container_width=True)
 
-# ------------------------------------------------------------
-# SOBRE OS DADOS
-# ------------------------------------------------------------
+                if base_var is not None:
+                    st.subheader(f"Relação temporal: {base_var} e {qc_choice}")
+                    rel = qperiod[["TIMESTAMP_parsed", base_var, qc_choice]].copy()
+                    rel[base_var] = pd.to_numeric(rel[base_var], errors="coerce")
+                    rel[qc_choice] = pd.to_numeric(rel[qc_choice], errors="coerce")
+
+                    fig2 = go.Figure()
+                    fig2.add_trace(
+                        go.Scattergl(
+                            x=rel["TIMESTAMP_parsed"],
+                            y=rel[base_var],
+                            mode="lines",
+                            name=unit_label(base_var, units),
+                            yaxis="y",
+                            connectgaps=False,
+                        )
+                    )
+                    fig2.add_trace(
+                        go.Scattergl(
+                            x=rel["TIMESTAMP_parsed"],
+                            y=rel[qc_choice],
+                            mode="markers",
+                            name=qc_choice,
+                            yaxis="y2",
+                        )
+                    )
+                    fig2.update_layout(
+                        xaxis_title="Data e hora",
+                        yaxis=dict(title=unit_label(base_var, units)),
+                        yaxis2=dict(
+                            title="Código QC (sem unidade)",
+                            overlaying="y",
+                            side="right",
+                        ),
+                        hovermode="x unified",
+                        height=450,
+                        margin=dict(l=20, r=70, t=50, b=20),
+                    )
+                    st.plotly_chart(fig2, use_container_width=True)
+
+                st.info(
+                    "O EcoFlux não atribui significado aos números dos códigos QC sem a documentação "
+                    "correspondente do conjunto de dados. A tela mostra os códigos exatamente como registrados."
+                )
 
 elif page == "Sobre os Dados":
     st.header("Sobre os Dados")
@@ -1071,11 +1265,7 @@ elif page == "Sobre os Dados":
         ### Unidades de medida
         Quando a planilha original informa a unidade na linha de metadados, o EcoFlux a exibe
         exatamente como está registrada, sem corrigir, substituir ou reinterpretar caracteres.
-        Variáveis correlatas, como `qc_LE` e `qc_co2_flux`, usam prioritariamente a mesma
-        unidade textual da variável-base correspondente, mesmo que a coluna correlata traga
-        um marcador genérico como `[#]`. Assim, `LE [W+1m-2]` e `qc_LE [W+1m-2]`
-        aparecem com a mesma unidade, assim como `co2_flux [Âµmol+1s-1m-2]` e
-        `qc_co2_flux [Âµmol+1s-1m-2]`.
+        As colunas `qc_` são indicadores de controle de qualidade e não recebem unidade física. Elas são apresentadas separadamente da variável medida e seus códigos são mantidos como registrados no arquivo.
 
         ### Variáveis científicas
         A lista de variáveis exclui automaticamente campos temporais e administrativos,
