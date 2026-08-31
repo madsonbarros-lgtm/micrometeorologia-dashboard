@@ -60,31 +60,42 @@ st.markdown(
         border: 1px solid rgba(255,193,7,.18);
         margin-top: 1rem;
     }
-    .ecoflux-card {
+    .ecoflux-action-card {
+        display: flex;
+        align-items: flex-start;
+        gap: .9rem;
         padding: 1.05rem 1.1rem;
-        border: 1px solid rgba(128,128,128,.18);
-        border-radius: 14px;
-        background: rgba(255,255,255,.72);
-        min-height: 145px;
-        box-shadow: 0 1px 2px rgba(0,0,0,.03);
+        border: 1px solid rgba(128,128,128,.20);
+        border-radius: 12px;
+        background: #ffffff;
+        min-height: 112px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.025);
     }
-    .ecoflux-card h4 {
-        margin: 0 0 .35rem 0;
-        font-size: 1.05rem;
+    .ecoflux-action-icon {
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        margin-top: 1px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-    .ecoflux-card p {
+    .ecoflux-action-text h4 {
+        margin: 0 0 .28rem 0;
+        font-size: 1.00rem;
+        font-weight: 700;
+        color: rgba(30,31,38,.95);
+        line-height: 1.2;
+    }
+    .ecoflux-action-text p {
         color: rgba(49,51,63,.72);
         margin: 0;
-        line-height: 1.45;
+        line-height: 1.42;
+        font-size: .90rem;
     }
-    .ecoflux-badge {
-        display: inline-block;
-        padding: .18rem .55rem;
-        border-radius: 999px;
-        background: rgba(46,160,67,.12);
-        color: #177a3d;
-        font-weight: 700;
-        font-size: .82rem;
+    .ecoflux-action-row {
+        margin-top: .25rem;
+        margin-bottom: .8rem;
     }
     .sidebar-status {
         padding: .7rem .8rem;
@@ -100,7 +111,7 @@ st.markdown(
 )
 
 # ============================================================
-# EcoFlux Brasil — V35
+# EcoFlux Brasil — V36
 # Arquitetura:
 # 1) Dados originais da torre CR3000: 1 min / 30 min / diário
 # 2) Eddy Covariance / QC
@@ -1121,52 +1132,120 @@ if page_key == "overview":
     )
 
     st.subheader(tr("O que você deseja fazer?", "What would you like to do?"))
-    c1, c2, c3, c4 = st.columns(4)
+    st.markdown('<div class="ecoflux-action-row"></div>', unsafe_allow_html=True)
+
+    c1, c2, c3, c4 = st.columns(4, gap="small")
+
+    icon_1min = """
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none"
+         xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 19V5M3 19H21" stroke="#2F6FED" stroke-width="1.8"
+            stroke-linecap="round"/>
+      <path d="M6 15L10 11L13 13L19 7" stroke="#2F6FED" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    """
+
+    icon_30 = """
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none"
+         xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="8" stroke="#F39C12" stroke-width="1.8"/>
+      <path d="M12 7V12L15.5 14" stroke="#F39C12" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    """
+
+    icon_daily = """
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none"
+         xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="5" width="16" height="15" rx="2" stroke="#2E9D57"
+            stroke-width="1.8"/>
+      <path d="M8 3V7M16 3V7M4 9H20" stroke="#2E9D57" stroke-width="1.8"
+            stroke-linecap="round"/>
+    </svg>
+    """
+
+    icon_xlsx = """
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none"
+         xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="5" width="16" height="14" rx="2" stroke="#7D3FB2"
+            stroke-width="1.8"/>
+      <path d="M4 10H20M9 10V19M15 10V19" stroke="#7D3FB2"
+            stroke-width="1.5"/>
+    </svg>
+    """
 
     with c1:
         st.markdown(
-            '<div class="ecoflux-card"><span class="ecoflux-badge">1 min</span>'
-            '<h4>' + tr("Análise 1 min", "1-min analysis") + '</h4>'
-            '<p>' + tr(
-                "Inspeção detalhada de sensores, meteorologia e eventos de alta frequência.",
-                "Detailed inspection of sensors, meteorology and high-frequency events.",
-            ) + '</p></div>',
+            '<div class="ecoflux-action-card">'
+            '<div class="ecoflux-action-icon">' + icon_1min + '</div>'
+            '<div class="ecoflux-action-text"><h4>' +
+            tr("Análise 1 min", "1-min analysis") +
+            '</h4><p>' +
+            tr(
+                "Fluxos, meteorologia e análises detalhadas.",
+                "Fluxes, meteorology and detailed analyses.",
+            ) +
+            '</p></div></div>',
             unsafe_allow_html=True,
         )
 
     with c2:
         st.markdown(
-            '<div class="ecoflux-card"><span class="ecoflux-badge">30 min</span>'
-            '<h4>' + tr("Análise 30 min", "30-min analysis") + '</h4>'
-            '<p>' + tr(
-                "Base principal para análises micrometeorológicas e integração com Eddy Covariance.",
-                "Primary basis for micrometeorological analyses and Eddy Covariance integration.",
-            ) + '</p></div>',
+            '<div class="ecoflux-action-card">'
+            '<div class="ecoflux-action-icon">' + icon_30 + '</div>'
+            '<div class="ecoflux-action-text"><h4>' +
+            tr("Análise 30 min", "30-min analysis") +
+            '</h4><p>' +
+            tr(
+                "Médias e estatísticas semi-horárias.",
+                "Half-hourly means and statistics.",
+            ) +
+            '</p></div></div>',
             unsafe_allow_html=True,
         )
 
     with c3:
         st.markdown(
-            '<div class="ecoflux-card"><span class="ecoflux-badge">' +
-            tr("Diário", "Daily") + '</span><h4>' +
-            tr("Análise diária", "Daily analysis") + '</h4><p>' +
+            '<div class="ecoflux-action-card">'
+            '<div class="ecoflux-action-icon">' + icon_daily + '</div>'
+            '<div class="ecoflux-action-text"><h4>' +
+            tr("Análise diária", "Daily analysis") +
+            '</h4><p>' +
             tr(
-                "Resumo diário, extremos, totais e comportamento sazonal.",
-                "Daily summaries, extremes, totals and seasonal behavior.",
-            ) + '</p></div>',
+                "Médias e estatísticas diárias.",
+                "Daily means and statistics.",
+            ) +
+            '</p></div></div>',
             unsafe_allow_html=True,
         )
 
     with c4:
         st.markdown(
-            '<div class="ecoflux-card"><span class="ecoflux-badge">XLSX</span>'
-            '<h4>' + tr("Produtos processados", "Processed products") + '</h4>'
-            '<p>' + tr(
-                "NEE, GPP, Reco, gap-filling, incertezas e indicadores QC.",
-                "NEE, GPP, Reco, gap filling, uncertainties and QC indicators.",
-            ) + '</p></div>',
+            '<div class="ecoflux-action-card">'
+            '<div class="ecoflux-action-icon">' + icon_xlsx + '</div>'
+            '<div class="ecoflux-action-text"><h4>' +
+            tr("Produtos processados", "Processed products") +
+            '</h4><p>' +
+            tr(
+                "Visualizar produtos da planilha XLSX.",
+                "View products from the XLSX workbook.",
+            ) +
+            '</p></div></div>',
             unsafe_allow_html=True,
         )
+
+    st.markdown(
+        '<div class="ecoflux-warning">💡 ' +
+        tr(
+            "Dica: você pode carregar ou substituir os arquivos a qualquer momento. "
+            "A classificação será refeita automaticamente.",
+            "Tip: you can upload or replace files at any time. "
+            "Classification will run again automatically.",
+        ) +
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
     if "30 min" in tower_file_map:
         src30 = get_tower_source("30 min", load_if_needed=True)
