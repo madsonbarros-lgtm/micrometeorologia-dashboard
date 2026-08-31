@@ -1,4 +1,7 @@
+import csv
 import io
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -12,55 +15,137 @@ st.set_page_config(
 )
 
 # ============================================================
-# EcoFlux Brasil — V22
-# Estrutura orientada à planilha original de processamento
+# EcoFlux Brasil — V29
+# Arquitetura:
+# 1) Dados originais da torre CR3000: 1 min / 30 min / diário
+# 2) Eddy Covariance / QC
+# 3) Produtos processados: gap-filling, NEE, GPP, Reco, incertezas
 # ============================================================
 
+# -----------------------------
+# Idioma
+# -----------------------------
+st.sidebar.title("EcoFlux Brasil")
+
+LANGUAGE = st.sidebar.selectbox(
+    "Idioma / Language",
+    ["Português", "English"],
+    index=0,
+    key="language_v29",
+)
+PT = LANGUAGE == "Português"
+
+def tr(pt, en):
+    return pt if PT else en
+
+st.sidebar.caption(
+    tr(
+        "Interface bilíngue. Nomes de variáveis e unidades da fonte são preservados.",
+        "Bilingual interface. Source variable names and units are preserved.",
+    )
+)
+
+# -----------------------------
+# Tabelas sem menu nativo em inglês
+# -----------------------------
+TABLE_MODE = st.sidebar.radio(
+    tr("Tabelas", "Tables"),
+    [
+        tr("Controles próprios", "Custom controls"),
+        tr("Nativa do Streamlit", "Native Streamlit"),
+    ],
+    index=0,
+    key="table_mode_v29",
+    help=tr(
+        "Controles próprios evitam o menu interno do Streamlit em inglês.",
+        "Custom controls avoid Streamlit's native context menu.",
+    ),
+)
+CUSTOM_TABLES = TABLE_MODE == tr("Controles próprios", "Custom controls")
+
+_TABLE_COUNTER = 0
+
+def show_table(data, hide_index=True):
+    global _TABLE_COUNTER
+    _TABLE_COUNTER += 1
+    key = f"table_v29_{_TABLE_COUNTER}"
+
+    if not isinstance(data, pd.DataFrame):
+        data = pd.DataFrame(data)
+
+    if not CUSTOM_TABLES:
+        st.dataframe(data, use_container_width=True, hide_index=hide_index)
+        return
+
+    view = data.copy()
+
+    if len(view.columns):
+        with st.expander(tr("Opções da tabela", "Table options"), expanded=False):
+            c1, c2, c3 = st.columns([2, 1, 1])
+            sort_col = c1.selectbox(
+                tr("Ordenar por", "Sort by"),
+                ["—"] + list(view.columns),
+                key=f"{key}_sort",
+            )
+            direction = c2.selectbox(
+                tr("Ordem", "Order"),
+                [tr("Crescente", "Ascending"), tr("Decrescente", "Descending")],
+                key=f"{key}_dir",
+            )
+            rows = c3.selectbox(
+                tr("Linhas", "Rows"),
+                [25, 50, 100, 250, tr("Todas", "All")],
+                index=1,
+                key=f"{key}_rows",
+            )
+            visible = st.multiselect(
+                tr("Colunas visíveis", "Visible columns"),
+                list(view.columns),
+                default=list(view.columns),
+                key=f"{key}_cols",
+            )
+
+        if visible:
+            view = view[visible]
+        if sort_col != "—" and sort_col in view.columns:
+            asc = direction == tr("Crescente", "Ascending")
+            try:
+                view = view.sort_values(sort_col, ascending=asc, na_position="last")
+            except Exception:
+                pass
+        if rows != tr("Todas", "All"):
+            view = view.head(int(rows))
+
+    st.markdown(
+        """
+        <style>
+        .ecoflux-table {overflow-x:auto;border:1px solid rgba(128,128,128,.25);
+                        border-radius:8px;margin-bottom:.8rem}
+        .ecoflux-table table {border-collapse:collapse;width:100%;font-size:.93rem}
+        .ecoflux-table th,.ecoflux-table td {padding:.45rem .65rem;
+                        border-bottom:1px solid rgba(128,128,128,.18);
+                        text-align:left;white-space:nowrap}
+        .ecoflux-table th {font-weight:600;background:rgba(128,128,128,.08)}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="ecoflux-table">' +
+        view.to_html(index=not hide_index, escape=True, border=0) +
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+# -----------------------------
+# Utilidades científicas
+# -----------------------------
 MISSING_SENTINELS = {-9999, -9999.0}
-
-TEMPORAL_FIELDS = {
-    "date time", "datetime", "date_time", "datatime", "timestamp",
-    "year", "doy", "day_of_year", "hour", "minute", "second",
-    "date", "time", "season",
-}
-
-QC_TOKENS = ("_fqc", "_fall_qc", "qc_", "_qc")
-AUXILIARY_SUFFIXES = ("_fnum", "_fmeth", "_fwin")
-UNCERTAINTY_SUFFIXES = ("_fsd", "_fsdu", "_fsdug", "_sd")
-
-GAPFILL_FAMILIES = ["NEE", "LE", "H", "Rg", "VPD", "rH", "Tair", "Tsoil"]
-
-
-# Organização científica típica de uma torre micrometeorológica.
-# As unidades exibidas nas séries continuam vindo da planilha original;
-# estas categorias servem para navegação e documentação, não para sobrescrever metadados.
-SCIENTIFIC_STRUCTURE = {
-    "Temporal e Identificação": {
-        "aliases": ["TIMESTAMP", "Date", "Time", "RECORD"],
-        "description": "Referência temporal e identificação sequencial dos registros.",
-    },
-    "Ventos e Turbulência": {
-        "aliases": ["u", "v", "w", "wind_speed", "WS", "wind_dir", "WD", "u*", "Ustar", "T_sonic", "Ts"],
-        "description": "Anemometria sônica, componentes do vento e indicadores de turbulência.",
-    },
-    "Fluxos de Energia e Massa": {
-        "aliases": ["H", "LE", "Fc", "co2_flux", "Tau", "NEE"],
-        "description": "Fluxos turbulentos de calor, CO₂, água e quantidade de movimento.",
-    },
-    "Balanço de Radiação": {
-        "aliases": ["SW_IN", "Rg", "SW_OUT", "LW_IN", "LW_OUT", "Rn", "NET", "PAR_in", "PPFD"],
-        "description": "Componentes radiativos de onda curta, onda longa, saldo de radiação e PAR.",
-    },
-    "Variáveis Bioclimáticas e de Solo": {
-        "aliases": ["Ta", "Tair", "AirTC", "RH", "rH", "VPD", "P", "PA", "Ts_1", "Ts_2", "Tsoil",
-                    "SWC_1", "VWC", "G_1", "G_2"],
-        "description": "Estado atmosférico próximo à superfície e condições térmicas/hídricas do solo.",
-    },
-    "Diagnósticos e Controle de Qualidade": {
-        "aliases": ["qc_H", "qc_LE", "qc_Fc", "footprint_50", "footprint_90"],
-        "description": "Indicadores QC/QA, diagnósticos e área de contribuição dos fluxos.",
-    },
-}
+VARIABLE_PALETTE = [
+    "#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e",
+    "#17becf", "#8c564b", "#e377c2", "#bcbd22", "#7f7f7f",
+    "#393b79", "#637939", "#8c6d31", "#843c39", "#7b4173",
+]
 
 QC_CODE_COLORS = {
     0: "#1f77b4",
@@ -70,14 +155,6 @@ QC_CODE_COLORS = {
     4: "#9467bd",
 }
 
-def qc_color(code):
-    try:
-        c = int(code)
-    except Exception:
-        return "#7f7f7f"
-    return QC_CODE_COLORS.get(c, "#7f7f7f")
-
-
 FOKEN_CLASS_COLORS = {
     "Alta qualidade": "#2ca02c",
     "Qualidade moderada": "#ff7f0e",
@@ -85,238 +162,145 @@ FOKEN_CLASS_COLORS = {
     "Fora da escala selecionada": "#7f7f7f",
 }
 
-def foken_reference_table():
-    return pd.DataFrame([
-        {
-            "Classe resumida": "0",
-            "Escala estendida": "1–3",
-            "Qualidade": "Alta qualidade",
-            "Aplicação recomendada": (
-                "Dados adequados para análises de fluxos diretos e pesquisas científicas, "
-                "desde que os demais critérios do estudo também sejam atendidos."
-            ),
-        },
-        {
-            "Classe resumida": "1",
-            "Escala estendida": "4–6",
-            "Qualidade": "Qualidade moderada",
-            "Aplicação recomendada": (
-                "Pode ser utilizada com cautela em integrações e balanços de longo prazo; "
-                "o tratamento depende do protocolo científico adotado."
-            ),
-        },
-        {
-            "Classe resumida": "2",
-            "Escala estendida": "7–9",
-            "Qualidade": "Baixa qualidade",
-            "Aplicação recomendada": (
-                "Classe geralmente rejeitada em análises de fluxo que exigem alta qualidade; "
-                "a regra final de exclusão deve seguir o protocolo do estudo."
-            ),
-        },
-    ])
+TEMPORAL_FIELDS = {
+    "timestamp", "date", "time", "datetime", "datatime",
+    "record", "doy", "day_of_year", "year", "month", "day", "hour",
+}
 
-def foken_classify(value, scale):
-    if pd.isna(value):
-        return None
-    try:
-        v = int(float(value))
-    except Exception:
-        return "Fora da escala selecionada"
+GAPFILL_FAMILIES = ["NEE", "LE", "H", "Rg", "VPD", "rH", "Tair", "Tsoil"]
 
-    if scale == "Foken — 3 classes (0, 1, 2)":
-        return {
-            0: "Alta qualidade",
-            1: "Qualidade moderada",
-            2: "Baixa qualidade",
-        }.get(v, "Fora da escala selecionada")
-
-    if scale == "Foken — escala estendida (1–9)":
-        if 1 <= v <= 3:
-            return "Alta qualidade"
-        if 4 <= v <= 6:
-            return "Qualidade moderada"
-        if 7 <= v <= 9:
-            return "Baixa qualidade"
-        return "Fora da escala selecionada"
-
-    return "Fora da escala selecionada"
-
-def base_name_for_grouping(name):
-    n = str(name)
-    suffixes = [
-        "_orig", "_fall_qc", "_fqc", "_fall", "_fsdug", "_fsdu",
-        "_fsd", "_fnum", "_fmeth", "_fwin", "_f", "_qc", "_sd"
-    ]
-    changed = True
-    while changed:
-        changed = False
-        for s in suffixes:
-            if n.lower().endswith(s.lower()):
-                n = n[:-len(s)]
-                changed = True
-                break
-    return n
-
-def scientific_group(name):
-    raw = str(name)
-    base = base_name_for_grouping(raw)
-    candidates = {raw.lower(), base.lower()}
-
-    if is_qc(raw):
-        return "Diagnósticos e Controle de Qualidade"
-
-    if raw.lower() in TEMPORAL_FIELDS or base.lower() in TEMPORAL_FIELDS:
-        return "Temporal e Identificação"
-
-    for group, info in SCIENTIFIC_STRUCTURE.items():
-        aliases = {str(a).lower() for a in info["aliases"]}
-        if candidates & aliases:
-            return group
-
-    # Heurísticas para nomes compostos da planilha
-    low = raw.lower()
-    if any(k in low for k in ["wind", "ustar", "u*", "sonic", "tke", "tau"]):
-        return "Ventos e Turbulência"
-    if any(k in low for k in ["co2", "nee", "gpp", "reco", "h2o_flux", "latent", "sensible"]):
-        return "Fluxos de Energia e Massa"
-    if any(k in low for k in ["rad", "rg", "sw_", "lw_", "net", "par", "ppfd"]):
-        return "Balanço de Radiação"
-    if any(k in low for k in ["tair", "airtc", "rh", "vpd", "tsoil", "soil", "swc", "vwc", "precip", "press"]):
-        return "Variáveis Bioclimáticas e de Solo"
-    if any(k in low for k in ["footprint", "diag", "qc"]):
-        return "Diagnósticos e Controle de Qualidade"
-
-    return "Outras Variáveis / Produtos Derivados"
-
-def grouped_physical_columns(df):
-    groups = {}
-    for c in physical_columns(df):
-        g = scientific_group(c)
-        groups.setdefault(g, []).append(c)
-    return groups
-
-VARIABLE_PALETTE = [
-    "#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e",
-    "#17becf", "#8c564b", "#e377c2", "#bcbd22", "#7f7f7f",
-    "#393b79", "#637939", "#8c6d31", "#843c39", "#7b4173",
-]
+SCIENTIFIC_GROUPS = {
+    "Ventos e Turbulência": [
+        "WS", "WindDir", "u", "v", "w", "ustar", "u*", "TKE", "sonic", "Tau"
+    ],
+    "Fluxos de Energia e Massa": [
+        "H", "LE", "Fc", "co2_flux", "h2o_flux", "Tau", "NEE", "Reco", "GPP"
+    ],
+    "Balanço de Radiação": [
+        "Rg_i", "Rg_r", "Rg", "SW_IN", "SW_OUT", "LW_IN", "LW_OUT", "NET",
+        "Rn", "PAR", "PPFD"
+    ],
+    "Variáveis Bioclimáticas e de Solo": [
+        "T_ar", "Tair", "AirTC", "UR_ar", "RH", "rH", "VPD", "PA", "P",
+        "T_solo", "Tsoil", "VW_", "SWC", "VWC", "PPT", "G"
+    ],
+    "Diagnósticos e Controle de Qualidade": [
+        "qc_", "_qc", "_fqc", "diag", "footprint"
+    ],
+}
 
 def variable_color(var):
-    text = str(var)
-    idx = sum((i + 1) * ord(ch) for i, ch in enumerate(text)) % len(VARIABLE_PALETTE)
+    idx = sum((i + 1) * ord(ch) for i, ch in enumerate(str(var))) % len(VARIABLE_PALETTE)
     return VARIABLE_PALETTE[idx]
 
-def colors_for_variables(vars_):
-    used, out = set(), {}
-    for v in vars_:
-        pref = variable_color(v)
-        if pref not in used:
-            col = pref
-        else:
-            col = next((c for c in VARIABLE_PALETTE if c not in used), pref)
-        out[v] = col
-        used.add(col)
-    return out
+def qc_color(code):
+    try:
+        return QC_CODE_COLORS.get(int(float(code)), "#7f7f7f")
+    except Exception:
+        return "#7f7f7f"
 
 def is_qc(name):
     n = str(name).lower()
-    return any(t in n for t in QC_TOKENS)
+    return n.startswith("qc_") or "_qc" in n or "_fqc" in n or n.endswith("_qc")
 
-def is_auxiliary(name):
-    n = str(name).lower()
-    return n.endswith(AUXILIARY_SUFFIXES)
+def scientific_group(name):
+    n = str(name)
+    low = n.lower()
+    if low in TEMPORAL_FIELDS:
+        return "Temporal e Identificação"
+    if is_qc(n):
+        return "Diagnósticos e Controle de Qualidade"
 
-def is_uncertainty(name):
-    n = str(name).lower()
-    return n.endswith(UNCERTAINTY_SUFFIXES)
+    # ordem deliberada para evitar classificar GPP como G (solo)
+    for group in [
+        "Fluxos de Energia e Massa",
+        "Balanço de Radiação",
+        "Ventos e Turbulência",
+        "Variáveis Bioclimáticas e de Solo",
+        "Diagnósticos e Controle de Qualidade",
+    ]:
+        for token in SCIENTIFIC_GROUPS[group]:
+            if token.lower() in low:
+                return group
+    return "Outras Variáveis / Produtos Derivados"
 
 def clean_numeric(series):
     s = pd.to_numeric(series, errors="coerce")
     return s.mask(s.isin(MISSING_SENTINELS))
 
-@st.cache_data(show_spinner=False)
-def load_original_workbook(uploaded_file):
-    xls = pd.ExcelFile(uploaded_file)
-    sheet = "output" if "output" in xls.sheet_names else xls.sheet_names[0]
-
-    # Lê cabeçalho + linha de unidades separadamente.
-    meta = pd.read_excel(uploaded_file, sheet_name=sheet, header=None, nrows=2)
-    headers = [str(x).strip() for x in meta.iloc[0].tolist()]
-    raw_units = meta.iloc[1].tolist()
-    units = {
-        h: str(u).strip()
-        for h, u in zip(headers, raw_units)
-        if pd.notna(u) and str(u).strip() not in {"", "-", "nan"}
-    }
-
-    # A segunda linha da planilha é de unidades, portanto é ignorada como dado.
-    df = pd.read_excel(uploaded_file, sheet_name=sheet, header=0, skiprows=[1]).copy()
-
-    time_candidates = [
-        c for c in df.columns
-        if str(c).strip().lower() in {"date time", "datetime", "date_time", "datatime", "timestamp"}
-    ]
-    if not time_candidates:
-        raise ValueError("Não foi encontrada a coluna temporal da planilha.")
-
-    time_col = time_candidates[0]
-    df["TIMESTAMP"] = pd.to_datetime(df[time_col], errors="coerce")
-    df = df[df["TIMESTAMP"].notna()].sort_values("TIMESTAMP").reset_index(drop=True)
-
-    for c in df.columns:
-        if c in {time_col, "TIMESTAMP"}:
-            continue
-        converted = pd.to_numeric(df[c], errors="coerce")
-        if converted.notna().sum() > 0:
-            # -9999 é marcador de ausência nesta planilha.
-            df[c] = converted.mask(converted.isin(MISSING_SENTINELS))
-
-    return df, sheet, time_col, units
+def unit_label(var, units):
+    u = units.get(var, "")
+    return f"{var} [{u}]" if str(u).strip() else str(var)
 
 def unit_only(var, units):
-    u = units.get(var)
-    if u is None or str(u).strip() == "":
-        return "unidade não informada"
-    return str(u).strip()
+    u = str(units.get(var, "")).strip()
+    return u if u else tr("unidade não informada", "unit not reported")
 
-def unit_label(var, units):
-    u = unit_only(var, units)
-    return str(var) if u == "unidade não informada" else f"{var} [{u}]"
+def resolution_label(value):
+    if PT:
+        return value
+    return {
+        "1 min": "1 min",
+        "30 min": "30 min",
+        "Horário": "Hourly",
+        "Diário": "Daily",
+        "Semanal": "Weekly",
+        "Mensal": "Monthly",
+    }.get(value, value)
 
-def valid_pct(s):
-    return 100 * s.notna().mean() if len(s) else np.nan
+def temporal_hover_text(ts, resolution):
+    ts = pd.Timestamp(ts)
+    if resolution == "1 min":
+        return ts.strftime("%d/%m/%Y %H:%M")
+    if resolution == "30 min":
+        return ts.strftime("%d/%m/%Y %H:%M")
+    if resolution == "Horário":
+        return ts.strftime("%d/%m/%Y %H:00")
+    if resolution == "Diário":
+        return ts.strftime("%d/%m/%Y")
+    if resolution == "Semanal":
+        end = ts.normalize()
+        start = end - pd.Timedelta(days=6)
+        return f"{start:%d/%m/%Y} – {end:%d/%m/%Y}"
+    if resolution == "Mensal":
+        months_pt = [
+            "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+            "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
+        ]
+        months_en = [
+            "January","February","March","April","May","June",
+            "July","August","September","October","November","December"
+        ]
+        months = months_pt if PT else months_en
+        return f"{months[ts.month-1]}/{ts.year}"
+    return ts.strftime("%d/%m/%Y %H:%M")
 
-def physical_columns(df):
-    out = []
-    for c in df.columns:
-        n = str(c).strip().lower()
-        if c == "TIMESTAMP" or n in TEMPORAL_FIELDS:
-            continue
-        if is_qc(c) or is_auxiliary(c):
-            continue
-        if pd.api.types.is_numeric_dtype(df[c]):
-            out.append(c)
-    return out
+def temporal_axis_title(resolution):
+    return tr(
+        {
+            "1 min": "Data e hora",
+            "30 min": "Data e hora",
+            "Horário": "Data e hora",
+            "Diário": "Data",
+            "Semanal": "Período semanal",
+            "Mensal": "Mês",
+        }.get(resolution, "Data e hora"),
+        {
+            "1 min": "Date and time",
+            "30 min": "Date and time",
+            "Horário": "Date and time",
+            "Diário": "Date",
+            "Semanal": "Weekly period",
+            "Mensal": "Month",
+        }.get(resolution, "Date and time"),
+    )
 
-def qc_columns(df):
-    return [
-        c for c in df.columns
-        if c != "TIMESTAMP" and is_qc(c) and pd.api.types.is_numeric_dtype(df[c])
-    ]
-
-def uncertainty_columns(df):
-    return [
-        c for c in df.columns
-        if pd.api.types.is_numeric_dtype(df[c]) and is_uncertainty(c)
-    ]
-
-def period_controls(prefix, full_start, full_end):
+def period_controls(prefix, start, end):
     c1, c2, c3, c4 = st.columns(4)
-    d1 = c1.date_input("Data inicial", value=full_start.date(), key=f"{prefix}_d1")
-    t1 = c2.time_input("Hora inicial", value=full_start.time(), key=f"{prefix}_t1")
-    d2 = c3.date_input("Data final", value=full_end.date(), key=f"{prefix}_d2")
-    t2 = c4.time_input("Hora final", value=full_end.time(), key=f"{prefix}_t2")
+    d1 = c1.date_input(tr("Data inicial", "Start date"), start.date(), key=f"{prefix}_d1")
+    t1 = c2.time_input(tr("Hora inicial", "Start time"), start.time(), key=f"{prefix}_t1")
+    d2 = c3.date_input(tr("Data final", "End date"), end.date(), key=f"{prefix}_d2")
+    t2 = c4.time_input(tr("Hora final", "End time"), end.time(), key=f"{prefix}_t2")
     return pd.Timestamp.combine(d1, t1), pd.Timestamp.combine(d2, t2)
 
 def filter_period(df, start, end):
@@ -324,7 +308,7 @@ def filter_period(df, start, end):
 
 def aggregate_numeric(df, vars_, resolution):
     d = df[["TIMESTAMP"] + vars_].copy().set_index("TIMESTAMP")
-    if resolution == "30 min":
+    if resolution in {"1 min", "30 min"}:
         return d.reset_index()
     rule = {
         "Horário": "1h",
@@ -334,95 +318,122 @@ def aggregate_numeric(df, vars_, resolution):
     }[resolution]
     return d.resample(rule).mean(numeric_only=True).reset_index()
 
-
-def temporal_hover_text(ts, resolution):
-    ts = pd.Timestamp(ts)
-    if resolution == "30 min":
-        return ts.strftime("%d/%m/%Y %H:%M")
-    if resolution == "Horário":
-        return ts.strftime("%d/%m/%Y %H:00")
-    if resolution == "Diário":
-        return ts.strftime("%d/%m/%Y")
-    if resolution == "Semanal":
-        # Para resample 1W do pandas, o timestamp representa o fim da janela semanal.
-        week_end = ts.normalize()
-        week_start = week_end - pd.Timedelta(days=6)
-        return f"{week_start:%d/%m/%Y} – {week_end:%d/%m/%Y}"
-    if resolution == "Mensal":
-        meses = [
-            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-        ]
-        return f"{meses[ts.month - 1]}/{ts.year}"
-    return ts.strftime("%d/%m/%Y %H:%M")
-
-
-def resolution_label(value):
-    if PT:
-        return value
+def expected_timedelta(source_key):
     return {
-        "30 min": "30 min",
-        "Horário": "Hourly",
-        "Diário": "Daily",
-        "Semanal": "Weekly",
-        "Mensal": "Monthly",
-    }.get(value, value)
+        "1 min": pd.Timedelta(minutes=1),
+        "30 min": pd.Timedelta(minutes=30),
+        "Diário": pd.Timedelta(days=1),
+    }.get(source_key)
 
-def temporal_axis_title(resolution):
-    return {
-        "30 min": "Data e hora",
-        "Horário": "Data e hora",
-        "Diário": "Data",
-        "Semanal": "Período semanal",
-        "Mensal": "Mês",
-    }.get(resolution, "Data e hora")
+def gap_table(df, expected):
+    if df is None or df.empty or expected is None:
+        return pd.DataFrame()
+    d = df[["TIMESTAMP"]].dropna().sort_values("TIMESTAMP").copy()
+    d["diff"] = d["TIMESTAMP"].diff()
+    gaps = d[d["diff"] > expected * 1.5].copy()
+    rows = []
+    for idx, row in gaps.iterrows():
+        current = row["TIMESTAMP"]
+        previous = d.loc[d.index[d.index.get_loc(idx)-1], "TIMESTAMP"]
+        missing_est = max(int(round(row["diff"] / expected)) - 1, 0)
+        rows.append({
+            tr("Último registro antes da lacuna", "Last record before gap"): previous,
+            tr("Primeiro registro após a lacuna", "First record after gap"): current,
+            tr("Duração", "Duration"): str(row["diff"]),
+            tr("Registros esperados ausentes", "Estimated missing records"): missing_est,
+        })
+    return pd.DataFrame(rows)
 
-def valid_range(df, var):
-    s = pd.to_numeric(df[var], errors="coerce")
-    m = s.notna() & df["TIMESTAMP"].notna()
-    if not m.any():
-        return None, None, 0
-    tt = df.loc[m, "TIMESTAMP"]
-    return tt.min(), tt.max(), int(m.sum())
+def add_gap_breaks(x, y, expected):
+    if expected is None or len(x) == 0:
+        return list(x), list(y)
 
-def line_plot(data, vars_, units, title, start=None, end=None, resolution="30 min"):
-    colors = colors_for_variables(vars_)
-    hover_time = [temporal_hover_text(ts, resolution) for ts in data["TIMESTAMP"]]
+    xs, ys = [], []
+    prev = None
+    for ts, val in zip(x, y):
+        ts = pd.Timestamp(ts)
+        if prev is not None and ts - prev > expected * 1.5:
+            xs.append(prev + expected)
+            ys.append(None)
+        xs.append(ts)
+        ys.append(None if pd.isna(val) else val)
+        prev = ts
+    return xs, ys
 
+def line_plot(data, vars_, units, title, start, end, resolution, source_expected=None):
     fig = go.Figure()
+    colors = {v: variable_color(v) for v in vars_}
+
     for v in vars_:
         values = pd.to_numeric(data[v], errors="coerce")
-        fig.add_trace(go.Scattergl(
-            x=data["TIMESTAMP"],
-            y=values,
-            mode="lines",
-            name=unit_label(v, units),
-            line=dict(color=colors[v], width=2),
-            connectgaps=False,
-            customdata=np.column_stack([
-                np.array(hover_time, dtype=object),
+        x = data["TIMESTAMP"]
+
+        if resolution in {"1 min", "30 min"} and source_expected is not None:
+            pxs, pys = add_gap_breaks(x, values, source_expected)
+            hover = [
+                temporal_hover_text(ts, resolution) if ts is not None else ""
+                for ts in pxs
+            ]
+            custom = np.column_stack([
+                np.array(hover, dtype=object),
+                np.array([unit_only(v, units)] * len(pxs), dtype=object),
+            ])
+            fig.add_trace(go.Scattergl(
+                x=pxs, y=pys, mode="lines",
+                name=unit_label(v, units),
+                line=dict(color=colors[v], width=1.8),
+                connectgaps=False,
+                customdata=custom,
+                hovertemplate=(
+                    "<b>%{customdata[0]}</b><br>"
+                    + str(v) + ": %{y:.6g} %{customdata[1]}<extra></extra>"
+                ),
+            ))
+        else:
+            hover = [temporal_hover_text(ts, resolution) for ts in x]
+            custom = np.column_stack([
+                np.array(hover, dtype=object),
                 np.array([unit_only(v, units)] * len(data), dtype=object),
-            ]),
-            hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                + str(v) + ": %{y:.6g} %{customdata[1]}"
-                "<extra></extra>"
-            ),
-        ))
+            ])
+            fig.add_trace(go.Scattergl(
+                x=x, y=values, mode="lines",
+                name=unit_label(v, units),
+                line=dict(color=colors[v], width=1.8),
+                connectgaps=False,
+                customdata=custom,
+                hovertemplate=(
+                    "<b>%{customdata[0]}</b><br>"
+                    + str(v) + ": %{y:.6g} %{customdata[1]}<extra></extra>"
+                ),
+            ))
 
     fig.update_layout(
         title=title,
         xaxis_title=temporal_axis_title(resolution),
-        yaxis_title="Valor",
+        yaxis_title=tr("Valor", "Value"),
         hovermode="x unified",
         height=480,
         margin=dict(l=20, r=20, t=55, b=20),
     )
-    if start is not None and end is not None:
-        fig.update_xaxes(range=[start, end])
+    fig.update_xaxes(range=[start, end])
     st.plotly_chart(fig, use_container_width=True)
 
-
+def stats_table(df, vars_, units):
+    rows = []
+    for v in vars_:
+        s = pd.to_numeric(df[v], errors="coerce")
+        rows.append({
+            tr("Variável", "Variable"): v,
+            tr("Unidade", "Unit"): unit_only(v, units),
+            tr("N disponível", "N available"): int(s.notna().sum()),
+            tr("Disponibilidade (%)", "Availability (%)"): round(100*s.notna().mean(), 2) if len(s) else np.nan,
+            tr("Média", "Mean"): s.mean(),
+            tr("Mediana", "Median"): s.median(),
+            tr("Desvio-padrão", "Standard deviation"): s.std(),
+            tr("Mínimo", "Minimum"): s.min(),
+            tr("Máximo", "Maximum"): s.max(),
+        })
+    show_table(pd.DataFrame(rows))
 
 def comparison_mode_label(value):
     if PT:
@@ -434,1142 +445,881 @@ def comparison_mode_label(value):
         "Normalizado (z-score)": "Normalized (z-score)",
     }.get(value, value)
 
-def plot_separate_variables(data, vars_, units, start, end, resolution):
-    for v in vars_:
-        line_plot(
-            data[["TIMESTAMP", v]].copy(),
-            [v],
-            units,
-            unit_label(v, units),
-            start,
-            end,
-            resolution,
-        )
-
 def plot_two_y_axes(data, vars_, units, start, end, resolution):
-    hover_time = [temporal_hover_text(ts, resolution) for ts in data["TIMESTAMP"]]
-    colors = colors_for_variables(vars_)
     fig = go.Figure()
-
+    hover = [temporal_hover_text(ts, resolution) for ts in data["TIMESTAMP"]]
     for i, v in enumerate(vars_):
-        axis_name = "y" if i % 2 == 0 else "y2"
-        values = pd.to_numeric(data[v], errors="coerce")
-
         fig.add_trace(go.Scattergl(
             x=data["TIMESTAMP"],
-            y=values,
+            y=data[v],
             mode="lines",
             name=unit_label(v, units),
-            line=dict(color=colors[v], width=2),
-            yaxis=axis_name,
-            customdata=np.column_stack([
-                np.array(hover_time, dtype=object),
-                np.array([unit_only(v, units)] * len(data), dtype=object),
-            ]),
+            line=dict(color=variable_color(v), width=1.8),
+            yaxis="y" if i % 2 == 0 else "y2",
+            customdata=np.array(hover, dtype=object).reshape(-1, 1),
             hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                + str(v) + ": %{y:.6g} %{customdata[1]}"
-                "<extra></extra>"
+                "<b>%{customdata[0]}</b><br>" + str(v) +
+                ": %{y:.6g} " + unit_only(v, units) + "<extra></extra>"
             ),
         ))
-
-    left_vars = [v for i, v in enumerate(vars_) if i % 2 == 0]
-    right_vars = [v for i, v in enumerate(vars_) if i % 2 == 1]
-
+    left = [v for i, v in enumerate(vars_) if i % 2 == 0]
+    right = [v for i, v in enumerate(vars_) if i % 2 == 1]
     fig.update_layout(
-        title="Comparação com dois eixos Y" if PT else "Comparison with two Y axes",
+        title=tr("Comparação com dois eixos Y", "Comparison with two Y axes"),
         xaxis_title=temporal_axis_title(resolution),
-        yaxis=dict(
-            title=", ".join(left_vars),
-            side="left",
-        ),
-        yaxis2=dict(
-            title=", ".join(right_vars),
-            overlaying="y",
-            side="right",
-        ),
+        yaxis=dict(title=", ".join(left)),
+        yaxis2=dict(title=", ".join(right), overlaying="y", side="right"),
         hovermode="x unified",
         height=500,
-        margin=dict(l=20, r=20, t=55, b=20),
     )
     fig.update_xaxes(range=[start, end])
     st.plotly_chart(fig, use_container_width=True)
 
 def plot_zscore(data, vars_, start, end, resolution):
-    hover_time = [temporal_hover_text(ts, resolution) for ts in data["TIMESTAMP"]]
-    colors = colors_for_variables(vars_)
     fig = go.Figure()
-
+    hover = [temporal_hover_text(ts, resolution) for ts in data["TIMESTAMP"]]
     for v in vars_:
         s = pd.to_numeric(data[v], errors="coerce")
-        mean = s.mean()
-        std = s.std()
-        z = (s - mean) / std if pd.notna(std) and std != 0 else s * np.nan
-
+        sd = s.std()
+        z = (s - s.mean()) / sd if pd.notna(sd) and sd != 0 else s*np.nan
         fig.add_trace(go.Scattergl(
-            x=data["TIMESTAMP"],
-            y=z,
-            mode="lines",
+            x=data["TIMESTAMP"], y=z, mode="lines",
             name=v,
-            line=dict(color=colors[v], width=2),
-            customdata=np.array(hover_time, dtype=object).reshape(-1, 1),
-            hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                + str(v) + ": %{y:.3f} z"
-                "<extra></extra>"
-            ),
+            line=dict(color=variable_color(v), width=1.8),
+            customdata=np.array(hover, dtype=object).reshape(-1, 1),
+            hovertemplate="<b>%{customdata[0]}</b><br>"+str(v)+": %{y:.3f} z<extra></extra>",
         ))
-
     fig.update_layout(
-        title="Comparação normalizada (z-score)" if PT else "Normalized comparison (z-score)",
+        title=tr("Comparação normalizada (z-score)", "Normalized comparison (z-score)"),
         xaxis_title=temporal_axis_title(resolution),
         yaxis_title="z-score",
         hovermode="x unified",
         height=500,
-        margin=dict(l=20, r=20, t=55, b=20),
     )
     fig.update_xaxes(range=[start, end])
     st.plotly_chart(fig, use_container_width=True)
 
-def stats_table(df, vars_, units):
-    rows = []
-    for v in vars_:
-        s = pd.to_numeric(df[v], errors="coerce")
-        rows.append({
-            "Variável": v,
-            "Unidade": unit_only(v, units),
-            "N válido": int(s.notna().sum()),
-            "Disponibilidade (%)": round(valid_pct(s), 2),
-            "Média": s.mean(),
-            "Mediana": s.median(),
-            "Desvio-padrão": s.std(),
-            "Mínimo": s.min(),
-            "Máximo": s.max(),
-        })
-    show_table(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+# ============================================================
+# Leitura Campbell TOA5
+# ============================================================
 
-def family_columns(df, base):
-    candidates = [
-        base, f"{base}_orig", f"{base}_f", f"{base}_fall",
-        f"{base}_fsd", f"{base}_fqc", f"{base}_fall_qc",
-        f"{base}_fnum", f"{base}_fmeth", f"{base}_fwin",
+def _uploaded_bytes(uploaded_file):
+    if hasattr(uploaded_file, "getvalue"):
+        return uploaded_file.getvalue()
+    return uploaded_file.read()
+
+@st.cache_data(show_spinner=False)
+def parse_toa5_bytes(file_bytes, filename="arquivo.dat"):
+    text = file_bytes.decode("utf-8", errors="replace")
+    lines = text.splitlines()
+    if len(lines) < 5:
+        raise ValueError("Arquivo TOA5 incompleto.")
+
+    meta = next(csv.reader([lines[0]]))
+    headers = next(csv.reader([lines[1]]))
+    units_row = next(csv.reader([lines[2]]))
+    proc_row = next(csv.reader([lines[3]]))
+
+    if not meta or meta[0] != "TOA5":
+        raise ValueError("O arquivo não foi reconhecido como Campbell Scientific TOA5.")
+
+    df = pd.read_csv(
+        io.StringIO(text),
+        skiprows=4,
+        names=headers,
+        na_values=["NAN", "NaN", "-9999"],
+        low_memory=False,
+    )
+
+    if "TIMESTAMP" not in df.columns:
+        raise ValueError("Coluna TIMESTAMP não encontrada.")
+
+    df["TIMESTAMP"] = pd.to_datetime(df["TIMESTAMP"], errors="coerce")
+    df = df[df["TIMESTAMP"].notna()].sort_values("TIMESTAMP").reset_index(drop=True)
+
+    # Preservar colunas temporais auxiliares como texto; converter o restante quando possível.
+    for c in df.columns:
+        if c == "TIMESTAMP":
+            continue
+        if c.endswith("_TMx") or c.endswith("_TMn"):
+            continue
+        numeric = pd.to_numeric(df[c], errors="coerce")
+        if numeric.notna().sum() > 0:
+            df[c] = numeric.mask(numeric.isin(MISSING_SENTINELS))
+
+    units = {
+        h: str(u).strip()
+        for h, u in zip(headers, units_row)
+        if str(u).strip()
+    }
+    processing = {
+        h: str(p).strip()
+        for h, p in zip(headers, proc_row)
+        if str(p).strip()
+    }
+
+    table_name = meta[-1] if meta else filename
+    return df, units, processing, meta, table_name
+
+def identify_toa5_resolution(table_name, filename):
+    text = f"{table_name} {filename}".lower()
+    if "1min" in text or "1_min" in text:
+        return "1 min"
+    if "30min" in text or "30_min" in text:
+        return "30 min"
+    if "diario" in text or "daily" in text:
+        return "Diário"
+    return table_name
+
+# ============================================================
+# Leitura XLSX processado
+# ============================================================
+
+@st.cache_data(show_spinner=False)
+def load_processed_xlsx(file_bytes):
+    bio = io.BytesIO(file_bytes)
+    xls = pd.ExcelFile(bio)
+    sheet = "output" if "output" in xls.sheet_names else xls.sheet_names[0]
+
+    bio.seek(0)
+    meta = pd.read_excel(bio, sheet_name=sheet, header=None, nrows=2)
+    headers = [str(x).strip() for x in meta.iloc[0].tolist()]
+    raw_units = meta.iloc[1].tolist()
+    units = {
+        h: str(u).strip()
+        for h, u in zip(headers, raw_units)
+        if pd.notna(u) and str(u).strip() not in {"", "-", "nan"}
+    }
+
+    bio.seek(0)
+    df = pd.read_excel(bio, sheet_name=sheet, header=0, skiprows=[1]).copy()
+
+    time_candidates = [
+        c for c in df.columns
+        if str(c).strip().lower() in {"date time","datetime","date_time","datatime","timestamp"}
     ]
-    return [c for c in candidates if c in df.columns]
+    if not time_candidates:
+        raise ValueError("Coluna temporal não encontrada na planilha processada.")
 
-def gapfill_status(df, base):
-    orig = f"{base}_orig"
-    filled = f"{base}_f"
-    if orig not in df.columns or filled not in df.columns:
-        return None
+    tc = time_candidates[0]
+    df["TIMESTAMP"] = pd.to_datetime(df[tc], errors="coerce")
+    df = df[df["TIMESTAMP"].notna()].sort_values("TIMESTAMP").reset_index(drop=True)
 
-    a = pd.to_numeric(df[orig], errors="coerce")
-    b = pd.to_numeric(df[filled], errors="coerce")
-    measured = a.notna()
-    filled_only = a.isna() & b.notna()
-    missing = b.isna()
+    for c in df.columns:
+        if c in {tc, "TIMESTAMP"}:
+            continue
+        num = pd.to_numeric(df[c], errors="coerce")
+        if num.notna().sum() > 0:
+            df[c] = num.mask(num.isin(MISSING_SENTINELS))
 
-    return pd.Series(
-        np.select(
-            [measured, filled_only, missing],
-            ["Observado", "Preenchido", "Ausente"],
-            default="Ausente",
-        ),
-        index=df.index,
-    )
-
-def plot_observed_filled(df, base, units, start, end, resolution):
-    orig = f"{base}_orig"
-    filled = f"{base}_f"
-
-    if orig not in df.columns or filled not in df.columns:
-        st.info(f"A família {base} não possui simultaneamente {orig} e {filled}.")
-        return
-
-    sub = filter_period(df, start, end)
-    if sub.empty:
-        st.info("Sem registros no período selecionado.")
-        return
-
-    if resolution == "30 min":
-        fig = go.Figure()
-        obs = pd.to_numeric(sub[orig], errors="coerce")
-        fil = pd.to_numeric(sub[filled], errors="coerce")
-        filled_only = obs.isna() & fil.notna()
-
-        obs_times = [temporal_hover_text(ts, "30 min") for ts in sub["TIMESTAMP"]]
-        fill_times = [
-            temporal_hover_text(ts, "30 min")
-            for ts in sub.loc[filled_only, "TIMESTAMP"]
-        ]
-        base_unit = unit_only(base, units)
-
-        fig.add_trace(go.Scattergl(
-            x=sub["TIMESTAMP"], y=obs, mode="lines",
-            name=f"{orig} — observado",
-            line=dict(color="#1f77b4", width=1.5),
-            connectgaps=False,
-            customdata=np.array(obs_times, dtype=object).reshape(-1, 1),
-            hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                + f"{orig}: " + "%{y:.6g} " + base_unit +
-                "<extra></extra>"
-            ),
-        ))
-        fig.add_trace(go.Scattergl(
-            x=sub.loc[filled_only, "TIMESTAMP"],
-            y=fil.loc[filled_only],
-            mode="markers",
-            name=f"{filled} — preenchido onde {orig} está ausente",
-            marker=dict(color="#d62728", size=5, symbol="circle"),
-            customdata=np.array(fill_times, dtype=object).reshape(-1, 1),
-            hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                + f"{filled}: " + "%{y:.6g} " + base_unit +
-                "<extra></extra>"
-            ),
-        ))
-        fig.update_layout(
-            title=f"{base}: observado × preenchido",
-            xaxis_title="Data e hora",
-            yaxis_title=unit_label(base, units),
-            hovermode="closest",
-            height=500,
-            margin=dict(l=20, r=20, t=55, b=20),
-        )
-        fig.update_xaxes(range=[start, end])
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        agg = aggregate_numeric(sub, [orig, filled], resolution)
-        line_plot(
-            agg, [orig, filled], units,
-            f"{base}: observado × preenchido — {resolution.lower()}",
-            start, end, resolution,
-        )
-
-    status = gapfill_status(sub, base)
-    if status is not None:
-        counts = status.value_counts()
-        total = len(status)
-        rows = []
-        for k in ["Observado", "Preenchido", "Ausente"]:
-            n = int(counts.get(k, 0))
-            rows.append({
-                "Situação": k,
-                "Registros": n,
-                "Percentual (%)": round(100*n/total, 2) if total else 0,
-            })
-        show_table(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-def qc_code_table(series):
-    s = pd.to_numeric(series, errors="coerce").dropna()
-    if s.empty:
-        return pd.DataFrame(columns=["Código QC", "N", "Percentual (%)", "Significado"])
-    counts = s.value_counts().sort_index()
-    total = counts.sum()
-    rows = []
-    for val, n in counts.items():
-        disp = int(val) if float(val).is_integer() else val
-        rows.append({
-            "Código QC": disp,
-            "N": int(n),
-            "Percentual (%)": round(100*int(n)/total, 2),
-            "Significado": "Não documentado na planilha",
-        })
-    return pd.DataFrame(rows)
+    return df, units, sheet
 
 # ============================================================
-# Sidebar / carga
+# Uploads
 # ============================================================
 
-st.sidebar.title("EcoFlux Brasil")
+st.sidebar.subheader(tr("Fontes de dados", "Data sources"))
 
-LANGUAGE = st.sidebar.selectbox(
-    "Idioma / Language",
-    ["Português", "English"],
-    index=0,
-    key="app_language_v26",
-)
-
-PT = LANGUAGE == "Português"
-
-st.sidebar.caption(
-    "A interface do EcoFlux muda de idioma. Nomes das variáveis e unidades da fonte são preservados."
-    if PT else
-    "The EcoFlux interface changes language. Source variable names and units are preserved."
-)
-
-T = {
-    "nav": "Navegação" if PT else "Navigation",
-    "upload": "Carregar planilha original" if PT else "Upload original workbook",
-    "overview": "Visão Geral" if PT else "Overview",
-    "structure": "Estrutura Científica" if PT else "Scientific Structure",
-    "series": "Séries Científicas" if PT else "Scientific Time Series",
-    "compare": "Comparar Variáveis" if PT else "Compare Variables",
-    "gap": "Preenchimento de Lacunas" if PT else "Gap Filling",
-    "carbon": "Balanço de Carbono" if PT else "Carbon Balance",
-    "qc": "Qualidade dos Dados" if PT else "Data Quality",
-    "about": "Sobre os Dados" if PT else "About the Data",
-    "request": "Solicitar Dados" if PT else "Request Data",
-}
-
-PAGE_KEY = {
-    T["overview"]: "overview",
-    T["structure"]: "structure",
-    T["series"]: "series",
-    T["compare"]: "compare",
-    T["gap"]: "gap",
-    T["carbon"]: "carbon",
-    T["qc"]: "qc",
-    T["about"]: "about",
-    T["request"]: "request",
-}
-
-
-TABLE_MODE = st.sidebar.radio(
-    "Tabelas" if PT else "Tables",
-    (
-        ["Português — controles próprios", "Nativa do Streamlit"]
-        if PT else
-        ["English — custom controls", "Native Streamlit"]
-    ),
-    index=0,
-    key="table_mode_v27",
-    help=(
-        "A opção em português usa controles próprios e elimina os menus internos em inglês do Streamlit. "
-        "A opção nativa mantém os recursos completos do componente do Streamlit, cujo menu pode aparecer em inglês."
-        if PT else
-        "The custom option avoids Streamlit's internal context menu. "
-        "The native option keeps the full Streamlit table component."
+tower_files = st.sidebar.file_uploader(
+    tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
+    type=["dat"],
+    accept_multiple_files=True,
+    key="tower_dat_v29",
+    help=tr(
+        "Carregue os arquivos TOA5 de 1 min, 30 min e diário. O EcoFlux reconhece cada resolução automaticamente.",
+        "Upload TOA5 1-min, 30-min and daily files. EcoFlux identifies each resolution automatically.",
     ),
 )
 
-CUSTOM_TABLES = TABLE_MODE in {
-    "Português — controles próprios",
-    "English — custom controls",
-}
-
-_TABLE_COUNTER = 0
-
-def show_table(data, use_container_width=True, hide_index=True):
-    global _TABLE_COUNTER
-    _TABLE_COUNTER += 1
-    key = f"ecoflux_table_{_TABLE_COUNTER}"
-
-    if not CUSTOM_TABLES:
-        st.dataframe(
-            data,
-            use_container_width=use_container_width,
-            hide_index=hide_index,
-        )
-        return
-
-    view = data.copy() if isinstance(data, pd.DataFrame) else pd.DataFrame(data)
-
-    if len(view.columns) > 0:
-        with st.expander(
-            "Opções da tabela" if PT else "Table options",
-            expanded=False,
-        ):
-            cols = list(view.columns)
-            c1, c2, c3 = st.columns([2, 1, 1])
-
-            sort_col = c1.selectbox(
-                "Ordenar por" if PT else "Sort by",
-                ["—"] + cols,
-                key=f"{key}_sort_col",
-            )
-
-            direction = c2.selectbox(
-                "Ordem" if PT else "Order",
-                ["Crescente", "Decrescente"] if PT else ["Ascending", "Descending"],
-                key=f"{key}_sort_dir",
-            )
-
-            max_rows = c3.selectbox(
-                "Linhas" if PT else "Rows",
-                [25, 50, 100, 250, "Todas" if PT else "All"],
-                index=1,
-                key=f"{key}_rows",
-            )
-
-            visible_cols = st.multiselect(
-                "Colunas visíveis" if PT else "Visible columns",
-                cols,
-                default=cols,
-                key=f"{key}_visible",
-            )
-
-        if visible_cols:
-            view = view[visible_cols]
-
-        if sort_col != "—" and sort_col in view.columns:
-            ascending = direction in {"Crescente", "Ascending"}
-            try:
-                view = view.sort_values(sort_col, ascending=ascending, na_position="last")
-            except Exception:
-                view = view.assign(
-                    __sort=view[sort_col].astype(str)
-                ).sort_values("__sort", ascending=ascending).drop(columns="__sort")
-
-        if max_rows not in {"Todas", "All"}:
-            view = view.head(int(max_rows))
-
-    st.markdown(
-        """
-        <style>
-        .ecoflux-table-wrap {
-            overflow-x: auto;
-            border: 1px solid rgba(128,128,128,.25);
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-        }
-        .ecoflux-table-wrap table {
-            border-collapse: collapse;
-            width: 100%;
-            font-size: 0.93rem;
-        }
-        .ecoflux-table-wrap th, .ecoflux-table-wrap td {
-            padding: 0.45rem 0.65rem;
-            border-bottom: 1px solid rgba(128,128,128,.18);
-            text-align: left;
-            white-space: nowrap;
-        }
-        .ecoflux-table-wrap th {
-            font-weight: 600;
-            background: rgba(128,128,128,.08);
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<div class="ecoflux-table-wrap">' +
-        view.to_html(index=not hide_index, escape=True, border=0) +
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-st.sidebar.caption("Plataforma científica para séries micrometeorológicas e Eddy Covariance" if PT else "Scientific platform for micrometeorological and Eddy Covariance time series")
-
-uploaded = st.sidebar.file_uploader(
-    T["upload"],
+processed_file = st.sidebar.file_uploader(
+    tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
     type=["xlsx"],
-    help="Estrutura esperada: planilha output, cabeçalho na primeira linha e unidades na segunda.",
+    key="processed_xlsx_v29",
 )
 
-if uploaded is None:
+tower_sources = {}
+tower_meta = {}
+
+for f in tower_files or []:
+    try:
+        data, units, processing, meta, table_name = parse_toa5_bytes(
+            _uploaded_bytes(f), f.name
+        )
+        res = identify_toa5_resolution(table_name, f.name)
+        tower_sources[res] = {
+            "df": data,
+            "units": units,
+            "processing": processing,
+            "table_name": table_name,
+            "filename": f.name,
+        }
+        tower_meta[res] = meta
+    except Exception as exc:
+        st.sidebar.error(f"{f.name}: {exc}")
+
+processed = None
+if processed_file is not None:
+    try:
+        pdf, punits, psheet = load_processed_xlsx(_uploaded_bytes(processed_file))
+        processed = {"df": pdf, "units": punits, "sheet": psheet}
+    except Exception as exc:
+        st.sidebar.error(tr(
+            f"Erro no XLSX processado: {exc}",
+            f"Processed XLSX error: {exc}",
+        ))
+
+if not tower_sources and processed is None:
     st.title("EcoFlux Brasil")
     st.info(
-        "Carregue a planilha original para iniciar. A V22 foi estruturada para o arquivo "
-        "`dados_preenchidos 4-6-25 a 2-4-26.xlsx`."
+        tr(
+            "Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.",
+            "Upload the CR3000 tower files and, optionally, the processed-products workbook.",
+        )
     )
     st.stop()
 
-try:
-    df, sheet_name, time_col, units = load_original_workbook(uploaded)
-except Exception as exc:
-    st.error(f"Não foi possível carregar a planilha: {exc}")
-    st.stop()
+# ============================================================
+# Navegação
+# ============================================================
 
-full_start = df["TIMESTAMP"].min()
-full_end = df["TIMESTAMP"].max()
-phys_vars = physical_columns(df)
-qc_vars = qc_columns(df)
-unc_vars = uncertainty_columns(df)
+pages = {
+    "overview": tr("Visão Geral", "Overview"),
+    "tower": tr("Dados Originais da Torre", "Original Tower Data"),
+    "structure": tr("Estrutura Científica", "Scientific Structure"),
+    "compare": tr("Comparar Variáveis", "Compare Variables"),
+    "gapfill": tr("Preenchimento de Lacunas", "Gap Filling"),
+    "carbon": tr("Balanço de Carbono", "Carbon Balance"),
+    "qc": tr("Qualidade dos Dados", "Data Quality"),
+    "about": tr("Sobre os Dados", "About the Data"),
+    "request": tr("Solicitar Dados", "Request Data"),
+}
 
-page = st.sidebar.radio(
-    T["nav"],
-    [
-        T["overview"],
-        T["structure"],
-        T["series"],
-        T["compare"],
-        T["gap"],
-        T["carbon"],
-        T["qc"],
-        T["about"],
-        T["request"],
-    ],
-)
-page_key = PAGE_KEY[page]
-
-st.sidebar.success(
-    f"{len(df):,} registros | {full_start:%d/%m/%Y} → {full_end:%d/%m/%Y}".replace(",", ".")
-)
+page = st.sidebar.radio(tr("Navegação", "Navigation"), list(pages.values()))
+page_key = next(k for k, v in pages.items() if v == page)
 
 # ============================================================
-# Páginas
+# Visão Geral
 # ============================================================
 
 if page_key == "overview":
     st.title("EcoFlux Brasil")
-    st.subheader("Dados originais de processamento" if PT else "Original processing data")
+    st.subheader(tr("Arquitetura atual das fontes", "Current data-source architecture"))
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Registros", f"{len(df):,}".replace(",", "."))
-    c2.metric("Variáveis físicas/produtos", len(phys_vars))
-    c3.metric("Indicadores QC", len(qc_vars))
-    c4.metric("Planilha", sheet_name)
-
-    st.markdown(
-        f"**Cobertura temporal:** {full_start:%d/%m/%Y %H:%M} → "
-        f"{full_end:%d/%m/%Y %H:%M}"
-    )
-
-    st.info(
-        "Nesta versão, `-9999` é tratado como marcador de ausência de dado. "
-        "Campos temporais e indicadores QC não são classificados como grandezas físicas."
-    )
-
-    family_rows = []
-    for base in GAPFILL_FAMILIES:
-        cols = family_columns(df, base)
-        if cols:
-            family_rows.append({
-                "Família": base,
-                "Unidade base": unit_only(base, units),
-                "Produtos encontrados": ", ".join(cols),
+    cards = []
+    order = ["1 min", "30 min", "Diário"]
+    for res in order:
+        if res in tower_sources:
+            d = tower_sources[res]["df"]
+            cards.append({
+                tr("Camada", "Layer"): tr("Dados originais da torre", "Original tower data"),
+                tr("Fonte", "Source"): tower_sources[res]["table_name"],
+                tr("Resolução", "Resolution"): resolution_label(res),
+                tr("Registros", "Records"): len(d),
+                tr("Início", "Start"): d["TIMESTAMP"].min().strftime("%d/%m/%Y %H:%M"),
+                tr("Fim", "End"): d["TIMESTAMP"].max().strftime("%d/%m/%Y %H:%M"),
             })
-    st.subheader("Organização científica")
-    grouped = grouped_physical_columns(df)
-    structure_rows = []
-    for group, vals in grouped.items():
-        structure_rows.append({
-            "Grupo": group,
-            "Variáveis/produtos identificados": len(vals),
+
+    if processed is not None:
+        d = processed["df"]
+        cards.append({
+            tr("Camada", "Layer"): tr("Produtos processados", "Processed products"),
+            tr("Fonte", "Source"): processed["sheet"],
+            tr("Resolução", "Resolution"): "30 min / produtos",
+            tr("Registros", "Records"): len(d),
+            tr("Início", "Start"): d["TIMESTAMP"].min().strftime("%d/%m/%Y %H:%M"),
+            tr("Fim", "End"): d["TIMESTAMP"].max().strftime("%d/%m/%Y %H:%M"),
         })
-    show_table(pd.DataFrame(structure_rows), use_container_width=True, hide_index=True)
 
-    st.subheader("Famílias de processamento identificadas")
-    show_table(pd.DataFrame(family_rows), use_container_width=True, hide_index=True)
+    show_table(pd.DataFrame(cards))
 
+    if "30 min" in tower_sources:
+        d = tower_sources["30 min"]["df"]
+        gaps = gap_table(d, expected_timedelta("30 min"))
+        st.subheader(tr(
+            "Continuidade temporal — série de 30 minutos",
+            "Temporal continuity — 30-minute series",
+        ))
+        if gaps.empty:
+            st.success(tr(
+                "Nenhuma lacuna temporal relevante foi detectada.",
+                "No relevant temporal gaps were detected.",
+            ))
+        else:
+            st.warning(tr(
+                f"Foram detectadas {len(gaps)} lacuna(s) real(is) na aquisição. "
+                "Os gráficos não conectam linhas através desses intervalos.",
+                f"{len(gaps)} real acquisition gap(s) were detected. "
+                "Plots do not connect lines across these intervals.",
+            ))
+            show_table(gaps)
 
-elif page_key == "structure":
-    st.header("Estrutura Científica dos Dados" if PT else "Scientific Data Structure")
-    st.write(
-        "O EcoFlux organiza as variáveis segundo a estrutura típica de uma torre micrometeorológica. "
-        "Essa classificação melhora a navegação, mas não altera nomes, valores ou unidades da planilha."
-    )
+    st.info(tr(
+        "Os arquivos CR3000 representam a camada observacional original da torre. "
+        "Produtos como NEE, GPP, Reco e séries preenchidas permanecem em uma camada separada.",
+        "CR3000 files represent the tower's original observational layer. "
+        "Products such as NEE, GPP, Reco and gap-filled series remain in a separate layer.",
+    ))
 
-    st.info(
-        "As unidades mostradas nas análises são sempre lidas do arquivo original quando disponíveis. "
-        "As unidades típicas abaixo funcionam apenas como referência científica e não substituem os metadados da fonte."
-    )
+# ============================================================
+# Dados Originais da Torre
+# ============================================================
 
-    grouped = grouped_physical_columns(df)
+elif page_key == "tower":
+    st.header(tr("Dados Originais da Torre", "Original Tower Data"))
 
-    typical_units = {
-        "Ventos e Turbulência": "m/s; graus; temperatura sônica em °C ou K, conforme a fonte",
-        "Fluxos de Energia e Massa": "H e LE tipicamente W/m²; fluxos de CO₂ tipicamente µmol m⁻² s⁻¹; Tau tipicamente Pa",
-        "Balanço de Radiação": "componentes radiativos tipicamente W/m²; PAR/PPFD tipicamente µmol m⁻² s⁻¹",
-        "Variáveis Bioclimáticas e de Solo": "temperatura, umidade, VPD, pressão, água no solo e fluxo de calor conforme o sensor/fonte",
-        "Diagnósticos e Controle de Qualidade": "QC sem unidade; footprint tipicamente em metros quando aplicável",
-        "Outras Variáveis / Produtos Derivados": "conforme metadados da planilha",
-    }
+    source_order = [x for x in ["1 min", "30 min", "Diário"] if x in tower_sources]
+    if not source_order:
+        st.info(tr("Nenhum arquivo CR3000 carregado.", "No CR3000 file loaded."))
+        st.stop()
 
-    for group in [
-        "Ventos e Turbulência",
-        "Fluxos de Energia e Massa",
-        "Balanço de Radiação",
-        "Variáveis Bioclimáticas e de Solo",
-        "Diagnósticos e Controle de Qualidade",
-        "Outras Variáveis / Produtos Derivados",
-    ]:
-        with st.expander(group, expanded=(group in ["Fluxos de Energia e Massa", "Balanço de Radiação"])):
-            info = SCIENTIFIC_STRUCTURE.get(group, {})
-            if info.get("description"):
-                st.write(info["description"])
-            st.caption(f"Referência típica: {typical_units[group]}")
-
-            vars_here = grouped.get(group, [])
-            if group == "Diagnósticos e Controle de Qualidade":
-                vars_here = sorted(set(vars_here + qc_vars))
-
-            if not vars_here:
-                st.write("Nenhuma variável desta categoria foi identificada no arquivo atual.")
-            else:
-                rows = []
-                for v in vars_here:
-                    first, last, n = valid_range(df, v)
-                    rows.append({
-                        "Variável": v,
-                        "Unidade da fonte": "sem unidade" if is_qc(v) else unit_only(v, units),
-                        "Primeiro registro disponível": first.strftime("%d/%m/%Y %H:%M") if first is not None else "—",
-                        "Último registro disponível": last.strftime("%d/%m/%Y %H:%M") if last is not None else "—",
-                        "N disponível": n,
-                    })
-                show_table(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-elif page_key == "series":
-    st.header("Séries Científicas" if PT else "Scientific Time Series")
-
-    groups = grouped_physical_columns(df)
-    group_options = [g for g, vals in groups.items() if vals]
-    selected_group = st.selectbox(
-        "Grupo científico" if PT else "Scientific group",
-        group_options,
-        key="single_group_v23",
-    )
-    vars_group = groups[selected_group]
-    var = st.selectbox(
-        "Variável/produto científico" if PT else "Scientific variable/product",
-        vars_group,
-        format_func=lambda x: unit_label(x, units),
-        key="single_var_v23",
-    )
-    start, end = period_controls("single", full_start, full_end)
-    resolution = st.selectbox(
-        "Resolução" if PT else "Resolution",
-        ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
-        index=0,
+    source = st.selectbox(
+        tr("Resolução observacional", "Observational resolution"),
+        source_order,
         format_func=resolution_label,
-        key="single_res",
+        key="tower_source_v29",
     )
-    st.caption(
-        "O cursor mostra o horário na resolução de 30 min/horária, a data na resolução diária, "
-        "o intervalo completo na semanal e o mês/ano na mensal."
+
+    src = tower_sources[source]
+    df = src["df"]
+    units = src["units"]
+    expected = expected_timedelta(source)
+
+    numeric_vars = [
+        c for c in df.columns
+        if c not in {"TIMESTAMP", "RECORD"} and pd.api.types.is_numeric_dtype(df[c])
+    ]
+    groups = {}
+    for c in numeric_vars:
+        groups.setdefault(scientific_group(c), []).append(c)
+
+    group = st.selectbox(
+        tr("Grupo científico", "Scientific group"),
+        list(groups.keys()),
+        key="tower_group_v29",
+    )
+    var = st.selectbox(
+        tr("Variável", "Variable"),
+        groups[group],
+        format_func=lambda x: unit_label(x, units),
+        key="tower_var_v29",
+    )
+
+    full_start = df["TIMESTAMP"].min()
+    full_end = df["TIMESTAMP"].max()
+    start, end = period_controls("tower_v29", full_start, full_end)
+
+    resolution_options = {
+        "1 min": ["1 min", "30 min", "Horário", "Diário", "Semanal", "Mensal"],
+        "30 min": ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
+        "Diário": ["Diário", "Semanal", "Mensal"],
+    }[source]
+
+    agg_res = st.selectbox(
+        tr("Resolução do gráfico", "Plot resolution"),
+        resolution_options,
+        format_func=resolution_label,
+        key="tower_plot_res_v29",
     )
 
     if start > end:
-        st.error("O início deve ser anterior ao fim.")
+        st.error(tr("Período inválido.", "Invalid period."))
     else:
         sub = filter_period(df, start, end)
-        a, b, n = valid_range(df, var)
-        if a is not None:
-            st.caption(
-                f"Disponibilidade de {var}: {a:%d/%m/%Y %H:%M} → {b:%d/%m/%Y %H:%M} | "
-                f"{n:,} valores disponíveis".replace(",", ".")
-            )
-        data = aggregate_numeric(sub, [var], resolution)
-        line_plot(data, [var], units, unit_label(var, units), start, end, resolution)
+        data = aggregate_numeric(sub, [var], agg_res)
+        line_plot(
+            data, [var], units,
+            unit_label(var, units),
+            start, end, agg_res,
+            source_expected=expected if agg_res in {"1 min","30 min"} else None,
+        )
         stats_table(sub, [var], units)
 
+        gaps = gap_table(sub, expected)
+        if not gaps.empty:
+            st.subheader(tr("Lacunas no período selecionado", "Gaps in selected period"))
+            show_table(gaps)
+
+# ============================================================
+# Estrutura Científica
+# ============================================================
+
+elif page_key == "structure":
+    st.header(tr("Estrutura Científica", "Scientific Structure"))
+    st.write(tr(
+        "As variáveis são organizadas segundo a estrutura típica de uma torre micrometeorológica. "
+        "As unidades exibidas vêm dos próprios arquivos TOA5 ou da planilha processada.",
+        "Variables are organized according to a typical micrometeorological tower structure. "
+        "Displayed units come from the TOA5 files or the processed workbook.",
+    ))
+
+    rows = []
+    for res, src in tower_sources.items():
+        df = src["df"]
+        for c in df.columns:
+            if c == "TIMESTAMP":
+                continue
+            rows.append({
+                tr("Fonte", "Source"): src["table_name"],
+                tr("Resolução", "Resolution"): resolution_label(res),
+                tr("Grupo", "Group"): scientific_group(c),
+                tr("Variável", "Variable"): c,
+                tr("Unidade", "Unit"): src["units"].get(c, ""),
+                tr("Processamento Campbell", "Campbell processing"): src["processing"].get(c, ""),
+            })
+
+    if processed is not None:
+        for c in processed["df"].columns:
+            if c == "TIMESTAMP":
+                continue
+            rows.append({
+                tr("Fonte", "Source"): tr("Produtos processados", "Processed products"),
+                tr("Resolução", "Resolution"): "30 min / produtos",
+                tr("Grupo", "Group"): scientific_group(c),
+                tr("Variável", "Variable"): c,
+                tr("Unidade", "Unit"): processed["units"].get(c, ""),
+                tr("Processamento Campbell", "Campbell processing"): "",
+            })
+
+    show_table(pd.DataFrame(rows))
+
+# ============================================================
+# Comparar Variáveis
+# ============================================================
+
 elif page_key == "compare":
-    st.header("Comparar Variáveis" if PT else "Compare Variables")
-    st.caption(
-        "Indicadores QC não aparecem nesta lista; eles ficam em Qualidade dos Dados."
-        if PT else
-        "QC indicators do not appear in this list; they are kept under Data Quality."
+    st.header(tr("Comparar Variáveis", "Compare Variables"))
+
+    source_choices = [resolution_label(x) for x in ["1 min","30 min","Diário"] if x in tower_sources]
+    source_keys = [x for x in ["1 min","30 min","Diário"] if x in tower_sources]
+
+    if processed is not None:
+        source_choices.append(tr("Produtos processados", "Processed products"))
+        source_keys.append("processed")
+
+    source_display = st.selectbox(
+        tr("Fonte para comparação", "Comparison source"),
+        source_choices,
+        key="compare_source_v29",
     )
+    source_key = source_keys[source_choices.index(source_display)]
+
+    if source_key == "processed":
+        df = processed["df"]
+        units = processed["units"]
+        default_resolution = "Diário"
+        resolutions = ["30 min","Horário","Diário","Semanal","Mensal"]
+        expected = pd.Timedelta(minutes=30)
+    else:
+        src = tower_sources[source_key]
+        df = src["df"]
+        units = src["units"]
+        expected = expected_timedelta(source_key)
+        if source_key == "1 min":
+            resolutions = ["1 min","30 min","Horário","Diário","Semanal","Mensal"]
+        elif source_key == "30 min":
+            resolutions = ["30 min","Horário","Diário","Semanal","Mensal"]
+        else:
+            resolutions = ["Diário","Semanal","Mensal"]
+        default_resolution = "Diário"
+
+    vars_all = [
+        c for c in df.columns
+        if c not in {"TIMESTAMP","RECORD"} and
+        pd.api.types.is_numeric_dtype(df[c]) and
+        not is_qc(c)
+    ]
 
     vars_ = st.multiselect(
-        "Variáveis/produtos" if PT else "Variables/products",
-        phys_vars,
+        tr("Variáveis", "Variables"),
+        vars_all,
         format_func=lambda x: unit_label(x, units),
-        key="compare_vars_v28",
+        key="compare_vars_v29",
     )
 
-    start, end = period_controls("compare_v28", full_start, full_end)
+    start, end = period_controls(
+        "compare_v29",
+        df["TIMESTAMP"].min(),
+        df["TIMESTAMP"].max(),
+    )
 
     c1, c2 = st.columns(2)
     resolution = c1.selectbox(
-        "Resolução" if PT else "Resolution",
-        ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
-        index=2,
+        tr("Resolução", "Resolution"),
+        resolutions,
+        index=resolutions.index(default_resolution) if default_resolution in resolutions else 0,
         format_func=resolution_label,
-        key="compare_res_v28",
+        key="compare_resolution_v29",
     )
-
-    comparison_mode = c2.selectbox(
-        "Forma de visualização" if PT else "Visualization mode",
+    mode = c2.selectbox(
+        tr("Forma de visualização", "Visualization mode"),
         [
             "Gráficos separados",
             "Mesmo gráfico — valores originais",
             "Dois eixos Y",
             "Normalizado (z-score)",
         ],
-        index=1,
         format_func=comparison_mode_label,
-        key="compare_mode_v28",
-    )
-
-    st.caption(
-        (
-            "Gráficos separados preservam a escala de cada variável; mesmo gráfico sobrepõe os valores originais; "
-            "dois eixos Y ajudam quando as magnitudes/unidades são muito diferentes; z-score compara apenas o padrão relativo."
-        )
-        if PT else
-        (
-            "Separate charts preserve each variable scale; same chart overlays original values; "
-            "two Y axes help when magnitudes/units differ strongly; z-score compares relative patterns only."
-        )
+        key="compare_mode_v29",
     )
 
     if len(vars_) < 2:
-        st.info(
-            "Selecione pelo menos duas variáveis."
-            if PT else
-            "Select at least two variables."
-        )
+        st.info(tr("Selecione pelo menos duas variáveis.", "Select at least two variables."))
     elif start > end:
-        st.error(
-            "O início deve ser anterior ao fim."
-            if PT else
-            "Start must be earlier than end."
-        )
+        st.error(tr("Período inválido.", "Invalid period."))
     else:
         sub = filter_period(df, start, end)
         data = aggregate_numeric(sub, vars_, resolution)
 
-        if comparison_mode == "Gráficos separados":
-            plot_separate_variables(data, vars_, units, start, end, resolution)
-
-        elif comparison_mode == "Mesmo gráfico — valores originais":
+        if mode == "Gráficos separados":
+            for v in vars_:
+                line_plot(
+                    data[["TIMESTAMP", v]],
+                    [v], units, unit_label(v, units),
+                    start, end, resolution,
+                    source_expected=expected if resolution in {"1 min","30 min"} else None,
+                )
+        elif mode == "Mesmo gráfico — valores originais":
             line_plot(
-                data,
-                vars_,
-                units,
-                "Comparação de variáveis" if PT else "Variable comparison",
-                start,
-                end,
-                resolution,
+                data, vars_, units,
+                tr("Comparação de variáveis", "Variable comparison"),
+                start, end, resolution,
+                source_expected=expected if resolution in {"1 min","30 min"} else None,
             )
-
-        elif comparison_mode == "Dois eixos Y":
+        elif mode == "Dois eixos Y":
             plot_two_y_axes(data, vars_, units, start, end, resolution)
-
-        elif comparison_mode == "Normalizado (z-score)":
+        else:
             plot_zscore(data, vars_, start, end, resolution)
 
-        st.subheader("Estatísticas" if PT else "Statistics")
+        st.subheader(tr("Estatísticas", "Statistics"))
         stats_table(sub, vars_, units)
 
         corr = data[vars_].corr(method="pearson", min_periods=3)
-        st.subheader("Correlação de Pearson" if PT else "Pearson correlation")
-        fig = px.imshow(
-            corr,
-            text_auto=".2f",
-            aspect="auto",
-            zmin=-1,
-            zmax=1,
-        )
+        st.subheader(tr("Correlação de Pearson", "Pearson correlation"))
+        fig = px.imshow(corr, text_auto=".2f", aspect="auto", zmin=-1, zmax=1)
         st.plotly_chart(fig, use_container_width=True)
-        st.caption(
-            "Correlação não implica causalidade."
-            if PT else
-            "Correlation does not imply causation."
-        )
+        st.caption(tr("Correlação não implica causalidade.", "Correlation does not imply causation."))
 
-elif page_key == "gap":
-    st.header("Preenchimento de Lacunas" if PT else "Gap Filling")
-    st.write(
-        "Esta página separa explicitamente valores observados (`_orig`) de valores da série "
-        "preenchida (`_f`). Em 30 min, os pontos preenchidos onde o original está ausente "
-        "são destacados no gráfico."
-    )
+# ============================================================
+# Preenchimento de Lacunas
+# ============================================================
 
-    available_families = [
-        b for b in GAPFILL_FAMILIES
-        if f"{b}_orig" in df.columns and f"{b}_f" in df.columns
-    ]
-    base = st.selectbox("Família" if PT else "Family", available_families)
-    start, end = period_controls("gap", full_start, full_end)
-    resolution = st.selectbox(
-        "Resolução" if PT else "Resolution",
-        ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
-        index=0,
-        format_func=resolution_label,
-        key="gap_res",
-    )
+elif page_key == "gapfill":
+    st.header(tr("Preenchimento de Lacunas", "Gap Filling"))
 
-    if start <= end:
-        plot_observed_filled(df, base, units, start, end, resolution)
+    if processed is None:
+        st.info(tr(
+            "Carregue a planilha de produtos processados para comparar séries observadas e preenchidas.",
+            "Upload the processed-products workbook to compare observed and gap-filled series.",
+        ))
+    else:
+        df = processed["df"]
+        units = processed["units"]
+        available = [
+            b for b in GAPFILL_FAMILIES
+            if f"{b}_orig" in df.columns and f"{b}_f" in df.columns
+        ]
+        if not available:
+            st.info(tr("Nenhuma família _orig/_f encontrada.", "No _orig/_f family found."))
+        else:
+            base = st.selectbox(tr("Família", "Family"), available, key="gap_family_v29")
+            start, end = period_controls(
+                "gap_v29", df["TIMESTAMP"].min(), df["TIMESTAMP"].max()
+            )
+            res = st.selectbox(
+                tr("Resolução", "Resolution"),
+                ["30 min","Horário","Diário","Semanal","Mensal"],
+                format_func=resolution_label,
+                key="gap_res_v29",
+            )
 
-        related = family_columns(df, base)
-        st.subheader("Produtos da família")
-        rel_rows = []
-        for c in related:
-            rel_rows.append({
-                "Campo": c,
-                "Tipo": (
-                    "Qualidade/flag" if is_qc(c)
-                    else "Auxiliar de preenchimento" if is_auxiliary(c)
-                    else "Incerteza" if is_uncertainty(c)
-                    else "Série física/produto"
-                ),
-                "Unidade": "sem unidade" if is_qc(c) else unit_only(c, units),
-            })
-        show_table(pd.DataFrame(rel_rows), use_container_width=True, hide_index=True)
+            if start <= end:
+                sub = filter_period(df, start, end)
+                orig = f"{base}_orig"
+                filled = f"{base}_f"
+                data = aggregate_numeric(sub, [orig, filled], res)
+                line_plot(
+                    data, [orig, filled], units,
+                    tr(f"{base}: observado × preenchido", f"{base}: observed × gap-filled"),
+                    start, end, res,
+                    source_expected=pd.Timedelta(minutes=30) if res=="30 min" else None,
+                )
+
+                a = pd.to_numeric(sub[orig], errors="coerce")
+                b = pd.to_numeric(sub[filled], errors="coerce")
+                status = pd.Series(np.select(
+                    [a.notna(), a.isna() & b.notna(), b.isna()],
+                    [tr("Observado","Observed"), tr("Preenchido","Gap-filled"), tr("Ausente","Missing")],
+                    default=tr("Ausente","Missing"),
+                ))
+                vc = status.value_counts()
+                rows = []
+                for label in [
+                    tr("Observado","Observed"),
+                    tr("Preenchido","Gap-filled"),
+                    tr("Ausente","Missing"),
+                ]:
+                    n = int(vc.get(label, 0))
+                    rows.append({
+                        tr("Situação","Status"): label,
+                        tr("Registros","Records"): n,
+                        tr("Percentual (%)","Percentage (%)"): round(100*n/len(status),2) if len(status) else 0,
+                    })
+                show_table(pd.DataFrame(rows))
+
+# ============================================================
+# Balanço de Carbono
+# ============================================================
 
 elif page_key == "carbon":
-    st.header("Balanço de Carbono" if PT else "Carbon Balance")
+    st.header(tr("Balanço de Carbono", "Carbon Balance"))
 
-    carbon_candidates = [
-        c for c in [
-            "NEE", "NEE_orig", "NEE_f", "NEE_fall",
-            "NEE_U05_f", "NEE_U50_f", "NEE_U95_f",
-            "Reco", "GPP_f", "FP_NEEnight", "R_ref",
-        ]
-        if c in df.columns
-    ]
-
-    selected = st.multiselect(
-        "Produtos de carbono" if PT else "Carbon products",
-        carbon_candidates,
-        default=[c for c in ["NEE_f", "Reco", "GPP_f"] if c in carbon_candidates],
-        format_func=lambda x: unit_label(x, units),
-    )
-    start, end = period_controls("carbon", full_start, full_end)
-    resolution = st.selectbox(
-        "Resolução" if PT else "Resolution",
-        ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
-        index=2,
-        format_func=resolution_label,
-        key="carbon_res",
-    )
-
-    if selected and start <= end:
-        sub = filter_period(df, start, end)
-        data = aggregate_numeric(sub, selected, resolution)
-        line_plot(data, selected, units, "Produtos de carbono" if PT else "Carbon products", start, end, resolution)
-        stats_table(sub, selected, units)
-
-        nee_unc = [
-            c for c in ["NEE_fsd", "NEE_fsdu", "NEE_fsdug"]
+    if processed is None:
+        st.info(tr(
+            "Carregue a planilha de produtos processados para acessar NEE, GPP e Reco.",
+            "Upload the processed-products workbook to access NEE, GPP and Reco.",
+        ))
+    else:
+        df = processed["df"]
+        units = processed["units"]
+        candidates = [
+            c for c in [
+                "NEE", "NEE_orig", "NEE_f", "NEE_fall",
+                "Reco", "Reco_DT", "GPP_f", "GPP_DT",
+                "NEE_U05_f", "NEE_U50_f", "NEE_U95_f"
+            ]
             if c in df.columns
         ]
-        if nee_unc:
-            st.subheader("Produtos de incerteza associados ao NEE")
-            show_table(
-                pd.DataFrame({
-                    "Campo": nee_unc,
-                    "Unidade": [unit_only(c, units) for c in nee_unc],
-                }),
-                use_container_width=True,
-                hide_index=True,
+        selected = st.multiselect(
+            tr("Produtos de carbono", "Carbon products"),
+            candidates,
+            default=[c for c in ["NEE_f","Reco","GPP_f"] if c in candidates],
+            format_func=lambda x: unit_label(x, units),
+            key="carbon_vars_v29",
+        )
+        start, end = period_controls(
+            "carbon_v29", df["TIMESTAMP"].min(), df["TIMESTAMP"].max()
+        )
+        res = st.selectbox(
+            tr("Resolução", "Resolution"),
+            ["30 min","Horário","Diário","Semanal","Mensal"],
+            index=2,
+            format_func=resolution_label,
+            key="carbon_res_v29",
+        )
+
+        if selected and start <= end:
+            sub = filter_period(df, start, end)
+            data = aggregate_numeric(sub, selected, res)
+            line_plot(
+                data, selected, units,
+                tr("Produtos de carbono", "Carbon products"),
+                start, end, res,
+                source_expected=pd.Timedelta(minutes=30) if res=="30 min" else None,
             )
+            stats_table(sub, selected, units)
+
+# ============================================================
+# Qualidade dos Dados
+# ============================================================
 
 elif page_key == "qc":
-    st.header("Qualidade dos Dados" if PT else "Data Quality")
+    st.header(tr("Qualidade dos Dados", "Data Quality"))
 
-    st.write(
-        "O EcoFlux mantém os códigos QC originais e permite compará-los com o critério de Foken. "
-        "A comparação é uma referência interpretativa: ela não altera os valores da planilha."
-    )
+    if processed is None:
+        st.info(tr(
+            "A camada QC de Eddy Covariance depende da planilha de produtos processados.",
+            "The Eddy Covariance QC layer requires the processed-products workbook.",
+        ))
+    else:
+        df = processed["df"]
+        qc_vars = [
+            c for c in df.columns
+            if is_qc(c) and pd.api.types.is_numeric_dtype(df[c])
+        ]
 
-    st.subheader("Referência — critério de Foken")
-    st.markdown(
-        """
-O critério de Foken combina dois componentes clássicos de QA/QC em Eddy Covariance:
-
-- **Teste de estacionariedade (steady-state):** avalia se as propriedades estatísticas do fluxo permanecem suficientemente estáveis durante o intervalo de amostragem.
-- **Características integrais da turbulência (ITC):** compara características observadas da turbulência com relações esperadas pela teoria de similaridade de Monin–Obukhov.
-
-A classificação pode aparecer em uma forma resumida de **3 classes (0, 1, 2)** ou em uma
-**escala estendida (1–9)**, dependendo do software e do protocolo de processamento.
+        st.markdown(tr(
+            """
+**Referência de Foken:** o controle de qualidade clássico em Eddy Covariance combina testes
+de estacionariedade e características integrais da turbulência (ITC). A comparação abaixo
+não redefine automaticamente o significado original de uma coluna `_fqc` ou `_qc`.
+""",
+            """
+**Foken reference:** classic Eddy Covariance quality control combines stationarity and
+integral turbulence characteristics (ITC) tests. The comparison below does not automatically
+redefine the original meaning of an `_fqc` or `_qc` field.
 """
-    )
-    show_table(foken_reference_table(), use_container_width=True, hide_index=True)
+        ))
 
-    st.warning(
-        "Importante: nem toda coluna que contém `QC`, `_fqc` ou `_fall_qc` é necessariamente uma classe Foken. "
-        "Campos de gap-filling e outros produtos podem usar códigos próprios. Por isso, o EcoFlux mostra "
-        "a classificação de Foken como comparação, e não como significado automático do campo."
-    )
-
-    qc = st.selectbox("Indicador QC" if PT else "QC indicator", qc_vars, key="qc_select_v24")
-
-    comparison_scale = st.selectbox(
-        "Escala para comparação com Foken" if PT else "Scale for Foken comparison",
-        [
-            "Foken — 3 classes (0, 1, 2)",
-            "Foken — escala estendida (1–9)",
-        ],
-        key="foken_scale_v24",
-        help=(
-            "Escolha a escala apenas para comparar os códigos observados com a referência de Foken. "
-            "Isso não redefine o significado original da coluna selecionada."
-        ),
-    )
-
-    start, end = period_controls("qc_v24", full_start, full_end)
-
-    if start <= end:
-        sub = filter_period(df, start, end)
-        s = pd.to_numeric(sub[qc], errors="coerce").dropna()
-
-        a, b, n = valid_range(df, qc)
-        if a is not None:
-            st.caption(
-                f"Disponibilidade de {qc}: {a:%d/%m/%Y %H:%M} → {b:%d/%m/%Y %H:%M} | "
-                f"{n:,} registros disponíveis no arquivo".replace(",", ".")
-            )
-
-        raw_table = qc_code_table(s)
-
-        if not raw_table.empty:
-            raw_table["Comparação Foken"] = raw_table["Código QC"].apply(
-                lambda x: foken_classify(x, comparison_scale)
-            )
-
-            dominant_row = raw_table.sort_values(["N", "Código QC"], ascending=[False, True]).iloc[0]
-            dominant_code = dominant_row["Código QC"]
-            dominant_pct = dominant_row["Percentual (%)"]
-            num_codes = raw_table["Código QC"].nunique()
-            total_available = int(raw_table["N"].sum())
-
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Código predominante", str(dominant_code))
-            c2.metric("Participação do predominante", f"{dominant_pct:.2f}%")
-            c3.metric("Códigos encontrados", int(num_codes))
-            c4.metric("Registros QC disponíveis", f"{total_available:,}".replace(",", "."))
-
-        st.subheader("Códigos observados × referência de Foken")
-        show_table(raw_table, use_container_width=True, hide_index=True)
-
-        if not raw_table.empty:
-            st.subheader("Distribuição dos códigos originais")
-            bar_colors = [qc_color(x) for x in raw_table["Código QC"]]
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                x=[str(x) for x in raw_table["Código QC"]],
-                y=raw_table["Percentual (%)"],
-                text=[f"{x:.2f}%" for x in raw_table["Percentual (%)"]],
-                textposition="outside",
-                marker=dict(color=bar_colors),
-                customdata=np.column_stack([
-                    raw_table["N"],
-                    raw_table["Comparação Foken"],
-                ]),
-                hovertemplate=(
-                    "Código original: %{x}<br>"
-                    "Percentual: %{y:.2f}%<br>"
-                    "N: %{customdata[0]}<br>"
-                    "Comparação Foken: %{customdata[1]}"
-                    "<extra></extra>"
+        foken_ref = pd.DataFrame([
+            {
+                tr("Classe resumida","Summary class"): 0,
+                tr("Escala estendida","Extended scale"): "1–3",
+                tr("Qualidade","Quality"): tr("Alta qualidade","High quality"),
+                tr("Uso típico","Typical use"): tr(
+                    "Fluxos diretos e análises científicas, conforme protocolo.",
+                    "Direct fluxes and scientific analyses, subject to protocol.",
                 ),
-                showlegend=False,
-            ))
-            fig.update_layout(
-                title=f"Distribuição original de {qc}",
-                xaxis_title="Código QC original (sem unidade)",
-                yaxis_title="Percentual dos registros (%)",
-                height=420,
-                margin=dict(l=20, r=20, t=55, b=20),
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-            # Reclassificação comparativa Foken
-            foken_series = s.apply(lambda x: foken_classify(x, comparison_scale))
-            foken_order = [
-                "Alta qualidade",
-                "Qualidade moderada",
-                "Baixa qualidade",
-                "Fora da escala selecionada",
-            ]
-            foken_counts = foken_series.value_counts()
-            total_foken = int(foken_counts.sum())
-
-            foken_rows = []
-            for label in foken_order:
-                count = int(foken_counts.get(label, 0))
-                foken_rows.append({
-                    "Classe comparativa": label,
-                    "N": count,
-                    "Percentual (%)": round(100 * count / total_foken, 2) if total_foken else 0.0,
-                })
-            foken_df = pd.DataFrame(foken_rows)
-
-            st.subheader("Comparação agregada com o critério de Foken")
-            fc1, fc2, fc3, fc4 = st.columns(4)
-            vals = dict(zip(foken_df["Classe comparativa"], foken_df["Percentual (%)"]))
-            fc1.metric("Alta qualidade", f"{vals['Alta qualidade']:.2f}%")
-            fc2.metric("Qualidade moderada", f"{vals['Qualidade moderada']:.2f}%")
-            fc3.metric("Baixa qualidade", f"{vals['Baixa qualidade']:.2f}%")
-            fc4.metric(
-                "Fora da escala",
-                f"{vals['Fora da escala selecionada']:.2f}%"
-            )
-
-            fig_foken = go.Figure()
-            foken_visible = foken_df[foken_df["N"] > 0]
-            fig_foken.add_trace(go.Bar(
-                x=foken_visible["Classe comparativa"],
-                y=foken_visible["Percentual (%)"],
-                marker=dict(
-                    color=[
-                        FOKEN_CLASS_COLORS[x]
-                        for x in foken_visible["Classe comparativa"]
-                    ]
+            },
+            {
+                tr("Classe resumida","Summary class"): 1,
+                tr("Escala estendida","Extended scale"): "4–6",
+                tr("Qualidade","Quality"): tr("Qualidade moderada","Moderate quality"),
+                tr("Uso típico","Typical use"): tr(
+                    "Integrações e balanços com cautela.",
+                    "Integrations and balances with caution.",
                 ),
-                text=[f"{x:.2f}%" for x in foken_visible["Percentual (%)"]],
-                textposition="outside",
-                customdata=foken_visible["N"],
-                hovertemplate=(
-                    "%{x}<br>"
-                    "Percentual: %{y:.2f}%<br>"
-                    "N: %{customdata}"
-                    "<extra></extra>"
+            },
+            {
+                tr("Classe resumida","Summary class"): 2,
+                tr("Escala estendida","Extended scale"): "7–9",
+                tr("Qualidade","Quality"): tr("Baixa qualidade","Low quality"),
+                tr("Uso típico","Typical use"): tr(
+                    "Geralmente rejeitada quando o protocolo exige alta qualidade.",
+                    "Usually rejected when the protocol requires high quality.",
                 ),
-                showlegend=False,
-            ))
-            fig_foken.update_layout(
-                title=f"{qc} comparado com {comparison_scale}",
-                xaxis_title="Classe comparativa",
-                yaxis_title="Percentual dos registros (%)",
-                height=420,
-                margin=dict(l=20, r=20, t=55, b=20),
+            },
+        ])
+        show_table(foken_ref)
+
+        if not qc_vars:
+            st.info(tr("Nenhuma coluna QC encontrada.", "No QC column found."))
+        else:
+            qc = st.selectbox(tr("Indicador QC","QC indicator"), qc_vars, key="qc_var_v29")
+            start, end = period_controls(
+                "qc_v29", df["TIMESTAMP"].min(), df["TIMESTAMP"].max()
             )
-            st.plotly_chart(fig_foken, use_container_width=True)
-
-            st.caption(
-                "Os percentuais acima representam somente a correspondência matemática dos códigos "
-                "com a escala Foken escolhida. Antes de usar essa classificação para filtrar ou descartar "
-                "dados, confirme que o campo selecionado foi realmente produzido segundo esse critério."
-            )
-
-        st.subheader("QC ao longo do tempo — códigos originais")
-        st.caption(
-            "As cores abaixo identificam os códigos existentes no arquivo. "
-            "Elas não representam automaticamente uma hierarquia de qualidade."
-        )
-
-        qdf = sub[["TIMESTAMP", qc]].copy()
-        qdf[qc] = pd.to_numeric(qdf[qc], errors="coerce")
-        observed_codes = sorted(qdf[qc].dropna().unique().tolist())
-
-        fig2 = go.Figure()
-        for code_val in observed_codes:
-            mask = qdf[qc] == code_val
-            label = str(int(code_val)) if float(code_val).is_integer() else str(code_val)
-            comparison = foken_classify(code_val, comparison_scale)
-            fig2.add_trace(go.Scattergl(
-                x=qdf.loc[mask, "TIMESTAMP"],
-                y=qdf.loc[mask, qc],
-                mode="markers",
-                name=f"Código {label}",
-                marker=dict(
-                    size=6,
-                    color=qc_color(code_val),
-                    symbol="circle",
-                ),
-                hovertemplate=(
-                    "Data: %{x}<br>"
-                    f"Código original: {label}<br>"
-                    f"Comparação Foken: {comparison}"
-                    "<extra></extra>"
-                ),
-            ))
-
-        fig2.update_layout(
-            xaxis_title="Data e hora",
-            yaxis=dict(
-                title="Código QC original (sem unidade)",
-                tickmode="array",
-                tickvals=observed_codes,
-                ticktext=[
-                    str(int(x)) if float(x).is_integer() else str(x)
-                    for x in observed_codes
+            scale = st.selectbox(
+                tr("Escala de comparação","Comparison scale"),
+                [
+                    "Foken — 3 classes (0, 1, 2)",
+                    "Foken — escala estendida (1–9)",
                 ],
-            ),
-            legend_title="Código original",
-            height=450,
-            margin=dict(l=20, r=20, t=30, b=20),
-        )
-        fig2.update_xaxes(range=[start, end])
-        st.plotly_chart(fig2, use_container_width=True)
+                key="qc_scale_v29",
+            )
 
-        st.subheader("Comparação Foken ao longo do tempo")
-        qdf["Classe_Foken"] = qdf[qc].apply(
-            lambda x: foken_classify(x, comparison_scale) if pd.notna(x) else None
-        )
+            def classify(v):
+                if pd.isna(v):
+                    return None
+                try:
+                    x = int(float(v))
+                except Exception:
+                    return "Fora da escala selecionada"
+                if scale.startswith("Foken — 3"):
+                    return {
+                        0:"Alta qualidade",
+                        1:"Qualidade moderada",
+                        2:"Baixa qualidade",
+                    }.get(x,"Fora da escala selecionada")
+                if 1 <= x <= 3:
+                    return "Alta qualidade"
+                if 4 <= x <= 6:
+                    return "Qualidade moderada"
+                if 7 <= x <= 9:
+                    return "Baixa qualidade"
+                return "Fora da escala selecionada"
 
-        class_to_y = {
-            "Alta qualidade": 0,
-            "Qualidade moderada": 1,
-            "Baixa qualidade": 2,
-            "Fora da escala selecionada": 3,
-        }
+            if start <= end:
+                sub = filter_period(df,start,end)
+                s = pd.to_numeric(sub[qc],errors="coerce").dropna()
+                counts = s.value_counts().sort_index()
+                total = int(counts.sum())
+                rows = []
+                for code, n in counts.items():
+                    rows.append({
+                        tr("Código original","Original code"): int(code) if float(code).is_integer() else code,
+                        "N": int(n),
+                        tr("Percentual (%)","Percentage (%)"): round(100*int(n)/total,2) if total else 0,
+                        tr("Comparação Foken","Foken comparison"): classify(code),
+                    })
+                qtable = pd.DataFrame(rows)
+                show_table(qtable)
 
-        fig3 = go.Figure()
-        for cls in [
-            "Alta qualidade",
-            "Qualidade moderada",
-            "Baixa qualidade",
-            "Fora da escala selecionada",
-        ]:
-            mask = qdf["Classe_Foken"] == cls
-            if not mask.any():
-                continue
-            fig3.add_trace(go.Scattergl(
-                x=qdf.loc[mask, "TIMESTAMP"],
-                y=np.full(mask.sum(), class_to_y[cls]),
-                mode="markers",
-                name=cls,
-                marker=dict(
-                    size=6,
-                    color=FOKEN_CLASS_COLORS[cls],
-                    symbol="circle",
-                ),
-                hovertemplate=(
-                    "Data: %{x}<br>"
-                    f"Comparação Foken: {cls}"
-                    "<extra></extra>"
-                ),
-            ))
+                fig = go.Figure()
+                for code in sorted(s.unique()):
+                    mask = pd.to_numeric(sub[qc],errors="coerce") == code
+                    fig.add_trace(go.Scattergl(
+                        x=sub.loc[mask,"TIMESTAMP"],
+                        y=np.full(mask.sum(),code),
+                        mode="markers",
+                        name=f"{tr('Código','Code')} {int(code) if float(code).is_integer() else code}",
+                        marker=dict(color=qc_color(code),size=6),
+                    ))
+                fig.update_layout(
+                    xaxis_title=tr("Data e hora","Date and time"),
+                    yaxis_title=tr("Código QC original","Original QC code"),
+                    height=430,
+                )
+                fig.update_xaxes(range=[start,end])
+                st.plotly_chart(fig,use_container_width=True)
 
-        fig3.update_layout(
-            xaxis_title="Data e hora",
-            yaxis=dict(
-                title="Classe comparativa de Foken",
-                tickmode="array",
-                tickvals=[0, 1, 2, 3],
-                ticktext=[
-                    "Alta qualidade",
-                    "Qualidade moderada",
-                    "Baixa qualidade",
-                    "Fora da escala",
-                ],
-            ),
-            legend_title="Referência Foken",
-            height=450,
-            margin=dict(l=20, r=20, t=30, b=20),
-        )
-        fig3.update_xaxes(range=[start, end])
-        st.plotly_chart(fig3, use_container_width=True)
+# ============================================================
+# Sobre os Dados
+# ============================================================
 
 elif page_key == "about":
-    st.header("Sobre os Dados" if PT else "About the Data")
-    st.markdown(
-        f"""
-### Fonte atual
-A V22 foi desenhada para a estrutura da planilha original carregada nesta sessão.
+    st.header(tr("Sobre os Dados", "About the Data"))
 
-- **Planilha:** `{sheet_name}`
-- **Coluna temporal:** `{time_col}`
-- **Cobertura:** {full_start:%d/%m/%Y %H:%M} → {full_end:%d/%m/%Y %H:%M}
-- **Registros:** {len(df):,}
-- **Campos totais:** {len([c for c in df.columns if c != "TIMESTAMP"])}
+    st.markdown(tr(
+        """
+### Camada 1 — Dados originais da torre
+Arquivos Campbell Scientific **TOA5** do datalogger **CR3000**, preservando os cabeçalhos,
+unidades e códigos de processamento (`Avg`, `Tot`, `Min`, `Max`, `WVc` etc.).
 
-### Regras de interpretação
-`-9999` é tratado como ausência de dado. A linha de unidades da planilha é lida como metadado,
-não como observação. Campos `QC` são mantidos sem unidade e não recebem significado textual
-quando esse significado não está documentado no próprio arquivo.
+### Camada 2 — Eddy Covariance e QA/QC
+Fluxos e indicadores de qualidade devem permanecer separados das observações meteorológicas
+do datalogger, mesmo quando são pareados por timestamp.
 
-### Famílias
-Para NEE, LE, H, Rg, VPD, rH, Tair e Tsoil, o EcoFlux reconhece automaticamente produtos
-como `_orig`, `_f`, `_fall`, `_fsd`, `_fqc`, `_fall_qc`, `_fnum`, `_fmeth` e `_fwin`.
+### Camada 3 — Produtos processados
+Séries preenchidas, NEE, GPP, Reco, incertezas e demais produtos derivados são apresentados
+como produtos de processamento, não como observações instrumentais brutas.
+
+### Continuidade temporal
+O EcoFlux detecta lacunas reais pela diferença entre timestamps consecutivos e não desenha
+uma linha contínua através dessas interrupções nas resoluções observacionais nativas.
+""",
+        """
+### Layer 1 — Original tower data
+Campbell Scientific **TOA5** files from the **CR3000** datalogger, preserving headers,
+units and processing codes (`Avg`, `Tot`, `Min`, `Max`, `WVc`, etc.).
+
+### Layer 2 — Eddy Covariance and QA/QC
+Fluxes and quality indicators remain separate from datalogger meteorological observations,
+even when paired by timestamp.
+
+### Layer 3 — Processed products
+Gap-filled series, NEE, GPP, Reco, uncertainties and other derived products are presented
+as processing products rather than raw instrumental observations.
+
+### Temporal continuity
+EcoFlux detects real gaps from consecutive timestamps and does not draw continuous lines
+through those interruptions at native observational resolutions.
 """
-    )
+    ))
+
+# ============================================================
+# Solicitar Dados
+# ============================================================
 
 elif page_key == "request":
-    st.header("Solicitar Dados" if PT else "Request Data")
-    st.write(
+    st.header(tr("Solicitar Dados", "Request Data"))
+    st.write(tr(
         "Os dados brutos não são disponibilizados para download público direto. "
-        "Solicitações devem ser avaliadas e autorizadas pelo responsável pelo conjunto de dados."
-    )
+        "Solicitações dependem de autorização explícita do responsável pelo conjunto de dados.",
+        "Raw data are not made available for direct public download. "
+        "Requests require explicit authorization from the data owner.",
+    ))
 
-    with st.form("request_form"):
-        nome = st.text_input("Nome" if PT else "Name")
-        email = st.text_input("E-mail" if PT else "Email")
-        instituicao = st.text_input("Instituição" if PT else "Institution")
-        finalidade = st.text_area("Finalidade científica / uso pretendido" if PT else "Scientific purpose / intended use")
-        periodo = st.text_input("Período de interesse" if PT else "Period of interest")
-        variaveis = st.text_area("Variáveis de interesse" if PT else "Variables of interest")
-        submitted = st.form_submit_button("Preparar solicitação" if PT else "Prepare request")
+    with st.form("request_form_v29"):
+        nome = st.text_input(tr("Nome","Name"))
+        email = st.text_input(tr("E-mail","Email"))
+        inst = st.text_input(tr("Instituição","Institution"))
+        purpose = st.text_area(tr("Finalidade científica / uso pretendido","Scientific purpose / intended use"))
+        period = st.text_input(tr("Período de interesse","Period of interest"))
+        vars_req = st.text_area(tr("Variáveis de interesse","Variables of interest"))
+        submitted = st.form_submit_button(tr("Preparar solicitação","Prepare request"))
 
     if submitted:
-        st.success(
-            "Solicitação preparada. Esta versão demonstrativa não envia nem armazena o formulário "
-            "automaticamente; a autorização deve ocorrer pelo responsável pelos dados."
-        )
+        st.success(tr(
+            "Solicitação preparada. Esta versão não envia nem armazena o formulário automaticamente.",
+            "Request prepared. This version does not automatically send or store the form.",
+        ))
