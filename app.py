@@ -32,6 +32,7 @@ NON_SCIENTIFIC_NAMES = {
     "timestamp", "timestamp_parsed", "datetime", "date_time", "datatime",
     "date", "time", "doy", "day_of_year", "julian_day", "julian",
     "year", "month", "day", "hour", "minute", "second",
+    "daytime", "nighttime", "day_night", "daynight", "is_day", "is_night",
     "filename", "file", "record", "index", "unnamed: 0"
 }
 
@@ -71,7 +72,11 @@ def is_scientific_variable(col, df):
         return False
 
     # Também exclui variantes óbvias de tempo/data.
-    time_tokens = ["timestamp", "datetime", "datatime", "day_of_year"]
+    time_tokens = [
+        "timestamp", "datetime", "datatime", "day_of_year",
+        "daytime", "nighttime", "day_night", "daynight",
+        "is_day", "is_night"
+    ]
     if any(token in name for token in time_tokens):
         return False
 
@@ -303,8 +308,8 @@ if page == "Visão Geral":
 
     st.info(
         f"`{timestamp_col}` é usado exclusivamente como referência temporal. "
-        "Colunas como TIMESTAMP, DATETIME, DATATIME, DATE, TIME e DOY "
-        "não são tratadas como variáveis científicas."
+        "Colunas como TIMESTAMP, DATETIME, DATATIME, DATE, TIME, DOY, DAYTIME "
+        "e outros indicadores temporais não são tratadas como variáveis científicas."
     )
 
     key_vars = existing_scientific(
@@ -530,7 +535,8 @@ elif page == "Sobre os Dados":
 
         ### Variáveis científicas
         A lista de variáveis exclui automaticamente campos temporais e administrativos,
-        incluindo `TIMESTAMP`, `DATETIME`, `DATATIME`, `DATE`, `TIME` e `DOY`.
+        incluindo `TIMESTAMP`, `DATETIME`, `DATATIME`, `DATE`, `TIME`, `DOY`, `DAYTIME`,
+        `NIGHTTIME` e outros campos auxiliares de tempo/período.
 
         ### Forma de análise
         Em cada módulo o usuário escolhe uma variável científica e informa o período específico
