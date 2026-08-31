@@ -115,6 +115,51 @@ def unit_label(var, units):
         return var
     return f"{var} [{unit}]"
 
+def base_variable_for_unit(var, units):
+    """
+    Variáveis correlatas/flags recebem a mesma unidade da variável-base.
+    A unidade é preservada EXATAMENTE como aparece na planilha.
+    """
+    name = str(var)
+
+    prefixes = ["qc_", "rand_err_", "random_error_", "uncertainty_"]
+    for prefix in prefixes:
+        if name.startswith(prefix):
+            candidate = name[len(prefix):]
+            if candidate in units:
+                return candidate
+
+    suffixes = ["_qc", "_sd", "_se", "_uncertainty", "_error"]
+    for suffix in suffixes:
+        if name.endswith(suffix):
+            candidate = name[:-len(suffix)]
+            if candidate in units:
+                return candidate
+
+    return None
+
+def unit_only(var, units):
+    # 1) usa exatamente a unidade registrada para a própria coluna
+    direct = units.get(var)
+    if direct is not None and str(direct).strip():
+        return str(direct).strip()
+
+    # 2) se for variável correlata sem unidade própria, herda exatamente
+    #    a unidade textual da variável-base
+    base = base_variable_for_unit(var, units)
+    if base:
+        inherited = units.get(base)
+        if inherited is not None and str(inherited).strip():
+            return str(inherited).strip()
+
+    return "unidade não informada"
+
+def unit_label(var, units):
+    unit = unit_only(var, units)
+    if unit == "unidade não informada":
+        return var
+    return f"{var} [{unit}]"
+
 def clean_unit_text(unit):
     """Normaliza problemas comuns de codificação e notação da linha de unidades."""
     if unit is None:
@@ -925,10 +970,11 @@ elif page == "Sobre os Dados":
 
         ### Unidades de medida
         Quando a planilha original informa a unidade na linha de metadados, o EcoFlux a exibe
-        nos seletores, eixos dos gráficos e tabelas estatísticas. Variáveis correlatas, como
-        `qc_LE` e `qc_co2_flux`, herdam a unidade física da variável-base correspondente quando
-        necessário. A interface também corrige problemas comuns de codificação, como `Âµ` → `µ`,
-        e apresenta expoentes em notação legível, como `m⁻²` e `s⁻¹`.
+        exatamente como está registrada, sem corrigir, substituir ou reinterpretar caracteres.
+        Variáveis correlatas, como `qc_LE` e `qc_co2_flux`, usam a mesma unidade textual da
+        variável-base correspondente. Assim, por exemplo, `LE [W+1m-2]` e `qc_LE [W+1m-2]`
+        permanecem iguais, assim como `co2_flux [Âµmol+1s-1m-2]` e
+        `qc_co2_flux [Âµmol+1s-1m-2]`.
 
         ### Variáveis científicas
         A lista de variáveis exclui automaticamente campos temporais e administrativos,
