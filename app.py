@@ -356,6 +356,18 @@ def temporal_hover_text(ts, resolution):
         return f"{meses[ts.month - 1]}/{ts.year}"
     return ts.strftime("%d/%m/%Y %H:%M")
 
+
+def resolution_label(value):
+    if PT:
+        return value
+    return {
+        "30 min": "30 min",
+        "Horário": "Hourly",
+        "Diário": "Daily",
+        "Semanal": "Weekly",
+        "Mensal": "Monthly",
+    }.get(value, value)
+
 def temporal_axis_title(resolution):
     return {
         "30 min": "Data e hora",
@@ -426,7 +438,7 @@ def stats_table(df, vars_, units):
             "Mínimo": s.min(),
             "Máximo": s.max(),
         })
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    show_table(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 def family_columns(df, base):
     candidates = [
@@ -538,7 +550,7 @@ def plot_observed_filled(df, base, units, start, end, resolution):
                 "Registros": n,
                 "Percentual (%)": round(100*n/total, 2) if total else 0,
             })
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        show_table(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 def qc_code_table(series):
     s = pd.to_numeric(series, errors="coerce").dropna()
@@ -562,10 +574,75 @@ def qc_code_table(series):
 # ============================================================
 
 st.sidebar.title("EcoFlux Brasil")
-st.sidebar.caption("Plataforma científica para séries micrometeorológicas e Eddy Covariance")
+
+LANGUAGE = st.sidebar.selectbox(
+    "Idioma / Language",
+    ["Português", "English"],
+    index=0,
+    key="app_language_v26",
+)
+
+PT = LANGUAGE == "Português"
+
+st.sidebar.caption(
+    "A interface do EcoFlux muda de idioma. Nomes das variáveis e unidades da fonte são preservados."
+    if PT else
+    "The EcoFlux interface changes language. Source variable names and units are preserved."
+)
+
+T = {
+    "nav": "Navegação" if PT else "Navigation",
+    "upload": "Carregar planilha original" if PT else "Upload original workbook",
+    "overview": "Visão Geral" if PT else "Overview",
+    "structure": "Estrutura Científica" if PT else "Scientific Structure",
+    "series": "Séries Científicas" if PT else "Scientific Time Series",
+    "compare": "Comparar Variáveis" if PT else "Compare Variables",
+    "gap": "Preenchimento de Lacunas" if PT else "Gap Filling",
+    "carbon": "Balanço de Carbono" if PT else "Carbon Balance",
+    "qc": "Qualidade dos Dados" if PT else "Data Quality",
+    "about": "Sobre os Dados" if PT else "About the Data",
+    "request": "Solicitar Dados" if PT else "Request Data",
+}
+
+PAGE_KEY = {
+    T["overview"]: "overview",
+    T["structure"]: "structure",
+    T["series"]: "series",
+    T["compare"]: "compare",
+    T["gap"]: "gap",
+    T["carbon"]: "carbon",
+    T["qc"]: "qc",
+    T["about"]: "about",
+    T["request"]: "request",
+}
+
+
+TABLE_MODE = st.sidebar.radio(
+    "Tabelas" if PT else "Tables",
+    ["Interativa", "Simplificada"] if PT else ["Interactive", "Simplified"],
+    index=0,
+    key="table_mode_v26",
+    help=(
+        "Interativa mantém ordenação e menus do Streamlit. Simplificada remove esses menus e exibe uma tabela limpa."
+        if PT else
+        "Interactive keeps Streamlit sorting and native menus. Simplified removes those menus and shows a clean table."
+    ),
+)
+SIMPLE_TABLES = TABLE_MODE in {"Simplificada", "Simplified"}
+
+def show_table(data, use_container_width=True, hide_index=True):
+    if SIMPLE_TABLES:
+        # Static HTML avoids the framework-native context menu.
+        st.markdown(
+            data.to_html(index=not hide_index, escape=True),
+            unsafe_allow_html=True,
+        )
+    else:
+        st.dataframe(data, use_container_width=use_container_width, hide_index=hide_index)
+st.sidebar.caption("Plataforma científica para séries micrometeorológicas e Eddy Covariance" if PT else "Scientific platform for micrometeorological and Eddy Covariance time series")
 
 uploaded = st.sidebar.file_uploader(
-    "Carregar planilha original",
+    T["upload"],
     type=["xlsx"],
     help="Estrutura esperada: planilha output, cabeçalho na primeira linha e unidades na segunda.",
 )
@@ -591,19 +668,20 @@ qc_vars = qc_columns(df)
 unc_vars = uncertainty_columns(df)
 
 page = st.sidebar.radio(
-    "Navegação",
+    T["nav"],
     [
-        "Visão Geral",
-        "Estrutura Científica",
-        "Séries Científicas",
-        "Comparar Variáveis",
-        "Preenchimento de Lacunas",
-        "Balanço de Carbono",
-        "Qualidade dos Dados",
-        "Sobre os Dados",
-        "Solicitar Dados",
+        T["overview"],
+        T["structure"],
+        T["series"],
+        T["compare"],
+        T["gap"],
+        T["carbon"],
+        T["qc"],
+        T["about"],
+        T["request"],
     ],
 )
+page_key = PAGE_KEY[page]
 
 st.sidebar.success(
     f"{len(df):,} registros | {full_start:%d/%m/%Y} → {full_end:%d/%m/%Y}".replace(",", ".")
@@ -613,9 +691,9 @@ st.sidebar.success(
 # Páginas
 # ============================================================
 
-if page == "Visão Geral":
+if page_key == "overview":
     st.title("EcoFlux Brasil")
-    st.subheader("Dados originais de processamento")
+    st.subheader("Dados originais de processamento" if PT else "Original processing data")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Registros", f"{len(df):,}".replace(",", "."))
@@ -650,14 +728,14 @@ if page == "Visão Geral":
             "Grupo": group,
             "Variáveis/produtos identificados": len(vals),
         })
-    st.dataframe(pd.DataFrame(structure_rows), use_container_width=True, hide_index=True)
+    show_table(pd.DataFrame(structure_rows), use_container_width=True, hide_index=True)
 
     st.subheader("Famílias de processamento identificadas")
-    st.dataframe(pd.DataFrame(family_rows), use_container_width=True, hide_index=True)
+    show_table(pd.DataFrame(family_rows), use_container_width=True, hide_index=True)
 
 
-elif page == "Estrutura Científica":
-    st.header("Estrutura Científica dos Dados")
+elif page_key == "structure":
+    st.header("Estrutura Científica dos Dados" if PT else "Scientific Data Structure")
     st.write(
         "O EcoFlux organiza as variáveis segundo a estrutura típica de uma torre micrometeorológica. "
         "Essa classificação melhora a navegação, mas não altera nomes, valores ou unidades da planilha."
@@ -710,30 +788,31 @@ elif page == "Estrutura Científica":
                         "Último registro disponível": last.strftime("%d/%m/%Y %H:%M") if last is not None else "—",
                         "N disponível": n,
                     })
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                show_table(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
-elif page == "Séries Científicas":
-    st.header("Séries Científicas")
+elif page_key == "series":
+    st.header("Séries Científicas" if PT else "Scientific Time Series")
 
     groups = grouped_physical_columns(df)
     group_options = [g for g, vals in groups.items() if vals]
     selected_group = st.selectbox(
-        "Grupo científico",
+        "Grupo científico" if PT else "Scientific group",
         group_options,
         key="single_group_v23",
     )
     vars_group = groups[selected_group]
     var = st.selectbox(
-        "Variável/produto científico",
+        "Variável/produto científico" if PT else "Scientific variable/product",
         vars_group,
         format_func=lambda x: unit_label(x, units),
         key="single_var_v23",
     )
     start, end = period_controls("single", full_start, full_end)
     resolution = st.selectbox(
-        "Resolução",
+        "Resolução" if PT else "Resolution",
         ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
         index=0,
+        format_func=resolution_label,
         key="single_res",
     )
     st.caption(
@@ -755,20 +834,21 @@ elif page == "Séries Científicas":
         line_plot(data, [var], units, unit_label(var, units), start, end, resolution)
         stats_table(sub, [var], units)
 
-elif page == "Comparar Variáveis":
-    st.header("Comparar Variáveis")
+elif page_key == "compare":
+    st.header("Comparar Variáveis" if PT else "Compare Variables")
     st.caption("Indicadores QC não aparecem nesta lista; eles ficam em Qualidade dos Dados.")
 
     vars_ = st.multiselect(
-        "Variáveis/produtos",
+        "Variáveis/produtos" if PT else "Variables/products",
         phys_vars,
         format_func=lambda x: unit_label(x, units),
     )
     start, end = period_controls("compare", full_start, full_end)
     resolution = st.selectbox(
-        "Resolução",
+        "Resolução" if PT else "Resolution",
         ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
         index=2,
+        format_func=resolution_label,
         key="compare_res",
     )
 
@@ -788,8 +868,8 @@ elif page == "Comparar Variáveis":
         st.plotly_chart(fig, use_container_width=True)
         st.caption("Correlação não implica causalidade.")
 
-elif page == "Preenchimento de Lacunas":
-    st.header("Preenchimento de Lacunas")
+elif page_key == "gap":
+    st.header("Preenchimento de Lacunas" if PT else "Gap Filling")
     st.write(
         "Esta página separa explicitamente valores observados (`_orig`) de valores da série "
         "preenchida (`_f`). Em 30 min, os pontos preenchidos onde o original está ausente "
@@ -800,12 +880,13 @@ elif page == "Preenchimento de Lacunas":
         b for b in GAPFILL_FAMILIES
         if f"{b}_orig" in df.columns and f"{b}_f" in df.columns
     ]
-    base = st.selectbox("Família", available_families)
+    base = st.selectbox("Família" if PT else "Family", available_families)
     start, end = period_controls("gap", full_start, full_end)
     resolution = st.selectbox(
-        "Resolução",
+        "Resolução" if PT else "Resolution",
         ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
         index=0,
+        format_func=resolution_label,
         key="gap_res",
     )
 
@@ -826,10 +907,10 @@ elif page == "Preenchimento de Lacunas":
                 ),
                 "Unidade": "sem unidade" if is_qc(c) else unit_only(c, units),
             })
-        st.dataframe(pd.DataFrame(rel_rows), use_container_width=True, hide_index=True)
+        show_table(pd.DataFrame(rel_rows), use_container_width=True, hide_index=True)
 
-elif page == "Balanço de Carbono":
-    st.header("Balanço de Carbono")
+elif page_key == "carbon":
+    st.header("Balanço de Carbono" if PT else "Carbon Balance")
 
     carbon_candidates = [
         c for c in [
@@ -841,23 +922,24 @@ elif page == "Balanço de Carbono":
     ]
 
     selected = st.multiselect(
-        "Produtos de carbono",
+        "Produtos de carbono" if PT else "Carbon products",
         carbon_candidates,
         default=[c for c in ["NEE_f", "Reco", "GPP_f"] if c in carbon_candidates],
         format_func=lambda x: unit_label(x, units),
     )
     start, end = period_controls("carbon", full_start, full_end)
     resolution = st.selectbox(
-        "Resolução",
+        "Resolução" if PT else "Resolution",
         ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
         index=2,
+        format_func=resolution_label,
         key="carbon_res",
     )
 
     if selected and start <= end:
         sub = filter_period(df, start, end)
         data = aggregate_numeric(sub, selected, resolution)
-        line_plot(data, selected, units, "Produtos de carbono", start, end, resolution)
+        line_plot(data, selected, units, "Produtos de carbono" if PT else "Carbon products", start, end, resolution)
         stats_table(sub, selected, units)
 
         nee_unc = [
@@ -866,7 +948,7 @@ elif page == "Balanço de Carbono":
         ]
         if nee_unc:
             st.subheader("Produtos de incerteza associados ao NEE")
-            st.dataframe(
+            show_table(
                 pd.DataFrame({
                     "Campo": nee_unc,
                     "Unidade": [unit_only(c, units) for c in nee_unc],
@@ -875,8 +957,8 @@ elif page == "Balanço de Carbono":
                 hide_index=True,
             )
 
-elif page == "Qualidade dos Dados":
-    st.header("Qualidade dos Dados")
+elif page_key == "qc":
+    st.header("Qualidade dos Dados" if PT else "Data Quality")
 
     st.write(
         "O EcoFlux mantém os códigos QC originais e permite compará-los com o critério de Foken. "
@@ -895,7 +977,7 @@ A classificação pode aparecer em uma forma resumida de **3 classes (0, 1, 2)**
 **escala estendida (1–9)**, dependendo do software e do protocolo de processamento.
 """
     )
-    st.dataframe(foken_reference_table(), use_container_width=True, hide_index=True)
+    show_table(foken_reference_table(), use_container_width=True, hide_index=True)
 
     st.warning(
         "Importante: nem toda coluna que contém `QC`, `_fqc` ou `_fall_qc` é necessariamente uma classe Foken. "
@@ -903,10 +985,10 @@ A classificação pode aparecer em uma forma resumida de **3 classes (0, 1, 2)**
         "a classificação de Foken como comparação, e não como significado automático do campo."
     )
 
-    qc = st.selectbox("Indicador QC", qc_vars, key="qc_select_v24")
+    qc = st.selectbox("Indicador QC" if PT else "QC indicator", qc_vars, key="qc_select_v24")
 
     comparison_scale = st.selectbox(
-        "Escala para comparação com Foken",
+        "Escala para comparação com Foken" if PT else "Scale for Foken comparison",
         [
             "Foken — 3 classes (0, 1, 2)",
             "Foken — escala estendida (1–9)",
@@ -951,7 +1033,7 @@ A classificação pode aparecer em uma forma resumida de **3 classes (0, 1, 2)**
             c4.metric("Registros QC disponíveis", f"{total_available:,}".replace(",", "."))
 
         st.subheader("Códigos observados × referência de Foken")
-        st.dataframe(raw_table, use_container_width=True, hide_index=True)
+        show_table(raw_table, use_container_width=True, hide_index=True)
 
         if not raw_table.empty:
             st.subheader("Distribuição dos códigos originais")
@@ -1164,8 +1246,8 @@ A classificação pode aparecer em uma forma resumida de **3 classes (0, 1, 2)**
         fig3.update_xaxes(range=[start, end])
         st.plotly_chart(fig3, use_container_width=True)
 
-elif page == "Sobre os Dados":
-    st.header("Sobre os Dados")
+elif page_key == "about":
+    st.header("Sobre os Dados" if PT else "About the Data")
     st.markdown(
         f"""
 ### Fonte atual
@@ -1188,21 +1270,21 @@ como `_orig`, `_f`, `_fall`, `_fsd`, `_fqc`, `_fall_qc`, `_fnum`, `_fmeth` e `_f
 """
     )
 
-elif page == "Solicitar Dados":
-    st.header("Solicitar Dados")
+elif page_key == "request":
+    st.header("Solicitar Dados" if PT else "Request Data")
     st.write(
         "Os dados brutos não são disponibilizados para download público direto. "
         "Solicitações devem ser avaliadas e autorizadas pelo responsável pelo conjunto de dados."
     )
 
     with st.form("request_form"):
-        nome = st.text_input("Nome")
-        email = st.text_input("E-mail")
-        instituicao = st.text_input("Instituição")
-        finalidade = st.text_area("Finalidade científica / uso pretendido")
-        periodo = st.text_input("Período de interesse")
-        variaveis = st.text_area("Variáveis de interesse")
-        submitted = st.form_submit_button("Preparar solicitação")
+        nome = st.text_input("Nome" if PT else "Name")
+        email = st.text_input("E-mail" if PT else "Email")
+        instituicao = st.text_input("Instituição" if PT else "Institution")
+        finalidade = st.text_area("Finalidade científica / uso pretendido" if PT else "Scientific purpose / intended use")
+        periodo = st.text_input("Período de interesse" if PT else "Period of interest")
+        variaveis = st.text_area("Variáveis de interesse" if PT else "Variables of interest")
+        submitted = st.form_submit_button("Preparar solicitação" if PT else "Prepare request")
 
     if submitted:
         st.success(
