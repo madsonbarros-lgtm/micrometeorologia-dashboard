@@ -14,8 +14,93 @@ st.set_page_config(
     layout="wide",
 )
 
+st.markdown(
+    """
+    <style>
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1500px;
+    }
+    .ecoflux-hero {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #198754;
+        margin-bottom: .35rem;
+        letter-spacing: -0.03em;
+    }
+    .ecoflux-subtitle {
+        color: rgba(49, 51, 63, .75);
+        font-size: 1.05rem;
+        margin-bottom: 1.2rem;
+    }
+    .ecoflux-success {
+        padding: 1rem 1.2rem;
+        border-radius: 14px;
+        background: linear-gradient(90deg, rgba(46,160,67,.14), rgba(46,160,67,.06));
+        border: 1px solid rgba(46,160,67,.16);
+        margin-bottom: 1.2rem;
+    }
+    .ecoflux-success strong {
+        color: #177a3d;
+        font-size: 1.05rem;
+    }
+    .ecoflux-info {
+        padding: .9rem 1.1rem;
+        border-radius: 12px;
+        background: rgba(31,119,180,.08);
+        border: 1px solid rgba(31,119,180,.10);
+        margin-top: 1rem;
+        margin-bottom: 1.2rem;
+    }
+    .ecoflux-warning {
+        padding: .9rem 1.1rem;
+        border-radius: 12px;
+        background: rgba(255,193,7,.12);
+        border: 1px solid rgba(255,193,7,.18);
+        margin-top: 1rem;
+    }
+    .ecoflux-card {
+        padding: 1.05rem 1.1rem;
+        border: 1px solid rgba(128,128,128,.18);
+        border-radius: 14px;
+        background: rgba(255,255,255,.72);
+        min-height: 145px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.03);
+    }
+    .ecoflux-card h4 {
+        margin: 0 0 .35rem 0;
+        font-size: 1.05rem;
+    }
+    .ecoflux-card p {
+        color: rgba(49,51,63,.72);
+        margin: 0;
+        line-height: 1.45;
+    }
+    .ecoflux-badge {
+        display: inline-block;
+        padding: .18rem .55rem;
+        border-radius: 999px;
+        background: rgba(46,160,67,.12);
+        color: #177a3d;
+        font-weight: 700;
+        font-size: .82rem;
+    }
+    .sidebar-status {
+        padding: .7rem .8rem;
+        border-radius: 10px;
+        background: rgba(46,160,67,.10);
+        border: 1px solid rgba(46,160,67,.12);
+        margin-bottom: .45rem;
+        font-size: .88rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ============================================================
-# EcoFlux Brasil — V34
+# EcoFlux Brasil — V35
 # Arquitetura:
 # 1) Dados originais da torre CR3000: 1 min / 30 min / diário
 # 2) Eddy Covariance / QC
@@ -856,6 +941,23 @@ for f in tower_files or []:
     except Exception as exc:
         st.sidebar.error(f"{getattr(f, 'name', 'arquivo')}: {exc}")
 
+
+if tower_summaries:
+    st.sidebar.markdown(
+        '<div class="sidebar-status"><strong>✓ ' +
+        tr(
+            f"{len(tower_summaries)} arquivo(s) CR3000 reconhecido(s)",
+            f"{len(tower_summaries)} CR3000 file(s) recognized",
+        ) +
+        '</strong><br>' +
+        tr(
+            "Classificação automática pela resolução temporal.",
+            "Automatic classification by temporal resolution.",
+        ) +
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
 # Remove referências de arquivos que não estão mais selecionados.
 for old_key in list(parsed_cache.keys()):
     if old_key not in active_keys:
@@ -942,87 +1044,168 @@ page_key = next(k for k, v in pages.items() if v == page)
 # ============================================================
 
 if page_key == "overview":
-    st.title("EcoFlux Brasil")
-    st.subheader(tr("Arquitetura atual das fontes", "Current data-source architecture"))
+    st.markdown('<div class="ecoflux-hero">EcoFlux Brasil</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="ecoflux-subtitle">' +
+        tr(
+            "Plataforma científica para dados micrometeorológicos, Eddy Covariance e produtos processados.",
+            "Scientific platform for micrometeorological data, Eddy Covariance and processed products.",
+        ) +
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
-    if tower_summaries:
-        st.success(
+    recognized_count = len(tower_summaries)
+    if recognized_count:
+        st.markdown(
+            '<div class="ecoflux-success"><strong>✓ ' +
             tr(
-                f"{len(tower_summaries)} arquivo(s) CR3000 carregado(s) e reconhecido(s) automaticamente pelo TIMESTAMP.",
-                f"{len(tower_summaries)} CR3000 file(s) loaded and automatically recognized from TIMESTAMP.",
-            )
-        )
-        st.caption(
+                f"{recognized_count} arquivo(s) CR3000 carregado(s) e reconhecido(s) automaticamente!",
+                f"{recognized_count} CR3000 file(s) loaded and automatically recognized!",
+            ) +
+            '</strong><br><span>' +
             tr(
-                "A classificação usa o intervalo temporal típico entre registros; o nome do arquivo é apenas um fallback.",
-                "Classification uses the typical interval between records; the filename is only a fallback.",
-            )
+                "Navegue pelas análises usando a barra lateral ou as opções abaixo.",
+                "Navigate through analyses using the sidebar or the options below.",
+            ) +
+            '</span></div>',
+            unsafe_allow_html=True,
         )
+
+    st.subheader(tr("Resumo dos arquivos carregados", "Loaded files summary"))
 
     cards = []
-    order = ["1 min", "30 min", "Diário"]
-    for res in order:
+    for res in ["1 min", "30 min", "Diário"]:
         if res in tower_summaries:
             sm = tower_summaries[res]
             cards.append({
-                tr("Camada", "Layer"): tr("Dados originais da torre", "Original tower data"),
-                tr("Fonte", "Source"): sm["filename"],
-                tr("Resolução detectada", "Detected resolution"): resolution_label(res),
-                tr("Registros", "Records"): sm["records"],
-                tr("Início", "Start"): sm["start"].strftime("%d/%m/%Y %H:%M") if sm["start"] is not None else "—",
-                tr("Fim", "End"): sm["end"].strftime("%d/%m/%Y %H:%M") if sm["end"] is not None else "—",
-                tr("Intervalo típico", "Typical interval"): (
+                tr("Resolução reconhecida", "Recognized resolution"): resolution_label(res),
+                tr("Arquivo", "File"): sm["filename"],
+                tr("Registros", "Records"): f"{sm['records']:,}".replace(",", ".") if PT else f"{sm['records']:,}",
+                tr("Período detectado", "Detected period"): (
+                    f"{sm['start']:%d/%m/%Y %H:%M} → {sm['end']:%d/%m/%Y %H:%M}"
+                    if sm["start"] is not None and sm["end"] is not None else "—"
+                ),
+                tr("Δ tempo típico", "Typical Δt"): (
                     f"{sm['interval_seconds']:.0f} s"
                     if sm.get("interval_seconds") is not None else "—"
                 ),
-                tr("Status", "Status"): tr("Reconhecido", "Recognized"),
+                tr("Status", "Status"): "✓ OK",
             })
 
     if processed is not None:
         d = processed["df"]
         cards.append({
-            tr("Camada", "Layer"): tr("Produtos processados", "Processed products"),
-            tr("Fonte", "Source"): processed["sheet"],
-            tr("Resolução", "Resolution"): "30 min / produtos",
-            tr("Registros", "Records"): len(d),
-            tr("Início", "Start"): d["TIMESTAMP"].min().strftime("%d/%m/%Y %H:%M"),
-            tr("Fim", "End"): d["TIMESTAMP"].max().strftime("%d/%m/%Y %H:%M"),
+            tr("Resolução reconhecida", "Recognized resolution"): tr("Produtos", "Products"),
+            tr("Arquivo", "File"): processed["sheet"],
+            tr("Registros", "Records"): f"{len(d):,}".replace(",", ".") if PT else f"{len(d):,}",
+            tr("Período detectado", "Detected period"): (
+                f"{d['TIMESTAMP'].min():%d/%m/%Y %H:%M} → {d['TIMESTAMP'].max():%d/%m/%Y %H:%M}"
+            ),
+            tr("Δ tempo típico", "Typical Δt"): tr("processado", "processed"),
+            tr("Status", "Status"): "✓ OK",
         })
 
     show_table(pd.DataFrame(cards))
 
+    st.markdown(
+        '<div class="ecoflux-info">ℹ️ ' +
+        tr(
+            "A identificação da resolução é feita automaticamente pelo intervalo típico entre os registros da coluna TIMESTAMP. "
+            "O nome do arquivo é usado apenas como fallback.",
+            "Resolution is identified automatically from the typical interval between TIMESTAMP records. "
+            "The filename is used only as fallback.",
+        ) +
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.subheader(tr("O que você deseja fazer?", "What would you like to do?"))
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.markdown(
+            '<div class="ecoflux-card"><span class="ecoflux-badge">1 min</span>'
+            '<h4>' + tr("Análise 1 min", "1-min analysis") + '</h4>'
+            '<p>' + tr(
+                "Inspeção detalhada de sensores, meteorologia e eventos de alta frequência.",
+                "Detailed inspection of sensors, meteorology and high-frequency events.",
+            ) + '</p></div>',
+            unsafe_allow_html=True,
+        )
+
+    with c2:
+        st.markdown(
+            '<div class="ecoflux-card"><span class="ecoflux-badge">30 min</span>'
+            '<h4>' + tr("Análise 30 min", "30-min analysis") + '</h4>'
+            '<p>' + tr(
+                "Base principal para análises micrometeorológicas e integração com Eddy Covariance.",
+                "Primary basis for micrometeorological analyses and Eddy Covariance integration.",
+            ) + '</p></div>',
+            unsafe_allow_html=True,
+        )
+
+    with c3:
+        st.markdown(
+            '<div class="ecoflux-card"><span class="ecoflux-badge">' +
+            tr("Diário", "Daily") + '</span><h4>' +
+            tr("Análise diária", "Daily analysis") + '</h4><p>' +
+            tr(
+                "Resumo diário, extremos, totais e comportamento sazonal.",
+                "Daily summaries, extremes, totals and seasonal behavior.",
+            ) + '</p></div>',
+            unsafe_allow_html=True,
+        )
+
+    with c4:
+        st.markdown(
+            '<div class="ecoflux-card"><span class="ecoflux-badge">XLSX</span>'
+            '<h4>' + tr("Produtos processados", "Processed products") + '</h4>'
+            '<p>' + tr(
+                "NEE, GPP, Reco, gap-filling, incertezas e indicadores QC.",
+                "NEE, GPP, Reco, gap filling, uncertainties and QC indicators.",
+            ) + '</p></div>',
+            unsafe_allow_html=True,
+        )
+
     if "30 min" in tower_file_map:
         src30 = get_tower_source("30 min", load_if_needed=True)
-        d = src30["df"]
-        gaps = gap_table(d, expected_timedelta("30 min"))
-        st.subheader(tr(
-            "Continuidade temporal — série de 30 minutos",
-            "Temporal continuity — 30-minute series",
-        ))
-        if gaps.empty:
-            st.success(tr(
-                "Nenhuma lacuna temporal relevante foi detectada.",
-                "No relevant temporal gaps were detected.",
+        if src30 is not None:
+            gaps = gap_table(src30["df"], expected_timedelta("30 min"))
+            st.subheader(tr(
+                "Continuidade temporal — série de 30 minutos",
+                "Temporal continuity — 30-minute series",
             ))
-        else:
-            st.warning(tr(
-                f"Foram detectadas {len(gaps)} lacuna(s) real(is) na aquisição. "
-                "Os gráficos não conectam linhas através desses intervalos.",
-                f"{len(gaps)} real acquisition gap(s) were detected. "
-                "Plots do not connect lines across these intervals.",
-            ))
-            show_table(gaps)
+            if gaps.empty:
+                st.success(tr(
+                    "Nenhuma lacuna temporal relevante foi detectada.",
+                    "No relevant temporal gaps were detected.",
+                ))
+            else:
+                st.markdown(
+                    '<div class="ecoflux-warning">⚠️ ' +
+                    tr(
+                        f"Foram detectadas {len(gaps)} lacuna(s) real(is) na aquisição. "
+                        "Os gráficos não conectam linhas através desses intervalos.",
+                        f"{len(gaps)} real acquisition gap(s) were detected. "
+                        "Plots do not connect lines across these intervals.",
+                    ) +
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+                show_table(gaps)
 
-    st.info(tr(
-        "Os arquivos CR3000 representam a camada observacional original da torre. "
-        "Produtos como NEE, GPP, Reco e séries preenchidas permanecem em uma camada separada.",
-        "CR3000 files represent the tower's original observational layer. "
-        "Products such as NEE, GPP, Reco and gap-filled series remain in a separate layer.",
-    ))
-
-# ============================================================
-# Dados Originais da Torre
-# ============================================================
+    st.markdown(
+        '<div class="ecoflux-info">' +
+        tr(
+            "Os arquivos CR3000 representam a camada observacional original da torre. "
+            "NEE, GPP, Reco, QC e séries preenchidas permanecem em camadas separadas.",
+            "CR3000 files represent the tower's original observational layer. "
+            "NEE, GPP, Reco, QC and gap-filled series remain in separate layers.",
+        ) +
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 elif page_key == "tower":
     st.header(tr("Dados Originais da Torre", "Original Tower Data"))
