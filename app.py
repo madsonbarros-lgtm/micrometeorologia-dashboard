@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # ============================================================
-# EcoFlux Brasil — V29
+# EcoFlux Brasil — V32
 # Arquitetura:
 # 1) Dados originais da torre CR3000: 1 min / 30 min / diário
 # 2) Eddy Covariance / QC
@@ -500,7 +500,7 @@ def plot_zscore(data, vars_, start, end, resolution):
     st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================
-# Leitura Campbell TOA5
+# Leitura Campbell TOA5 — modo econômico de memória
 # ============================================================
 
 def _uploaded_bytes(uploaded_file):
@@ -508,28 +508,131 @@ def _uploaded_bytes(uploaded_file):
         return uploaded_file.getvalue()
     return uploaded_file.read()
 
-@st.cache_data(show_spinner=False)
-def parse_toa5_bytes(file_bytes, filename="arquivo.dat"):
-    text = file_bytes.decode("utf-8", errors="replace")
-    lines = text.splitlines()
-    if len(lines) < 5:
+def read_toa5_header(uploaded_file):
+    uploaded_file.seek(0)
+    header_lines = []
+    for _ in range(4):
+        raw = uploaded_file.readline()
+        if not raw:
+            break
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8", errors="replace")
+        header_lines.append(raw.rstrip("\r\n"))
+    uploaded_file.seek(0)
+
+    if len(header_lines) < 4:
         raise ValueError("Arquivo TOA5 incompleto.")
 
-    meta = next(csv.reader([lines[0]]))
-    headers = next(csv.reader([lines[1]]))
-    units_row = next(csv.reader([lines[2]]))
-    proc_row = next(csv.reader([lines[3]]))
+    meta = next(csv.reader([header_lines[0]]))
+    headers = next(csv.reader([header_lines[1]]))
+    units_row = next(csv.reader([header_lines[2]]))
+    proc_row = next(csv.reader([header_lines[3]]))
 
     if not meta or meta[0] != "TOA5":
         raise ValueError("O arquivo não foi reconhecido como Campbell Scientific TOA5.")
 
+    return meta, headers, units_row, proc_row
+
+def identify_toa5_resolution(table_name, filename):
+    text = f"{table_name} {filename}".lower()
+    if "1min" in text or "1_min" in text:
+        return "1 min"
+    if "30min" in text or "30_min" in text:
+        return "30 min"
+    if "diario" in text or "daily" in text:
+        return "Diário"
+    return table_name
+
+def toa5_file_key(uploaded_file):
+    size = getattr(uploaded_file, "size", None)
+    if size is None:
+        pos = uploaded_file.tell()
+        uploaded_file.seek(0, 2)
+        size = uploaded_file.tell()
+        uploaded_file.seek(pos)
+    return f"{uploaded_file.name}|{size}"
+
+def scan_toa5_summary(uploaded_file):
+    """
+    Lê o arquivo linha a linha para obter metadados temporais sem carregar
+    a tabela completa em memória. É usado principalmente para o arquivo de 1 min.
+    """
+    meta, headers, units_row, proc_row = read_toa5_header(uploaded_file)
+    table_name = meta[-1] if meta else uploaded_file.name
+    res = identify_toa5_resolution(table_name, uploaded_file.name)
+
+    try:
+        ts_idx = headers.index("TIMESTAMP")
+    except ValueError:
+        raise ValueError("Coluna TIMESTAMP não encontrada.")
+
+    uploaded_file.seek(0)
+    for _ in range(4):
+        uploaded_file.readline()
+
+    n = 0
+    first_ts = None
+    last_ts = None
+
+    text_stream = io.TextIOWrapper(uploaded_file, encoding="utf-8", errors="replace", newline="")
+    try:
+        reader = csv.reader(text_stream)
+        for row in reader:
+            if len(row) <= ts_idx:
+                continue
+            ts = pd.to_datetime(row[ts_idx], errors="coerce")
+            if pd.isna(ts):
+                continue
+            n += 1
+            if first_ts is None:
+                first_ts = ts
+            last_ts = ts
+    finally:
+        try:
+            text_stream.detach()
+        except Exception:
+            pass
+        uploaded_file.seek(0)
+
+    return {
+        "resolution": res,
+        "table_name": table_name,
+        "filename": uploaded_file.name,
+        "records": n,
+        "start": first_ts,
+        "end": last_ts,
+        "headers": headers,
+        "units": {
+            h: str(u).strip()
+            for h, u in zip(headers, units_row)
+            if str(u).strip()
+        },
+        "processing": {
+            h: str(p).strip()
+            for h, p in zip(headers, proc_row)
+            if str(p).strip()
+        },
+        "meta": meta,
+    }
+
+def parse_toa5_stream(uploaded_file):
+    """
+    Faz o pandas ler diretamente do UploadedFile, evitando:
+    bytes -> string gigante -> splitlines -> StringIO.
+    Isso reduz bastante o pico de memória dos arquivos de 1 minuto.
+    """
+    meta, headers, units_row, proc_row = read_toa5_header(uploaded_file)
+    table_name = meta[-1] if meta else uploaded_file.name
+
+    uploaded_file.seek(0)
     df = pd.read_csv(
-        io.StringIO(text),
+        uploaded_file,
         skiprows=4,
         names=headers,
         na_values=["NAN", "NaN", "-9999"],
-        low_memory=False,
+        low_memory=True,
     )
+    uploaded_file.seek(0)
 
     if "TIMESTAMP" not in df.columns:
         raise ValueError("Coluna TIMESTAMP não encontrada.")
@@ -537,15 +640,19 @@ def parse_toa5_bytes(file_bytes, filename="arquivo.dat"):
     df["TIMESTAMP"] = pd.to_datetime(df["TIMESTAMP"], errors="coerce")
     df = df[df["TIMESTAMP"].notna()].sort_values("TIMESTAMP").reset_index(drop=True)
 
-    # Preservar colunas temporais auxiliares como texto; converter o restante quando possível.
     for c in df.columns:
         if c == "TIMESTAMP":
             continue
         if c.endswith("_TMx") or c.endswith("_TMn"):
             continue
-        numeric = pd.to_numeric(df[c], errors="coerce")
-        if numeric.notna().sum() > 0:
-            df[c] = numeric.mask(numeric.isin(MISSING_SENTINELS))
+
+        if not pd.api.types.is_numeric_dtype(df[c]):
+            numeric = pd.to_numeric(df[c], errors="coerce")
+            if numeric.notna().sum() > 0:
+                df[c] = numeric
+
+        if pd.api.types.is_numeric_dtype(df[c]):
+            df[c] = df[c].mask(df[c].isin(MISSING_SENTINELS))
 
     units = {
         h: str(u).strip()
@@ -558,18 +665,14 @@ def parse_toa5_bytes(file_bytes, filename="arquivo.dat"):
         if str(p).strip()
     }
 
-    table_name = meta[-1] if meta else filename
-    return df, units, processing, meta, table_name
-
-def identify_toa5_resolution(table_name, filename):
-    text = f"{table_name} {filename}".lower()
-    if "1min" in text or "1_min" in text:
-        return "1 min"
-    if "30min" in text or "30_min" in text:
-        return "30 min"
-    if "diario" in text or "daily" in text:
-        return "Diário"
-    return table_name
+    return {
+        "df": df,
+        "units": units,
+        "processing": processing,
+        "meta": meta,
+        "table_name": table_name,
+        "filename": uploaded_file.name,
+    }
 
 # ============================================================
 # Leitura XLSX processado
@@ -615,47 +718,99 @@ def load_processed_xlsx(file_bytes):
     return df, units, sheet
 
 # ============================================================
-# Uploads
+# Uploads — 1 min carregado sob demanda para evitar estouro de memória
 # ============================================================
 
 st.sidebar.subheader(tr("Fontes de dados", "Data sources"))
+st.sidebar.caption(tr(
+    "Modo econômico de memória: o arquivo de 1 min é aberto apenas quando uma análise de 1 min é selecionada.",
+    "Memory-saving mode: the 1-min file is opened only when a 1-min analysis is selected.",
+))
 
 tower_files = st.sidebar.file_uploader(
     tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
     type=["dat"],
     accept_multiple_files=True,
-    key="tower_dat_v29",
+    key="tower_dat_v32",
     help=tr(
-        "Carregue os arquivos TOA5 de 1 min, 30 min e diário. O EcoFlux reconhece cada resolução automaticamente.",
-        "Upload TOA5 1-min, 30-min and daily files. EcoFlux identifies each resolution automatically.",
+        "Carregue os arquivos TOA5 de 1 min, 30 min e diário. "
+        "O arquivo de 1 min é carregado somente quando necessário para economizar memória.",
+        "Upload TOA5 1-min, 30-min and daily files. "
+        "The 1-min file is loaded only when needed to save memory.",
     ),
 )
 
 processed_file = st.sidebar.file_uploader(
     tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
     type=["xlsx"],
-    key="processed_xlsx_v29",
+    key="processed_xlsx_v32",
 )
 
-tower_sources = {}
-tower_meta = {}
+if "_ecoflux_parsed_toa5" not in st.session_state:
+    st.session_state["_ecoflux_parsed_toa5"] = {}
+
+if "_ecoflux_toa5_summary" not in st.session_state:
+    st.session_state["_ecoflux_toa5_summary"] = {}
+
+parsed_cache = st.session_state["_ecoflux_parsed_toa5"]
+summary_cache = st.session_state["_ecoflux_toa5_summary"]
+
+tower_file_map = {}
+tower_summaries = {}
+
+active_keys = set()
 
 for f in tower_files or []:
     try:
-        data, units, processing, meta, table_name = parse_toa5_bytes(
-            _uploaded_bytes(f), f.name
-        )
-        res = identify_toa5_resolution(table_name, f.name)
-        tower_sources[res] = {
-            "df": data,
-            "units": units,
-            "processing": processing,
-            "table_name": table_name,
-            "filename": f.name,
-        }
-        tower_meta[res] = meta
+        key = toa5_file_key(f)
+        active_keys.add(key)
+
+        if key not in summary_cache:
+            summary_cache[key] = scan_toa5_summary(f)
+
+        summary = summary_cache[key]
+        res = summary["resolution"]
+        tower_file_map[res] = f
+        tower_summaries[res] = summary
+
+        # 30 min e diário são pequenos e úteis em várias páginas.
+        # O arquivo de 1 min (~centenas de milhares de linhas) fica sob demanda.
+        if res != "1 min" and key not in parsed_cache:
+            parsed_cache[key] = parse_toa5_stream(f)
+
     except Exception as exc:
-        st.sidebar.error(f"{f.name}: {exc}")
+        st.sidebar.error(f"{getattr(f, 'name', 'arquivo')}: {exc}")
+
+# Remove referências de arquivos que não estão mais selecionados.
+for old_key in list(parsed_cache.keys()):
+    if old_key not in active_keys:
+        del parsed_cache[old_key]
+for old_key in list(summary_cache.keys()):
+    if old_key not in active_keys:
+        del summary_cache[old_key]
+
+def get_tower_source(resolution, load_if_needed=True):
+    f = tower_file_map.get(resolution)
+    if f is None:
+        return None
+
+    key = toa5_file_key(f)
+
+    if key not in parsed_cache and load_if_needed:
+        with st.spinner(tr(
+            f"Carregando dados CR3000 de {resolution}...",
+            f"Loading {resolution} CR3000 data...",
+        )):
+            parsed_cache[key] = parse_toa5_stream(f)
+
+    return parsed_cache.get(key)
+
+# Fontes já carregadas (30 min, diário e 1 min caso tenha sido solicitado antes).
+tower_sources = {}
+for res, f in tower_file_map.items():
+    key = toa5_file_key(f)
+    if key in parsed_cache:
+        tower_sources[res] = parsed_cache[key]
 
 processed = None
 if processed_file is not None:
@@ -668,7 +823,7 @@ if processed_file is not None:
             f"Processed XLSX error: {exc}",
         ))
 
-if not tower_sources and processed is None:
+if not tower_file_map and processed is None:
     st.title("EcoFlux Brasil")
     st.info(
         tr(
@@ -708,15 +863,15 @@ if page_key == "overview":
     cards = []
     order = ["1 min", "30 min", "Diário"]
     for res in order:
-        if res in tower_sources:
-            d = tower_sources[res]["df"]
+        if res in tower_summaries:
+            sm = tower_summaries[res]
             cards.append({
                 tr("Camada", "Layer"): tr("Dados originais da torre", "Original tower data"),
-                tr("Fonte", "Source"): tower_sources[res]["table_name"],
+                tr("Fonte", "Source"): sm["table_name"],
                 tr("Resolução", "Resolution"): resolution_label(res),
-                tr("Registros", "Records"): len(d),
-                tr("Início", "Start"): d["TIMESTAMP"].min().strftime("%d/%m/%Y %H:%M"),
-                tr("Fim", "End"): d["TIMESTAMP"].max().strftime("%d/%m/%Y %H:%M"),
+                tr("Registros", "Records"): sm["records"],
+                tr("Início", "Start"): sm["start"].strftime("%d/%m/%Y %H:%M") if sm["start"] is not None else "—",
+                tr("Fim", "End"): sm["end"].strftime("%d/%m/%Y %H:%M") if sm["end"] is not None else "—",
             })
 
     if processed is not None:
@@ -732,8 +887,9 @@ if page_key == "overview":
 
     show_table(pd.DataFrame(cards))
 
-    if "30 min" in tower_sources:
-        d = tower_sources["30 min"]["df"]
+    if "30 min" in tower_file_map:
+        src30 = get_tower_source("30 min", load_if_needed=True)
+        d = src30["df"]
         gaps = gap_table(d, expected_timedelta("30 min"))
         st.subheader(tr(
             "Continuidade temporal — série de 30 minutos",
@@ -767,7 +923,7 @@ if page_key == "overview":
 elif page_key == "tower":
     st.header(tr("Dados Originais da Torre", "Original Tower Data"))
 
-    source_order = [x for x in ["1 min", "30 min", "Diário"] if x in tower_sources]
+    source_order = [x for x in ["1 min", "30 min", "Diário"] if x in tower_file_map]
     if not source_order:
         st.info(tr("Nenhum arquivo CR3000 carregado.", "No CR3000 file loaded."))
         st.stop()
@@ -776,10 +932,13 @@ elif page_key == "tower":
         tr("Resolução observacional", "Observational resolution"),
         source_order,
         format_func=resolution_label,
-        key="tower_source_v29",
+        key="tower_source_v32",
     )
 
-    src = tower_sources[source]
+    src = get_tower_source(source, load_if_needed=True)
+    if src is None:
+        st.error(tr("Não foi possível carregar esta fonte.", "Unable to load this source."))
+        st.stop()
     df = src["df"]
     units = src["units"]
     expected = expected_timedelta(source)
@@ -853,7 +1012,32 @@ elif page_key == "structure":
     ))
 
     rows = []
-    for res, src in tower_sources.items():
+    include_1min_structure = st.checkbox(
+        tr(
+            "Incluir estrutura detalhada do arquivo de 1 min",
+            "Include detailed structure of the 1-min file",
+        ),
+        value=False,
+        key="structure_1min_v32",
+        help=tr(
+            "Deixe desmarcado para economizar memória. O cabeçalho de 1 min continua reconhecido na Visão Geral.",
+            "Leave unchecked to save memory. The 1-min header remains recognized in Overview.",
+        ),
+    )
+
+    structure_sources = {}
+    for res in ["30 min", "Diário"]:
+        if res in tower_file_map:
+            src_tmp = get_tower_source(res, load_if_needed=True)
+            if src_tmp is not None:
+                structure_sources[res] = src_tmp
+
+    if include_1min_structure and "1 min" in tower_file_map:
+        src_tmp = get_tower_source("1 min", load_if_needed=True)
+        if src_tmp is not None:
+            structure_sources["1 min"] = src_tmp
+
+    for res, src in structure_sources.items():
         df = src["df"]
         for c in df.columns:
             if c == "TIMESTAMP":
@@ -889,8 +1073,8 @@ elif page_key == "structure":
 elif page_key == "compare":
     st.header(tr("Comparar Variáveis", "Compare Variables"))
 
-    source_choices = [resolution_label(x) for x in ["1 min","30 min","Diário"] if x in tower_sources]
-    source_keys = [x for x in ["1 min","30 min","Diário"] if x in tower_sources]
+    source_choices = [resolution_label(x) for x in ["1 min","30 min","Diário"] if x in tower_file_map]
+    source_keys = [x for x in ["1 min","30 min","Diário"] if x in tower_file_map]
 
     if processed is not None:
         source_choices.append(tr("Produtos processados", "Processed products"))
@@ -910,7 +1094,10 @@ elif page_key == "compare":
         resolutions = ["30 min","Horário","Diário","Semanal","Mensal"]
         expected = pd.Timedelta(minutes=30)
     else:
-        src = tower_sources[source_key]
+        src = get_tower_source(source_key, load_if_needed=True)
+        if src is None:
+            st.error(tr("Não foi possível carregar esta fonte.", "Unable to load this source."))
+            st.stop()
         df = src["df"]
         units = src["units"]
         expected = expected_timedelta(source_key)
@@ -1368,7 +1555,7 @@ elif page_key == "qc":
                         "QC × tower meteorology",
                     ))
 
-                    if "30 min" not in tower_sources:
+                    if "30 min" not in tower_file_map:
                         st.info(tr(
                             "Carregue o arquivo CR3000 de 30 minutos para habilitar esta comparação.",
                             "Upload the 30-minute CR3000 file to enable this comparison.",
@@ -1384,7 +1571,7 @@ elif page_key == "qc":
                         )
 
                         if use_met:
-                            met_src = tower_sources["30 min"]
+                            met_src = get_tower_source("30 min", load_if_needed=True)
                             met_df = met_src["df"]
                             met_units = met_src["units"]
 
