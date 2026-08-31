@@ -334,6 +334,37 @@ def aggregate_numeric(df, vars_, resolution):
     }[resolution]
     return d.resample(rule).mean(numeric_only=True).reset_index()
 
+
+def temporal_hover_text(ts, resolution):
+    ts = pd.Timestamp(ts)
+    if resolution == "30 min":
+        return ts.strftime("%d/%m/%Y %H:%M")
+    if resolution == "Horário":
+        return ts.strftime("%d/%m/%Y %H:00")
+    if resolution == "Diário":
+        return ts.strftime("%d/%m/%Y")
+    if resolution == "Semanal":
+        # Para resample 1W do pandas, o timestamp representa o fim da janela semanal.
+        week_end = ts.normalize()
+        week_start = week_end - pd.Timedelta(days=6)
+        return f"{week_start:%d/%m/%Y} – {week_end:%d/%m/%Y}"
+    if resolution == "Mensal":
+        meses = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ]
+        return f"{meses[ts.month - 1]}/{ts.year}"
+    return ts.strftime("%d/%m/%Y %H:%M")
+
+def temporal_axis_title(resolution):
+    return {
+        "30 min": "Data e hora",
+        "Horário": "Data e hora",
+        "Diário": "Data",
+        "Semanal": "Período semanal",
+        "Mensal": "Mês",
+    }.get(resolution, "Data e hora")
+
 def valid_range(df, var):
     s = pd.to_numeric(df[var], errors="coerce")
     m = s.notna() & df["TIMESTAMP"].notna()
@@ -342,21 +373,34 @@ def valid_range(df, var):
     tt = df.loc[m, "TIMESTAMP"]
     return tt.min(), tt.max(), int(m.sum())
 
-def line_plot(data, vars_, units, title, start=None, end=None):
+def line_plot(data, vars_, units, title, start=None, end=None, resolution="30 min"):
     colors = colors_for_variables(vars_)
+    hover_time = [temporal_hover_text(ts, resolution) for ts in data["TIMESTAMP"]]
+
     fig = go.Figure()
     for v in vars_:
+        values = pd.to_numeric(data[v], errors="coerce")
         fig.add_trace(go.Scattergl(
             x=data["TIMESTAMP"],
-            y=data[v],
+            y=values,
             mode="lines",
             name=unit_label(v, units),
             line=dict(color=colors[v], width=2),
             connectgaps=False,
+            customdata=np.column_stack([
+                np.array(hover_time, dtype=object),
+                np.array([unit_only(v, units)] * len(data), dtype=object),
+            ]),
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                + str(v) + ": %{y:.6g} %{customdata[1]}"
+                "<extra></extra>"
+            ),
         ))
+
     fig.update_layout(
         title=title,
-        xaxis_title="Data e hora",
+        xaxis_title=temporal_axis_title(resolution),
         yaxis_title="Valor",
         hovermode="x unified",
         height=480,
@@ -365,6 +409,7 @@ def line_plot(data, vars_, units, title, start=None, end=None):
     if start is not None and end is not None:
         fig.update_xaxes(range=[start, end])
     st.plotly_chart(fig, use_container_width=True)
+
 
 def stats_table(df, vars_, units):
     rows = []
@@ -431,11 +476,24 @@ def plot_observed_filled(df, base, units, start, end, resolution):
         fil = pd.to_numeric(sub[filled], errors="coerce")
         filled_only = obs.isna() & fil.notna()
 
+        obs_times = [temporal_hover_text(ts, "30 min") for ts in sub["TIMESTAMP"]]
+        fill_times = [
+            temporal_hover_text(ts, "30 min")
+            for ts in sub.loc[filled_only, "TIMESTAMP"]
+        ]
+        base_unit = unit_only(base, units)
+
         fig.add_trace(go.Scattergl(
             x=sub["TIMESTAMP"], y=obs, mode="lines",
             name=f"{orig} — observado",
             line=dict(color="#1f77b4", width=1.5),
             connectgaps=False,
+            customdata=np.array(obs_times, dtype=object).reshape(-1, 1),
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                + f"{orig}: " + "%{y:.6g} " + base_unit +
+                "<extra></extra>"
+            ),
         ))
         fig.add_trace(go.Scattergl(
             x=sub.loc[filled_only, "TIMESTAMP"],
@@ -443,6 +501,12 @@ def plot_observed_filled(df, base, units, start, end, resolution):
             mode="markers",
             name=f"{filled} — preenchido onde {orig} está ausente",
             marker=dict(color="#d62728", size=5, symbol="circle"),
+            customdata=np.array(fill_times, dtype=object).reshape(-1, 1),
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                + f"{filled}: " + "%{y:.6g} " + base_unit +
+                "<extra></extra>"
+            ),
         ))
         fig.update_layout(
             title=f"{base}: observado × preenchido",
@@ -459,7 +523,7 @@ def plot_observed_filled(df, base, units, start, end, resolution):
         line_plot(
             agg, [orig, filled], units,
             f"{base}: observado × preenchido — {resolution.lower()}",
-            start, end,
+            start, end, resolution,
         )
 
     status = gapfill_status(sub, base)
@@ -672,6 +736,10 @@ elif page == "Séries Científicas":
         index=0,
         key="single_res",
     )
+    st.caption(
+        "O cursor mostra o horário na resolução de 30 min/horária, a data na resolução diária, "
+        "o intervalo completo na semanal e o mês/ano na mensal."
+    )
 
     if start > end:
         st.error("O início deve ser anterior ao fim.")
@@ -684,7 +752,7 @@ elif page == "Séries Científicas":
                 f"{n:,} valores disponíveis".replace(",", ".")
             )
         data = aggregate_numeric(sub, [var], resolution)
-        line_plot(data, [var], units, unit_label(var, units), start, end)
+        line_plot(data, [var], units, unit_label(var, units), start, end, resolution)
         stats_table(sub, [var], units)
 
 elif page == "Comparar Variáveis":
@@ -711,7 +779,7 @@ elif page == "Comparar Variáveis":
     else:
         sub = filter_period(df, start, end)
         data = aggregate_numeric(sub, vars_, resolution)
-        line_plot(data, vars_, units, "Comparação de variáveis", start, end)
+        line_plot(data, vars_, units, "Comparação de variáveis", start, end, resolution)
         stats_table(sub, vars_, units)
 
         corr = data[vars_].corr(method="pearson", min_periods=3)
@@ -789,7 +857,7 @@ elif page == "Balanço de Carbono":
     if selected and start <= end:
         sub = filter_period(df, start, end)
         data = aggregate_numeric(sub, selected, resolution)
-        line_plot(data, selected, units, "Produtos de carbono", start, end)
+        line_plot(data, selected, units, "Produtos de carbono", start, end, resolution)
         stats_table(sub, selected, units)
 
         nee_unc = [
