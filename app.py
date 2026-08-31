@@ -109,127 +109,155 @@ def existing_scientific(df, names):
 def valid_pct(s):
     return 100 * s.notna().mean() if len(s) else np.nan
 
-def unit_label(var, units):
-    unit = unit_only(var, units)
-    if unit == "unidade não informada":
-        return var
-    return f"{var} [{unit}]"
+
+def _unit_key_lookup(units):
+    return {str(k).strip().lower(): k for k in units.keys()}
 
 def base_variable_for_unit(var, units):
     """
-    Variáveis correlatas/flags recebem a mesma unidade da variável-base.
-    A unidade é preservada EXATAMENTE como aparece na planilha.
+    Resolve a variável-base de campos correlatos como qc_LE -> LE.
+    A unidade herdada é preservada exatamente como aparece na planilha.
     """
-    name = str(var)
+    name = str(var).strip()
+    lower = name.lower()
+    lookup = _unit_key_lookup(units)
 
     prefixes = ["qc_", "rand_err_", "random_error_", "uncertainty_"]
     for prefix in prefixes:
-        if name.startswith(prefix):
-            candidate = name[len(prefix):]
-            if candidate in units:
-                return candidate
+        if lower.startswith(prefix):
+            candidate = lower[len(prefix):]
+            if candidate in lookup:
+                return lookup[candidate]
 
     suffixes = ["_qc", "_sd", "_se", "_uncertainty", "_error"]
     for suffix in suffixes:
-        if name.endswith(suffix):
-            candidate = name[:-len(suffix)]
-            if candidate in units:
-                return candidate
+        if lower.endswith(suffix):
+            candidate = lower[:-len(suffix)]
+            if candidate in lookup:
+                return lookup[candidate]
 
     return None
 
 def unit_only(var, units):
-    # Para variáveis correlatas (ex.: qc_LE, qc_co2_flux), a unidade da variável-base
-    # tem prioridade, inclusive quando a planilha traz marcadores genéricos como [#].
+    # Variáveis correlatas usam prioritariamente a unidade da variável-base.
     base = base_variable_for_unit(var, units)
-    if base:
+    if base is not None:
         inherited = units.get(base)
         if inherited is not None and str(inherited).strip():
             return str(inherited).strip()
 
-    # Demais variáveis usam exatamente a unidade registrada na própria coluna.
+    # Demais variáveis mantêm exatamente a unidade registrada na própria coluna.
     direct = units.get(var)
     if direct is not None and str(direct).strip():
         return str(direct).strip()
+
+    # Fallback case-insensitive.
+    lookup = _unit_key_lookup(units)
+    real_key = lookup.get(str(var).strip().lower())
+    if real_key is not None:
+        direct = units.get(real_key)
+        if direct is not None and str(direct).strip():
+            return str(direct).strip()
 
     return "unidade não informada"
 
 def unit_label(var, units):
     unit = unit_only(var, units)
     if unit == "unidade não informada":
-        return var
+        return str(var)
     return f"{var} [{unit}]"
 
-def clean_unit_text(unit):
-    """Normaliza problemas comuns de codificação e notação da linha de unidades."""
-    if unit is None:
-        return None
+def variable_valid_range(df, var):
+    if var not in df.columns:
+        return None, None, 0
 
-    text = str(unit).strip()
-    if not text:
-        return None
+    s = pd.to_numeric(df[var], errors="coerce")
+    mask = s.notna() & df["TIMESTAMP_parsed"].notna()
 
-    # Corrige mojibake comum de UTF-8/Latin-1.
-    replacements = {
-        "Âµ": "µ",
-        "Â°": "°",
-        "Â": "",
-        "+1": "",
-        "+2": "²",
-        "+3": "³",
-    }
-    for old, new in replacements.items():
-        text = text.replace(old, new)
+    if not mask.any():
+        return None, None, 0
 
-    # Melhora a notação dos expoentes negativos mais comuns.
-    text = (
-        text.replace("m-2", "m⁻²")
-            .replace("m-1", "m⁻¹")
-            .replace("s-1", "s⁻¹")
-            .replace("kg-1", "kg⁻¹")
-    )
+    times = df.loc[mask, "TIMESTAMP_parsed"]
+    return times.min(), times.max(), int(mask.sum())
 
-    return text.strip()
+def show_variable_availability(df, variables, selected_start, selected_end, units):
+    rows = []
+    has_partial = False
 
-def base_variable_for_unit(var, units):
+    for var in variables:
+        first_valid, last_valid, n_valid = variable_valid_range(df, var)
+
+        if first_valid is None:
+            coverage = "Sem dados válidos"
+            status = "Sem dados"
+            has_partial = True
+        else:
+            coverage = f"{first_valid:%d/%m/%Y %H:%M} → {last_valid:%d/%m/%Y %H:%M}"
+            fully_covers = first_valid <= selected_start and last_valid >= selected_end
+            status = "Cobre todo o período" if fully_covers else "Cobertura parcial"
+            if not fully_covers:
+                has_partial = True
+
+        rows.append({
+            "Variável": var,
+            "Unidade": unit_only(var, units),
+            "Dados válidos disponíveis": coverage,
+            "N válido no arquivo": n_valid,
+            "Situação no período selecionado": status,
+        })
+
+    st.markdown("#### Disponibilidade temporal das variáveis")
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    if has_partial:
+        st.info(
+            "O período selecionado pode ser maior que a cobertura real de uma ou mais variáveis. "
+            "O gráfico mantém o intervalo solicitado no eixo X, mas a linha aparece somente onde "
+            "existem valores válidos."
+        )
+
+def add_missing_period_shading(fig, df_full, variables, selected_start, selected_end):
     """
-    Variáveis correlatas/flags recebem a mesma unidade física da variável-base
-    quando a unidade própria estiver ausente ou inadequada.
+    Sombreia trechos do período solicitado fora da cobertura temporal
+    conjunta das variáveis selecionadas.
     """
-    name = str(var)
+    firsts, lasts = [], []
 
-    # qc_LE -> LE ; qc_co2_flux -> co2_flux
-    prefixes = ["qc_", "rand_err_", "random_error_", "uncertainty_"]
-    for prefix in prefixes:
-        if name.startswith(prefix):
-            candidate = name[len(prefix):]
-            if candidate in units:
-                return candidate
+    for var in variables:
+        first_valid, last_valid, _ = variable_valid_range(df_full, var)
+        if first_valid is not None:
+            firsts.append(first_valid)
+            lasts.append(last_valid)
 
-    # LE_qc -> LE ; co2_flux_qc -> co2_flux
-    suffixes = ["_qc", "_sd", "_se", "_uncertainty", "_error"]
-    for suffix in suffixes:
-        if name.endswith(suffix):
-            candidate = name[:-len(suffix)]
-            if candidate in units:
-                return candidate
+    if not firsts:
+        return fig
 
-    return None
+    coverage_start = min(firsts)
+    coverage_end = max(lasts)
 
-def unit_only(var, units):
-    # 1) usa a unidade diretamente documentada
-    direct = clean_unit_text(units.get(var))
-    if direct:
-        return direct
+    if selected_start < coverage_start:
+        fig.add_vrect(
+            x0=selected_start,
+            x1=coverage_start,
+            fillcolor="lightgray",
+            opacity=0.18,
+            line_width=0,
+            annotation_text="Sem dados válidos",
+            annotation_position="top left",
+        )
 
-    # 2) para variável correlata, herda a unidade da variável-base
-    base = base_variable_for_unit(var, units)
-    if base:
-        inherited = clean_unit_text(units.get(base))
-        if inherited:
-            return inherited
+    if coverage_end < selected_end:
+        fig.add_vrect(
+            x0=coverage_end,
+            x1=selected_end,
+            fillcolor="lightgray",
+            opacity=0.18,
+            line_width=0,
+            annotation_text="Sem dados válidos",
+            annotation_position="top left",
+        )
 
-    return "unidade não informada"
+    return fig
 
 def filter_period(df, start_dt, end_dt):
     return df[
@@ -473,7 +501,7 @@ def comparison_same_axis(data, variables, title, units):
             "de menor amplitude pareça zerada."
         )
 
-def comparison_two_axes(data, variables, title, units):
+def comparison_two_axes(data, variables, title, units, df_full=None, selected_start=None, selected_end=None):
     if len(variables) != 2:
         st.warning("O modo de dois eixos Y requer exatamente duas variáveis.")
         return
@@ -515,6 +543,19 @@ def comparison_two_axes(data, variables, title, units):
         height=500,
         margin=dict(l=20, r=70, t=55, b=20),
     )
+
+    if selected_start is not None and selected_end is not None:
+        fig.update_xaxes(range=[selected_start, selected_end])
+
+    if df_full is not None and selected_start is not None and selected_end is not None:
+        add_missing_period_shading(
+            fig,
+            df_full,
+            variables,
+            selected_start,
+            selected_end,
+        )
+
     st.plotly_chart(fig, use_container_width=True)
 
 def comparison_normalized(data, variables, title, units):
@@ -773,6 +814,14 @@ elif page == "Comparar Variáveis":
             f"{end_dt:%d/%m/%Y %H:%M}"
         )
 
+        show_variable_availability(
+            df,
+            selected_vars,
+            start_dt,
+            end_dt,
+            units,
+        )
+
         if selected.empty:
             st.warning("Não há registros nesse período.")
         else:
@@ -806,6 +855,9 @@ elif page == "Comparar Variáveis":
                     selected_vars,
                     "Comparação com dois eixos Y",
                     units,
+                    df,
+                    start_dt,
+                    end_dt,
                 )
 
             elif mode == "Mesmo gráfico — normalizado (z-score)":
