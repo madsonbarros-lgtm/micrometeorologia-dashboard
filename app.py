@@ -619,26 +619,128 @@ PAGE_KEY = {
 
 TABLE_MODE = st.sidebar.radio(
     "Tabelas" if PT else "Tables",
-    ["Interativa", "Simplificada"] if PT else ["Interactive", "Simplified"],
-    index=0,
-    key="table_mode_v26",
-    help=(
-        "Interativa mantém ordenação e menus do Streamlit. Simplificada remove esses menus e exibe uma tabela limpa."
+    (
+        ["Português — controles próprios", "Nativa do Streamlit"]
         if PT else
-        "Interactive keeps Streamlit sorting and native menus. Simplified removes those menus and shows a clean table."
+        ["English — custom controls", "Native Streamlit"]
+    ),
+    index=0,
+    key="table_mode_v27",
+    help=(
+        "A opção em português usa controles próprios e elimina os menus internos em inglês do Streamlit. "
+        "A opção nativa mantém os recursos completos do componente do Streamlit, cujo menu pode aparecer em inglês."
+        if PT else
+        "The custom option avoids Streamlit's internal context menu. "
+        "The native option keeps the full Streamlit table component."
     ),
 )
-SIMPLE_TABLES = TABLE_MODE in {"Simplificada", "Simplified"}
+
+CUSTOM_TABLES = TABLE_MODE in {
+    "Português — controles próprios",
+    "English — custom controls",
+}
+
+_TABLE_COUNTER = 0
 
 def show_table(data, use_container_width=True, hide_index=True):
-    if SIMPLE_TABLES:
-        # Static HTML avoids the framework-native context menu.
-        st.markdown(
-            data.to_html(index=not hide_index, escape=True),
-            unsafe_allow_html=True,
+    global _TABLE_COUNTER
+    _TABLE_COUNTER += 1
+    key = f"ecoflux_table_{_TABLE_COUNTER}"
+
+    if not CUSTOM_TABLES:
+        st.dataframe(
+            data,
+            use_container_width=use_container_width,
+            hide_index=hide_index,
         )
-    else:
-        st.dataframe(data, use_container_width=use_container_width, hide_index=hide_index)
+        return
+
+    view = data.copy() if isinstance(data, pd.DataFrame) else pd.DataFrame(data)
+
+    if len(view.columns) > 0:
+        with st.expander(
+            "Opções da tabela" if PT else "Table options",
+            expanded=False,
+        ):
+            cols = list(view.columns)
+            c1, c2, c3 = st.columns([2, 1, 1])
+
+            sort_col = c1.selectbox(
+                "Ordenar por" if PT else "Sort by",
+                ["—"] + cols,
+                key=f"{key}_sort_col",
+            )
+
+            direction = c2.selectbox(
+                "Ordem" if PT else "Order",
+                ["Crescente", "Decrescente"] if PT else ["Ascending", "Descending"],
+                key=f"{key}_sort_dir",
+            )
+
+            max_rows = c3.selectbox(
+                "Linhas" if PT else "Rows",
+                [25, 50, 100, 250, "Todas" if PT else "All"],
+                index=1,
+                key=f"{key}_rows",
+            )
+
+            visible_cols = st.multiselect(
+                "Colunas visíveis" if PT else "Visible columns",
+                cols,
+                default=cols,
+                key=f"{key}_visible",
+            )
+
+        if visible_cols:
+            view = view[visible_cols]
+
+        if sort_col != "—" and sort_col in view.columns:
+            ascending = direction in {"Crescente", "Ascending"}
+            try:
+                view = view.sort_values(sort_col, ascending=ascending, na_position="last")
+            except Exception:
+                view = view.assign(
+                    __sort=view[sort_col].astype(str)
+                ).sort_values("__sort", ascending=ascending).drop(columns="__sort")
+
+        if max_rows not in {"Todas", "All"}:
+            view = view.head(int(max_rows))
+
+    st.markdown(
+        """
+        <style>
+        .ecoflux-table-wrap {
+            overflow-x: auto;
+            border: 1px solid rgba(128,128,128,.25);
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+        }
+        .ecoflux-table-wrap table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.93rem;
+        }
+        .ecoflux-table-wrap th, .ecoflux-table-wrap td {
+            padding: 0.45rem 0.65rem;
+            border-bottom: 1px solid rgba(128,128,128,.18);
+            text-align: left;
+            white-space: nowrap;
+        }
+        .ecoflux-table-wrap th {
+            font-weight: 600;
+            background: rgba(128,128,128,.08);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="ecoflux-table-wrap">' +
+        view.to_html(index=not hide_index, escape=True, border=0) +
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
 st.sidebar.caption("Plataforma científica para séries micrometeorológicas e Eddy Covariance" if PT else "Scientific platform for micrometeorological and Eddy Covariance time series")
 
 uploaded = st.sidebar.file_uploader(
