@@ -319,6 +319,60 @@ def aggregate_time(df, var, resolution):
 
     return d.resample(rule).mean(numeric_only=True).reset_index()
 
+
+# Paleta de cores distintas e estáveis para as séries científicas.
+# A mesma variável mantém a mesma cor em todas as páginas/gráficos.
+VARIABLE_PALETTE = [
+    "#1f77b4",  # azul
+    "#d62728",  # vermelho
+    "#2ca02c",  # verde
+    "#9467bd",  # roxo
+    "#ff7f0e",  # laranja
+    "#17becf",  # ciano
+    "#8c564b",  # marrom
+    "#e377c2",  # rosa
+    "#bcbd22",  # oliva
+    "#7f7f7f",  # cinza
+    "#393b79",
+    "#637939",
+    "#8c6d31",
+    "#843c39",
+    "#7b4173",
+    "#3182bd",
+    "#31a354",
+    "#756bb1",
+    "#e6550d",
+    "#636363",
+]
+
+def variable_color(var):
+    """
+    Cor estável por nome de variável.
+    Evita trocar a cor da mesma variável entre páginas e sessões.
+    """
+    text = str(var)
+    idx = sum((i + 1) * ord(ch) for i, ch in enumerate(text)) % len(VARIABLE_PALETTE)
+    return VARIABLE_PALETTE[idx]
+
+def colors_for_variables(variables):
+    """
+    Garante cores distintas dentro de um mesmo gráfico.
+    """
+    used = set()
+    mapping = {}
+
+    for var in variables:
+        preferred = variable_color(var)
+        if preferred not in used:
+            color = preferred
+        else:
+            color = next((c for c in VARIABLE_PALETTE if c not in used), preferred)
+
+        mapping[var] = color
+        used.add(color)
+
+    return mapping
+
 def plot_variable(df, var, resolution, title=None, units=None):
     d = aggregate_time(df, var, resolution)
 
@@ -332,6 +386,7 @@ def plot_variable(df, var, resolution, title=None, units=None):
             y=d[var],
             mode="lines",
             name=var,
+            line=dict(color=variable_color(var), width=2),
             connectgaps=False,
         )
     )
@@ -454,6 +509,8 @@ def qc_quality_panel(df_period, var, all_columns, resolution):
             y=q[qc_var],
             mode="markers+lines",
             name=qc_var,
+            line=dict(color="#111111", width=1.5),
+            marker=dict(color="#111111", size=6, symbol="diamond"),
             connectgaps=False,
         )
     )
@@ -584,12 +641,14 @@ def comparison_same_axis(data, variables, title, units):
             use_secondary = ratio >= 10
 
     fig = go.Figure()
+    color_map = colors_for_variables(variables)
     for i, var in enumerate(variables):
         trace_kwargs = dict(
             x=data["TIMESTAMP_parsed"],
             y=data[var],
             mode="lines",
             name=unit_label(var, units),
+            line=dict(color=color_map[var], width=2),
             connectgaps=False,
         )
         if use_secondary and i == 1:
@@ -631,6 +690,7 @@ def comparison_two_axes(data, variables, title, units, df_full=None, selected_st
         return
 
     v1, v2 = variables
+    color_map = colors_for_variables(variables)
     fig = go.Figure()
 
     fig.add_trace(
@@ -639,6 +699,7 @@ def comparison_two_axes(data, variables, title, units, df_full=None, selected_st
             y=data[v1],
             mode="lines",
             name=unit_label(v1, units),
+            line=dict(color=color_map[v1], width=2),
             yaxis="y",
             connectgaps=False,
         )
@@ -649,6 +710,7 @@ def comparison_two_axes(data, variables, title, units, df_full=None, selected_st
             y=data[v2],
             mode="lines",
             name=unit_label(v2, units),
+            line=dict(color=color_map[v2], width=2),
             yaxis="y2",
             connectgaps=False,
         )
@@ -657,9 +719,15 @@ def comparison_two_axes(data, variables, title, units, df_full=None, selected_st
     fig.update_layout(
         title=title,
         xaxis_title="Data e hora",
-        yaxis=dict(title=unit_label(v1, units)),
+        yaxis=dict(
+            title=unit_label(v1, units),
+            titlefont=dict(color=color_map[v1]),
+            tickfont=dict(color=color_map[v1]),
+        ),
         yaxis2=dict(
             title=unit_label(v2, units),
+            titlefont=dict(color=color_map[v2]),
+            tickfont=dict(color=color_map[v2]),
             overlaying="y",
             side="right",
         ),
@@ -686,6 +754,7 @@ def comparison_normalized(data, variables, title, units):
     nd = data[["TIMESTAMP_parsed"] + variables].copy()
 
     fig = go.Figure()
+    color_map = colors_for_variables(variables)
     for var in variables:
         nd[var] = normalize_zscore(nd[var])
         fig.add_trace(
@@ -694,6 +763,7 @@ def comparison_normalized(data, variables, title, units):
                 y=nd[var],
                 mode="lines",
                 name=unit_label(var, units),
+                line=dict(color=color_map[var], width=2),
                 connectgaps=False,
             )
         )
@@ -709,6 +779,7 @@ def comparison_normalized(data, variables, title, units):
     st.plotly_chart(fig, use_container_width=True)
 
 def comparison_separate(data, variables, units):
+    color_map = colors_for_variables(variables)
     for var in variables:
         fig = go.Figure(
             go.Scattergl(
@@ -716,6 +787,7 @@ def comparison_separate(data, variables, units):
                 y=data[var],
                 mode="lines",
                 name=unit_label(var, units),
+                line=dict(color=color_map[var], width=2),
                 connectgaps=False,
             )
         )
@@ -880,6 +952,11 @@ elif page == "Comparar Variáveis":
     st.write(
         "Selecione duas ou mais variáveis físicas/científicas e informe o período comum da comparação. "
         "Campos temporais e colunas qc_ não aparecem nesta lista. As qc_ são indicadores de qualidade e são tratadas separadamente."
+    )
+
+    st.caption(
+        "Cada variável recebe uma cor distinta e mantém essa identidade visual nos gráficos do EcoFlux. "
+        "Indicadores QC são exibidos separadamente em preto com marcadores em losango."
     )
 
     search = st.text_input(
@@ -1211,6 +1288,10 @@ elif page == "Qualidade dos Dados":
                     rel[base_var] = pd.to_numeric(rel[base_var], errors="coerce")
                     rel[qc_choice] = pd.to_numeric(rel[qc_choice], errors="coerce")
 
+                    pair_colors = colors_for_variables([base_var])
+                    physical_color = pair_colors[base_var]
+                    qc_color = "#111111"
+
                     fig2 = go.Figure()
                     fig2.add_trace(
                         go.Scattergl(
@@ -1218,6 +1299,7 @@ elif page == "Qualidade dos Dados":
                             y=rel[base_var],
                             mode="lines",
                             name=unit_label(base_var, units),
+                            line=dict(color=physical_color, width=2),
                             yaxis="y",
                             connectgaps=False,
                         )
@@ -1228,6 +1310,7 @@ elif page == "Qualidade dos Dados":
                             y=rel[qc_choice],
                             mode="markers",
                             name=qc_choice,
+                            marker=dict(color=qc_color, size=6, symbol="diamond"),
                             yaxis="y2",
                         )
                     )
