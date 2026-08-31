@@ -110,14 +110,81 @@ def valid_pct(s):
     return 100 * s.notna().mean() if len(s) else np.nan
 
 def unit_label(var, units):
-    unit = units.get(var)
-    if unit is None or str(unit).strip() == "":
+    unit = unit_only(var, units)
+    if unit == "unidade não informada":
         return var
     return f"{var} [{unit}]"
 
+def clean_unit_text(unit):
+    """Normaliza problemas comuns de codificação e notação da linha de unidades."""
+    if unit is None:
+        return None
+
+    text = str(unit).strip()
+    if not text:
+        return None
+
+    # Corrige mojibake comum de UTF-8/Latin-1.
+    replacements = {
+        "Âµ": "µ",
+        "Â°": "°",
+        "Â": "",
+        "+1": "",
+        "+2": "²",
+        "+3": "³",
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+
+    # Melhora a notação dos expoentes negativos mais comuns.
+    text = (
+        text.replace("m-2", "m⁻²")
+            .replace("m-1", "m⁻¹")
+            .replace("s-1", "s⁻¹")
+            .replace("kg-1", "kg⁻¹")
+    )
+
+    return text.strip()
+
+def base_variable_for_unit(var, units):
+    """
+    Variáveis correlatas/flags recebem a mesma unidade física da variável-base
+    quando a unidade própria estiver ausente ou inadequada.
+    """
+    name = str(var)
+
+    # qc_LE -> LE ; qc_co2_flux -> co2_flux
+    prefixes = ["qc_", "rand_err_", "random_error_", "uncertainty_"]
+    for prefix in prefixes:
+        if name.startswith(prefix):
+            candidate = name[len(prefix):]
+            if candidate in units:
+                return candidate
+
+    # LE_qc -> LE ; co2_flux_qc -> co2_flux
+    suffixes = ["_qc", "_sd", "_se", "_uncertainty", "_error"]
+    for suffix in suffixes:
+        if name.endswith(suffix):
+            candidate = name[:-len(suffix)]
+            if candidate in units:
+                return candidate
+
+    return None
+
 def unit_only(var, units):
-    unit = units.get(var)
-    return str(unit).strip() if unit is not None and str(unit).strip() else "unidade não informada"
+    # 1) usa a unidade diretamente documentada
+    direct = clean_unit_text(units.get(var))
+    if direct:
+        return direct
+
+    # 2) para variável correlata, herda a unidade da variável-base
+    base = base_variable_for_unit(var, units)
+    if base:
+        inherited = clean_unit_text(units.get(base))
+        if inherited:
+            return inherited
+
+    return "unidade não informada"
 
 def filter_period(df, start_dt, end_dt):
     return df[
@@ -858,8 +925,10 @@ elif page == "Sobre os Dados":
 
         ### Unidades de medida
         Quando a planilha original informa a unidade na linha de metadados, o EcoFlux a exibe
-        nos seletores, eixos dos gráficos e tabelas estatísticas. Se uma coluna não possuir
-        unidade documentada, a interface informa `unidade não informada` em vez de inventar uma unidade.
+        nos seletores, eixos dos gráficos e tabelas estatísticas. Variáveis correlatas, como
+        `qc_LE` e `qc_co2_flux`, herdam a unidade física da variável-base correspondente quando
+        necessário. A interface também corrige problemas comuns de codificação, como `Âµ` → `µ`,
+        e apresenta expoentes em notação legível, como `m⁻²` e `s⁻¹`.
 
         ### Variáveis científicas
         A lista de variáveis exclui automaticamente campos temporais e administrativos,
