@@ -14,7 +14,7 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .block-container {padding-top: 1.3rem; padding-bottom: 2rem;}
+    .block-container {padding-top: 1.25rem; padding-bottom: 2rem;}
     h1, h2, h3 {letter-spacing: -0.02em;}
     [data-testid="stMetricValue"] {font-size: 1.45rem;}
     </style>
@@ -78,7 +78,6 @@ def load_xlsx(uploaded_file):
         FIRST_OBSERVED_TIMESTAMP
         + pd.to_timedelta(df.loc[mask, "_season_obs"] * SAMPLING_MINUTES, unit="min")
     )
-
     return df, sheet
 
 def existing(df, names):
@@ -87,10 +86,13 @@ def existing(df, names):
 def valid_pct(s):
     return 100 * s.notna().mean() if len(s) else np.nan
 
-def summary_table(df, var):
+def stats_df(df, var):
     s = pd.to_numeric(df[var], errors="coerce")
     return pd.DataFrame({
-        "Métrica": ["N válido", "Disponibilidade (%)", "Média", "Mediana", "Desvio-padrão", "Mínimo", "Máximo"],
+        "Métrica": [
+            "N válido", "Disponibilidade (%)", "Média", "Mediana",
+            "Desvio-padrão", "Mínimo", "Máximo"
+        ],
         "Valor": [
             int(s.notna().sum()),
             round(valid_pct(s), 2),
@@ -99,32 +101,39 @@ def summary_table(df, var):
             s.std(),
             s.min(),
             s.max(),
-        ]
+        ],
     })
 
 def aggregate_relative(part, var, resolution):
-    d = part[["_season_obs", "elapsed_hours", "elapsed_days", var]].copy()
+    d = part[["_season_obs", "elapsed_days", var]].copy()
 
     if resolution == "30 min":
         d["x"] = d["elapsed_days"]
         return d[["x", var]]
 
-    factor = {
-        "Diário": 48,
-        "Semanal": 48 * 7,
-        "Mensal aproximado": 48 * 30,
-    }[resolution]
-
+    factor = {"Diário": 48, "Semanal": 48 * 7}[resolution]
     d["bin"] = d["_season_obs"] // factor
     out = d.groupby("bin", as_index=False)[var].mean()
     out["x"] = out["bin"] * factor / 48.0
     return out[["x", var]]
 
-def plot_variable_by_season(df, var, title, resolution):
+def clip_for_display(series, enabled=True, low_q=0.005, high_q=0.995):
+    s = pd.to_numeric(series, errors="coerce")
+    if not enabled or s.dropna().empty:
+        return s
+    lo = s.quantile(low_q)
+    hi = s.quantile(high_q)
+    return s.clip(lo, hi)
+
+def plot_by_season(df, var, title, resolution, clip_extremes=False):
     fig = go.Figure()
 
     for season_name in pd.unique(df["season_label"]):
         part = df[df["season_label"] == season_name].copy()
+
+        if clip_extremes and resolution == "30 min":
+            part[var] = clip_for_display(part[var], enabled=True)
+
         agg = aggregate_relative(part, var, resolution)
 
         fig.add_trace(
@@ -148,20 +157,13 @@ def plot_variable_by_season(df, var, title, resolution):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def plot_scatter(df, xvar, yvar, title):
-    d = df[[xvar, yvar, "season_label"]].dropna()
-    if d.empty:
-        st.info("Não há pares válidos para este gráfico.")
-        return
-    fig = px.scatter(
-        d,
-        x=xvar,
-        y=yvar,
-        color="season_label",
-        opacity=0.5,
-        title=title,
-    )
-    st.plotly_chart(fig, use_container_width=True)
+def show_stat_cards(df, var):
+    s = pd.to_numeric(df[var], errors="coerce")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Média", f"{s.mean():.3f}" if s.notna().any() else "—")
+    c2.metric("Mediana", f"{s.median():.3f}" if s.notna().any() else "—")
+    c3.metric("Desvio-padrão", f"{s.std():.3f}" if s.notna().any() else "—")
+    c4.metric("Disponibilidade", f"{valid_pct(s):.1f}%")
 
 st.title("🌱 EcoFlux Brasil")
 st.caption("Plataforma de Dados Micrometeorológicos e Fluxos Ecossistêmicos")
@@ -186,7 +188,7 @@ st.sidebar.subheader("Fonte de dados")
 uploaded = st.sidebar.file_uploader(
     "Carregar XLSX para esta sessão",
     type=["xlsx"],
-    help="O arquivo é usado apenas na sessão do aplicativo e não é oferecido para download.",
+    help="O arquivo é usado apenas na sessão e não é oferecido para download.",
 )
 
 st.sidebar.caption(
@@ -215,8 +217,17 @@ filtered = df[df["season_label"].isin(selected_seasons)].copy()
 
 resolution = st.sidebar.selectbox(
     "Agregação temporal",
-    ["30 min", "Diário", "Semanal", "Mensal aproximado"],
+    ["30 min", "Diário", "Semanal"],
     index=1,
+)
+
+clip_sd = st.sidebar.checkbox(
+    "Limitar extremos apenas na exibição de incertezas (_SD)",
+    value=True,
+    help=(
+        "Aplica winsorização visual entre os percentis 0,5% e 99,5% apenas no gráfico. "
+        "Os dados originais e as estatísticas permanecem inalterados."
+    ),
 )
 
 # ============================================================
@@ -254,7 +265,10 @@ if page == "Visão Geral":
 
     data_cols = [
         c for c in df.columns
-        if c not in ["season", "season_label", "_global_obs", "_season_obs", "elapsed_hours", "elapsed_days", "known_datetime"]
+        if c not in [
+            "season", "season_label", "_global_obs", "_season_obs",
+            "elapsed_hours", "elapsed_days", "known_datetime"
+        ]
     ]
 
     availability = pd.DataFrame({
@@ -275,9 +289,6 @@ if page == "Visão Geral":
     fig.update_layout(height=650, yaxis={"categoryorder": "total ascending"})
     st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander("Tabela completa"):
-        st.dataframe(availability, use_container_width=True)
-
 # ============================================================
 # METEOROLOGIA
 # ============================================================
@@ -286,41 +297,22 @@ elif page == "Meteorologia":
     st.header("Meteorologia")
 
     st.info(
-        "Cada variável é mostrada em gráfico próprio para evitar distorções causadas por escalas diferentes."
+        "Radiação, temperatura do ar e VPD aparecem em gráficos separados para preservar suas escalas."
     )
 
-    met_groups = [
+    groups = [
         ("Radiação", existing(filtered, ["Rg_fall", "Rg_f", "Rg_orig", "PotRad_NEW"])),
         ("Temperatura do ar", existing(filtered, ["Tair_fall", "Tair_f", "Tair_orig", "FP_Temp_NEW", "NEW_FP_Temp"])),
         ("VPD", existing(filtered, ["VPD_fall", "VPD_f", "VPD_orig", "NEW_FP_VPD"])),
     ]
 
-    for group_name, vars_available in met_groups:
-        if not vars_available:
+    for title, opts in groups:
+        if not opts:
             continue
-
-        st.subheader(group_name)
-
-        var = st.selectbox(
-            f"Variável — {group_name}",
-            options=vars_available,
-            index=0,
-            key=f"met_{group_name}",
-        )
-
-        plot_variable_by_season(
-            filtered,
-            var,
-            f"{group_name}: {var}",
-            resolution,
-        )
-
-        with st.expander(f"Estatísticas — {var}"):
-            st.dataframe(summary_table(filtered, var), use_container_width=True)
-
-    st.caption(
-        "As unidades físicas não são apresentadas até que o dicionário de metadados seja confirmado."
-    )
+        st.subheader(title)
+        var = st.selectbox(f"Variável — {title}", opts, key=f"met_{title}")
+        plot_by_season(filtered, var, f"{title}: {var}", resolution)
+        show_stat_cards(filtered, var)
 
 # ============================================================
 # FLUXOS DE CARBONO
@@ -330,49 +322,44 @@ elif page == "Fluxos de Carbono":
     st.header("Fluxos de Carbono")
 
     st.info(
-        "NEE, Reco e GPP são apresentados separadamente para preservar suas escalas e facilitar a comparação entre `season`."
+        "NEE, Reco e GPP são exibidos separadamente. Cada gráfico compara os `season` selecionados."
     )
 
-    carbon_groups = [
-        ("NEE", existing(filtered, ["NEE_fall", "NEE_f", "NEE_orig", "NEE_fsd"])),
-        ("Reco", existing(filtered, ["Reco_DT", "Reco_DT_SD", "FP_RRef", "FP_RRef_Night"])),
-        ("GPP", existing(filtered, ["GPP_DT", "GPP_DT_SD", "FP_GPP2000"])),
+    groups = [
+        ("NEE", existing(filtered, ["NEE_fall", "NEE_f", "NEE_orig"])),
+        ("Reco", existing(filtered, ["Reco_DT", "FP_RRef", "FP_RRef_Night"])),
+        ("GPP", existing(filtered, ["GPP_DT", "FP_GPP2000"])),
     ]
 
     selected_main = {}
 
-    for group_name, vars_available in carbon_groups:
-        if not vars_available:
+    for title, opts in groups:
+        if not opts:
             continue
 
-        st.subheader(group_name)
+        st.subheader(title)
+        var = st.selectbox(f"Variável — {title}", opts, key=f"carbon_{title}")
+        selected_main[title] = var
 
-        var = st.selectbox(
-            f"Variável — {group_name}",
-            options=vars_available,
-            index=0,
-            key=f"carbon_{group_name}",
-        )
-        selected_main[group_name] = var
+        plot_by_season(filtered, var, f"{title}: {var}", resolution)
+        show_stat_cards(filtered, var)
 
-        plot_variable_by_season(
-            filtered,
-            var,
-            f"{group_name}: {var}",
-            resolution,
-        )
-
-        with st.expander(f"Estatísticas — {var}"):
-            st.dataframe(summary_table(filtered, var), use_container_width=True)
+        with st.expander(f"Estatísticas completas — {var}"):
+            st.dataframe(stats_df(filtered, var), use_container_width=True)
 
     if "NEE" in selected_main and "GPP" in selected_main:
-        st.subheader("Relações entre fluxos")
-        plot_scatter(
-            filtered,
-            selected_main["NEE"],
-            selected_main["GPP"],
-            f"{selected_main['GPP']} × {selected_main['NEE']}",
-        )
+        st.subheader("Relação NEE × GPP")
+        d = filtered[[selected_main["NEE"], selected_main["GPP"], "season_label"]].dropna()
+        if not d.empty:
+            fig = px.scatter(
+                d,
+                x=selected_main["NEE"],
+                y=selected_main["GPP"],
+                color="season_label",
+                opacity=0.45,
+                title=f"{selected_main['GPP']} × {selected_main['NEE']}",
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================
 # QUALIDADE
@@ -389,16 +376,6 @@ elif page == "Qualidade e Gap-filling":
             "Tair_fqc", "Tair_fall_qc",
             "VPD_fqc", "VPD_fall_qc",
             "FP_qc", "FP_errorcode"
-        ],
-    )
-
-    gap_vars = existing(
-        filtered,
-        [
-            "NEE_fnum", "NEE_fmeth", "NEE_fwin", "NEE_fsd",
-            "Rg_fnum", "Rg_fmeth", "Rg_fwin", "Rg_fsd",
-            "Tair_fnum", "Tair_fmeth", "Tair_fwin", "Tair_fsd",
-            "VPD_fnum", "VPD_fmeth", "VPD_fwin", "VPD_fsd"
         ],
     )
 
@@ -425,17 +402,6 @@ elif page == "Qualidade e Gap-filling":
         st.plotly_chart(fig, use_container_width=True)
         st.dataframe(q, use_container_width=True)
 
-    if gap_vars:
-        st.subheader("Diagnósticos de gap-filling")
-        chosen_gap = st.multiselect(
-            "Variáveis diagnósticas",
-            options=gap_vars,
-            default=gap_vars[:4],
-        )
-        if chosen_gap:
-            desc = filtered[chosen_gap].describe().T
-            st.dataframe(desc, use_container_width=True)
-
 # ============================================================
 # PARTICIONAMENTO
 # ============================================================
@@ -443,27 +409,49 @@ elif page == "Qualidade e Gap-filling":
 elif page == "Particionamento de Carbono":
     st.header("Particionamento de Carbono")
 
-    options = existing(
-        filtered,
-        [
-            "Reco_DT", "GPP_DT", "Reco_DT_SD", "GPP_DT_SD",
-            "FP_Temp_NEW", "E_0_NEW", "FP_VARnight", "FP_VARday",
-            "NEW_FP_Temp", "NEW_FP_VPD", "FP_RRef_Night",
-            "FP_qc", "FP_dRecPar", "FP_errorcode", "FP_GPP2000",
-            "FP_k", "FP_beta", "FP_alpha", "FP_RRef", "FP_E0",
-            "FP_k_sd", "FP_beta_sd", "FP_alpha_sd", "FP_RRef_sd", "FP_E0_sd"
-        ],
+    st.info(
+        "Produtos e incertezas são separados para evitar que valores extremos das colunas `_SD` comprimam os demais sinais."
     )
 
-    if options:
-        var = st.selectbox("Produto / parâmetro", options)
-        plot_variable_by_season(
+    st.subheader("Produtos principais")
+
+    product_groups = [
+        ("Reco", existing(filtered, ["Reco_DT"])),
+        ("GPP", existing(filtered, ["GPP_DT"])),
+    ]
+
+    for title, opts in product_groups:
+        if not opts:
+            continue
+        var = opts[0]
+        plot_by_season(filtered, var, f"{title}: {var}", resolution)
+        show_stat_cards(filtered, var)
+
+    st.subheader("Incertezas / desvio-padrão")
+
+    sd_groups = [
+        ("Reco", existing(filtered, ["Reco_DT_SD"])),
+        ("GPP", existing(filtered, ["GPP_DT_SD"])),
+    ]
+
+    for title, opts in sd_groups:
+        if not opts:
+            continue
+        var = opts[0]
+        plot_by_season(
             filtered,
             var,
-            f"Particionamento: {var}",
+            f"Incerteza {title}: {var}",
             resolution,
+            clip_extremes=clip_sd,
         )
-        st.dataframe(summary_table(filtered, var), use_container_width=True)
+        show_stat_cards(filtered, var)
+
+        if clip_sd:
+            st.caption(
+                f"No gráfico de {var}, os extremos são limitados apenas visualmente "
+                f"entre os percentis 0,5% e 99,5%. Os dados e estatísticas permanecem inalterados."
+            )
 
 # ============================================================
 # SOBRE
@@ -487,8 +475,8 @@ elif page == "Sobre os Dados":
         os gráficos usam **tempo relativo dentro de cada bloco**.
 
         ### Transparência científica
-        O aplicativo não atribui unidades físicas ou significados de QC sem
-        documentação confirmada.
+        O aplicativo não altera os dados originais. Quando a limitação visual de extremos
+        é ativada para variáveis `_SD`, ela é aplicada apenas ao gráfico.
         """
     )
 
