@@ -17,93 +17,218 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    :root {
+        --ecoflux-green: #218838;
+        --ecoflux-green-soft: #eef8ef;
+        --ecoflux-blue-soft: #eef6ff;
+        --ecoflux-yellow-soft: #fff7e6;
+        --ecoflux-border: rgba(120, 120, 120, .20);
+        --ecoflux-text: #202124;
+        --ecoflux-muted: #69707a;
+    }
+
     .block-container {
-        padding-top: 2rem;
+        padding-top: 1.35rem;
         padding-bottom: 2rem;
         max-width: 1500px;
     }
+
+    section[data-testid="stSidebar"] {
+        background: #f6f7f8;
+    }
+
+    section[data-testid="stSidebar"] > div {
+        padding-top: 1.15rem;
+    }
+
     .ecoflux-hero {
-        font-size: 3rem;
+        font-size: 2.85rem;
+        line-height: 1.0;
         font-weight: 800;
-        color: #198754;
-        margin-bottom: .35rem;
-        letter-spacing: -0.03em;
+        color: var(--ecoflux-green);
+        margin: .35rem 0 1.05rem 0;
+        letter-spacing: -0.035em;
     }
-    .ecoflux-subtitle {
-        color: rgba(49, 51, 63, .75);
-        font-size: 1.05rem;
-        margin-bottom: 1.2rem;
-    }
+
     .ecoflux-success {
-        padding: 1rem 1.2rem;
-        border-radius: 14px;
-        background: linear-gradient(90deg, rgba(46,160,67,.14), rgba(46,160,67,.06));
-        border: 1px solid rgba(46,160,67,.16);
-        margin-bottom: 1.2rem;
+        padding: 1rem 1.15rem;
+        border-radius: 10px;
+        background: linear-gradient(90deg, #edf8ee 0%, #f4fbf4 100%);
+        border: 1px solid #d7ebd9;
+        margin: 0 0 1.05rem 0;
     }
-    .ecoflux-success strong {
-        color: #177a3d;
-        font-size: 1.05rem;
+
+    .ecoflux-success-line {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        color: #1d6f35;
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: .28rem;
     }
+
+    .ecoflux-success-sub {
+        color: #5b6d5f;
+        font-size: .92rem;
+        margin-left: 1.85rem;
+    }
+
+    .ecoflux-section-title {
+        font-size: 1.25rem;
+        font-weight: 750;
+        color: var(--ecoflux-text);
+        margin: 1.05rem 0 .7rem 0;
+    }
+
+    .ecoflux-summary-wrap {
+        border: 1px solid var(--ecoflux-border);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: .85rem;
+        background: #fff;
+    }
+
+    .ecoflux-summary {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: .90rem;
+    }
+
+    .ecoflux-summary th {
+        text-align: left;
+        padding: .7rem .75rem;
+        background: #f8f9fa;
+        border-bottom: 1px solid var(--ecoflux-border);
+        color: #3f454c;
+        font-weight: 600;
+    }
+
+    .ecoflux-summary td {
+        padding: .72rem .75rem;
+        border-bottom: 1px solid rgba(128,128,128,.12);
+        vertical-align: top;
+        color: #2d3136;
+    }
+
+    .ecoflux-summary tr:last-child td {
+        border-bottom: none;
+    }
+
+    .resolution-pill {
+        display: inline-block;
+        padding: .18rem .5rem;
+        border-radius: 7px;
+        background: #dff2df;
+        color: #26743b;
+        font-weight: 700;
+        font-size: .82rem;
+    }
+
+    .ok-status {
+        color: #2f8b46;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
     .ecoflux-info {
-        padding: .9rem 1.1rem;
-        border-radius: 12px;
-        background: rgba(31,119,180,.08);
-        border: 1px solid rgba(31,119,180,.10);
-        margin-top: 1rem;
-        margin-bottom: 1.2rem;
+        padding: .78rem 1rem;
+        border-radius: 10px;
+        background: var(--ecoflux-blue-soft);
+        border: 1px solid #d8e9f9;
+        margin: .75rem 0 1.15rem 0;
+        color: #336c9e;
+        font-size: .92rem;
     }
-    .ecoflux-warning {
-        padding: .9rem 1.1rem;
-        border-radius: 12px;
-        background: rgba(255,193,7,.12);
-        border: 1px solid rgba(255,193,7,.18);
-        margin-top: 1rem;
+
+    .ecoflux-actions {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .75rem;
+        margin-top: .45rem;
+        margin-bottom: .95rem;
     }
+
     .ecoflux-action-card {
         display: flex;
-        align-items: flex-start;
-        gap: .9rem;
-        padding: 1.05rem 1.1rem;
-        border: 1px solid rgba(128,128,128,.20);
-        border-radius: 12px;
-        background: #ffffff;
-        min-height: 112px;
-        box-shadow: 0 1px 2px rgba(0,0,0,.025);
+        align-items: center;
+        gap: .8rem;
+        padding: .95rem 1rem;
+        min-height: 90px;
+        border: 1px solid var(--ecoflux-border);
+        border-radius: 11px;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(0,0,0,.02);
     }
+
     .ecoflux-action-icon {
         width: 34px;
         min-width: 34px;
         height: 34px;
-        margin-top: 1px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
+
     .ecoflux-action-text h4 {
-        margin: 0 0 .28rem 0;
-        font-size: 1.00rem;
+        margin: 0 0 .22rem 0;
+        font-size: .98rem;
         font-weight: 700;
-        color: rgba(30,31,38,.95);
+        color: #202124;
         line-height: 1.2;
     }
+
     .ecoflux-action-text p {
-        color: rgba(49,51,63,.72);
         margin: 0;
-        line-height: 1.42;
+        color: #656d76;
+        line-height: 1.35;
+        font-size: .84rem;
+    }
+
+    .ecoflux-tip {
+        padding: .78rem 1rem;
+        border-radius: 10px;
+        background: var(--ecoflux-yellow-soft);
+        border: 1px solid #f5e5bd;
+        color: #b87913;
+        font-size: .90rem;
+        margin-top: .4rem;
+        margin-bottom: 1.1rem;
+    }
+
+    .ecoflux-gap-warning {
+        padding: .8rem 1rem;
+        border-radius: 10px;
+        background: #fff9dd;
+        border: 1px solid #efe2a3;
+        color: #9b7412;
+        margin-bottom: .75rem;
         font-size: .90rem;
     }
-    .ecoflux-action-row {
-        margin-top: .25rem;
-        margin-bottom: .8rem;
-    }
+
     .sidebar-status {
-        padding: .7rem .8rem;
-        border-radius: 10px;
-        background: rgba(46,160,67,.10);
-        border: 1px solid rgba(46,160,67,.12);
-        margin-bottom: .45rem;
-        font-size: .88rem;
+        padding: .72rem .8rem;
+        border-radius: 9px;
+        background: #e9f7ea;
+        border: 1px solid #d6ead8;
+        margin: .45rem 0;
+        font-size: .86rem;
+        color: #2d6e3a;
+    }
+
+    @media (max-width: 1100px) {
+        .ecoflux-actions {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 700px) {
+        .ecoflux-actions {
+            grid-template-columns: 1fr;
+        }
+        .ecoflux-hero {
+            font-size: 2.2rem;
+        }
     }
     </style>
     """,
@@ -111,7 +236,7 @@ st.markdown(
 )
 
 # ============================================================
-# EcoFlux Brasil — V36
+# EcoFlux Brasil — V37
 # Arquitetura:
 # 1) Dados originais da torre CR3000: 1 min / 30 min / diário
 # 2) Eddy Covariance / QC
@@ -1056,191 +1181,163 @@ page_key = next(k for k, v in pages.items() if v == page)
 
 if page_key == "overview":
     st.markdown('<div class="ecoflux-hero">EcoFlux Brasil</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="ecoflux-subtitle">' +
-        tr(
-            "Plataforma científica para dados micrometeorológicos, Eddy Covariance e produtos processados.",
-            "Scientific platform for micrometeorological data, Eddy Covariance and processed products.",
-        ) +
-        '</div>',
-        unsafe_allow_html=True,
-    )
 
     recognized_count = len(tower_summaries)
     if recognized_count:
         st.markdown(
-            '<div class="ecoflux-success"><strong>✓ ' +
+            '<div class="ecoflux-success">'
+            '<div class="ecoflux-success-line">✅ ' +
             tr(
-                f"{recognized_count} arquivo(s) CR3000 carregado(s) e reconhecido(s) automaticamente!",
-                f"{recognized_count} CR3000 file(s) loaded and automatically recognized!",
+                f"{recognized_count} arquivos CR3000 carregados e reconhecidos automaticamente!",
+                f"{recognized_count} CR3000 files loaded and automatically recognized!",
             ) +
-            '</strong><br><span>' +
+            '</div>'
+            '<div class="ecoflux-success-sub">' +
             tr(
-                "Navegue pelas análises usando a barra lateral ou as opções abaixo.",
-                "Navigate through analyses using the sidebar or the options below.",
+                "Navegue pelas análises usando a barra lateral à esquerda ou pelas opções abaixo.",
+                "Navigate analyses using the left sidebar or the options below.",
             ) +
-            '</span></div>',
+            '</div></div>',
             unsafe_allow_html=True,
         )
 
-    st.subheader(tr("Resumo dos arquivos carregados", "Loaded files summary"))
+    st.markdown(
+        '<div class="ecoflux-section-title">' +
+        tr("Resumo dos arquivos carregados", "Loaded files summary") +
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
-    cards = []
+    summary_rows = []
     for res in ["1 min", "30 min", "Diário"]:
         if res in tower_summaries:
             sm = tower_summaries[res]
-            cards.append({
-                tr("Resolução reconhecida", "Recognized resolution"): resolution_label(res),
-                tr("Arquivo", "File"): sm["filename"],
-                tr("Registros", "Records"): f"{sm['records']:,}".replace(",", ".") if PT else f"{sm['records']:,}",
-                tr("Período detectado", "Detected period"): (
-                    f"{sm['start']:%d/%m/%Y %H:%M} → {sm['end']:%d/%m/%Y %H:%M}"
-                    if sm["start"] is not None and sm["end"] is not None else "—"
-                ),
-                tr("Δ tempo típico", "Typical Δt"): (
-                    f"{sm['interval_seconds']:.0f} s"
-                    if sm.get("interval_seconds") is not None else "—"
-                ),
-                tr("Status", "Status"): "✓ OK",
-            })
+            period = "—"
+            if sm["start"] is not None and sm["end"] is not None:
+                if res == "Diário":
+                    period = f"{sm['start']:%d/%m/%Y} → {sm['end']:%d/%m/%Y}"
+                else:
+                    period = f"{sm['start']:%d/%m/%Y %H:%M} → {sm['end']:%d/%m/%Y %H:%M}"
 
-    if processed is not None:
-        d = processed["df"]
-        cards.append({
-            tr("Resolução reconhecida", "Recognized resolution"): tr("Produtos", "Products"),
-            tr("Arquivo", "File"): processed["sheet"],
-            tr("Registros", "Records"): f"{len(d):,}".replace(",", ".") if PT else f"{len(d):,}",
-            tr("Período detectado", "Detected period"): (
-                f"{d['TIMESTAMP'].min():%d/%m/%Y %H:%M} → {d['TIMESTAMP'].max():%d/%m/%Y %H:%M}"
-            ),
-            tr("Δ tempo típico", "Typical Δt"): tr("processado", "processed"),
-            tr("Status", "Status"): "✓ OK",
-        })
+            display_res = tr(
+                "Diário (24h)" if res == "Diário" else res,
+                "Daily (24h)" if res == "Diário" else res,
+            )
 
-    show_table(pd.DataFrame(cards))
+            summary_rows.append(
+                "<tr>"
+                f"<td><span class='resolution-pill'>{display_res}</span></td>"
+                f"<td>{sm['filename']}</td>"
+                f"<td>{sm['records']:,}</td>"
+                f"<td>{period}</td>"
+                f"<td>{sm['interval_seconds']:.1f} s</td>"
+                "<td><span class='ok-status'>● OK</span></td>"
+                "</tr>"
+            )
+
+    summary_html = (
+        "<div class='ecoflux-summary-wrap'>"
+        "<table class='ecoflux-summary'>"
+        "<thead><tr>"
+        f"<th>{tr('Resolução reconhecida','Recognized resolution')}</th>"
+        f"<th>{tr('Arquivo','File')}</th>"
+        f"<th>{tr('Registros','Records')}</th>"
+        f"<th>{tr('Período detectado','Detected period')}</th>"
+        f"<th>{tr('Δ tempo mediano','Median Δt')}</th>"
+        f"<th>{tr('Status','Status')}</th>"
+        "</tr></thead><tbody>"
+        + "".join(summary_rows) +
+        "</tbody></table></div>"
+    )
+    st.markdown(summary_html, unsafe_allow_html=True)
 
     st.markdown(
         '<div class="ecoflux-info">ℹ️ ' +
         tr(
-            "A identificação da resolução é feita automaticamente pelo intervalo típico entre os registros da coluna TIMESTAMP. "
-            "O nome do arquivo é usado apenas como fallback.",
-            "Resolution is identified automatically from the typical interval between TIMESTAMP records. "
-            "The filename is used only as fallback.",
+            "A identificação da resolução foi feita automaticamente com base no intervalo de tempo entre os registros (TIMESTAMP).",
+            "Resolution was identified automatically from the interval between TIMESTAMP records.",
         ) +
         '</div>',
         unsafe_allow_html=True,
     )
 
-    st.subheader(tr("O que você deseja fazer?", "What would you like to do?"))
-    st.markdown('<div class="ecoflux-action-row"></div>', unsafe_allow_html=True)
-
-    c1, c2, c3, c4 = st.columns(4, gap="small")
+    st.markdown(
+        '<div class="ecoflux-section-title">' +
+        tr("O que você deseja fazer?", "What would you like to do?") +
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
     icon_1min = """
-    <svg width="34" height="34" viewBox="0 0 24 24" fill="none"
-         xmlns="http://www.w3.org/2000/svg">
-      <path d="M3 19V5M3 19H21" stroke="#2F6FED" stroke-width="1.8"
-            stroke-linecap="round"/>
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+      <path d="M3 19V5M3 19H21" stroke="#2F6FED" stroke-width="1.8" stroke-linecap="round"/>
       <path d="M6 15L10 11L13 13L19 7" stroke="#2F6FED" stroke-width="1.8"
             stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     """
-
     icon_30 = """
-    <svg width="34" height="34" viewBox="0 0 24 24" fill="none"
-         xmlns="http://www.w3.org/2000/svg">
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="8" stroke="#F39C12" stroke-width="1.8"/>
       <path d="M12 7V12L15.5 14" stroke="#F39C12" stroke-width="1.8"
             stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     """
-
     icon_daily = """
-    <svg width="34" height="34" viewBox="0 0 24 24" fill="none"
-         xmlns="http://www.w3.org/2000/svg">
-      <rect x="4" y="5" width="16" height="15" rx="2" stroke="#2E9D57"
-            stroke-width="1.8"/>
-      <path d="M8 3V7M16 3V7M4 9H20" stroke="#2E9D57" stroke-width="1.8"
-            stroke-linecap="round"/>
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="5" width="16" height="15" rx="2" stroke="#2E9D57" stroke-width="1.8"/>
+      <path d="M8 3V7M16 3V7M4 9H20" stroke="#2E9D57" stroke-width="1.8" stroke-linecap="round"/>
     </svg>
     """
-
     icon_xlsx = """
-    <svg width="34" height="34" viewBox="0 0 24 24" fill="none"
-         xmlns="http://www.w3.org/2000/svg">
-      <rect x="4" y="5" width="16" height="14" rx="2" stroke="#7D3FB2"
-            stroke-width="1.8"/>
-      <path d="M4 10H20M9 10V19M15 10V19" stroke="#7D3FB2"
-            stroke-width="1.5"/>
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="5" width="16" height="14" rx="2" stroke="#7D3FB2" stroke-width="1.8"/>
+      <path d="M4 10H20M9 10V19M15 10V19" stroke="#7D3FB2" stroke-width="1.5"/>
     </svg>
     """
 
-    with c1:
-        st.markdown(
-            '<div class="ecoflux-action-card">'
-            '<div class="ecoflux-action-icon">' + icon_1min + '</div>'
-            '<div class="ecoflux-action-text"><h4>' +
-            tr("Análise 1 min", "1-min analysis") +
-            '</h4><p>' +
-            tr(
-                "Fluxos, meteorologia e análises detalhadas.",
-                "Fluxes, meteorology and detailed analyses.",
-            ) +
-            '</p></div></div>',
-            unsafe_allow_html=True,
-        )
+    actions_html = (
+        "<div class='ecoflux-actions'>"
+        "<div class='ecoflux-action-card'>"
+        f"<div class='ecoflux-action-icon'>{icon_1min}</div>"
+        "<div class='ecoflux-action-text'><h4>" +
+        tr("Análise 1 min", "1-min analysis") +
+        "</h4><p>" +
+        tr("Fluxos, meteorologia e análises detalhadas", "Fluxes, meteorology and detailed analyses") +
+        "</p></div></div>"
 
-    with c2:
-        st.markdown(
-            '<div class="ecoflux-action-card">'
-            '<div class="ecoflux-action-icon">' + icon_30 + '</div>'
-            '<div class="ecoflux-action-text"><h4>' +
-            tr("Análise 30 min", "30-min analysis") +
-            '</h4><p>' +
-            tr(
-                "Médias e estatísticas semi-horárias.",
-                "Half-hourly means and statistics.",
-            ) +
-            '</p></div></div>',
-            unsafe_allow_html=True,
-        )
+        "<div class='ecoflux-action-card'>"
+        f"<div class='ecoflux-action-icon'>{icon_30}</div>"
+        "<div class='ecoflux-action-text'><h4>" +
+        tr("Análise 30 min", "30-min analysis") +
+        "</h4><p>" +
+        tr("Médias e estatísticas semi-horárias", "Half-hourly means and statistics") +
+        "</p></div></div>"
 
-    with c3:
-        st.markdown(
-            '<div class="ecoflux-action-card">'
-            '<div class="ecoflux-action-icon">' + icon_daily + '</div>'
-            '<div class="ecoflux-action-text"><h4>' +
-            tr("Análise diária", "Daily analysis") +
-            '</h4><p>' +
-            tr(
-                "Médias e estatísticas diárias.",
-                "Daily means and statistics.",
-            ) +
-            '</p></div></div>',
-            unsafe_allow_html=True,
-        )
+        "<div class='ecoflux-action-card'>"
+        f"<div class='ecoflux-action-icon'>{icon_daily}</div>"
+        "<div class='ecoflux-action-text'><h4>" +
+        tr("Análise diária", "Daily analysis") +
+        "</h4><p>" +
+        tr("Médias e estatísticas diárias", "Daily means and statistics") +
+        "</p></div></div>"
 
-    with c4:
-        st.markdown(
-            '<div class="ecoflux-action-card">'
-            '<div class="ecoflux-action-icon">' + icon_xlsx + '</div>'
-            '<div class="ecoflux-action-text"><h4>' +
-            tr("Produtos processados", "Processed products") +
-            '</h4><p>' +
-            tr(
-                "Visualizar produtos da planilha XLSX.",
-                "View products from the XLSX workbook.",
-            ) +
-            '</p></div></div>',
-            unsafe_allow_html=True,
-        )
+        "<div class='ecoflux-action-card'>"
+        f"<div class='ecoflux-action-icon'>{icon_xlsx}</div>"
+        "<div class='ecoflux-action-text'><h4>" +
+        tr("Produtos processados", "Processed products") +
+        "</h4><p>" +
+        tr("Visualizar produtos da planilha XLSX", "View products from the XLSX workbook") +
+        "</p></div></div>"
+        "</div>"
+    )
+    st.markdown(actions_html, unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="ecoflux-warning">💡 ' +
+        '<div class="ecoflux-tip">💡 ' +
         tr(
             "Dica: você pode carregar ou substituir os arquivos a qualquer momento. "
             "A classificação será refeita automaticamente.",
-            "Tip: you can upload or replace files at any time. "
+            "Tip: you can upload or replace the files at any time. "
             "Classification will run again automatically.",
         ) +
         '</div>',
@@ -1251,40 +1348,28 @@ if page_key == "overview":
         src30 = get_tower_source("30 min", load_if_needed=True)
         if src30 is not None:
             gaps = gap_table(src30["df"], expected_timedelta("30 min"))
-            st.subheader(tr(
-                "Continuidade temporal — série de 30 minutos",
-                "Temporal continuity — 30-minute series",
-            ))
-            if gaps.empty:
-                st.success(tr(
-                    "Nenhuma lacuna temporal relevante foi detectada.",
-                    "No relevant temporal gaps were detected.",
-                ))
-            else:
+            if not gaps.empty:
                 st.markdown(
-                    '<div class="ecoflux-warning">⚠️ ' +
+                    '<div class="ecoflux-section-title">' +
+                    tr(
+                        "Continuidade temporal — série de 30 minutos",
+                        "Temporal continuity — 30-minute series",
+                    ) +
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    '<div class="ecoflux-gap-warning">⚠️ ' +
                     tr(
                         f"Foram detectadas {len(gaps)} lacuna(s) real(is) na aquisição. "
                         "Os gráficos não conectam linhas através desses intervalos.",
                         f"{len(gaps)} real acquisition gap(s) were detected. "
-                        "Plots do not connect lines across these intervals.",
+                        "Plots do not connect lines across those intervals.",
                     ) +
                     '</div>',
                     unsafe_allow_html=True,
                 )
                 show_table(gaps)
-
-    st.markdown(
-        '<div class="ecoflux-info">' +
-        tr(
-            "Os arquivos CR3000 representam a camada observacional original da torre. "
-            "NEE, GPP, Reco, QC e séries preenchidas permanecem em camadas separadas.",
-            "CR3000 files represent the tower's original observational layer. "
-            "NEE, GPP, Reco, QC and gap-filled series remain in separate layers.",
-        ) +
-        '</div>',
-        unsafe_allow_html=True,
-    )
 
 elif page_key == "tower":
     st.header(tr("Dados Originais da Torre", "Original Tower Data"))
