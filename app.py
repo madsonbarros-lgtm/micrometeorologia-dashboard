@@ -1362,27 +1362,20 @@ elif page == "Qualidade dos Dados":
             "Indicadores de qualidade",
             qc_vars,
             default=[qc_vars[0]] if qc_vars else [],
-            key="quality_qc_multi_v20",
+            key="quality_qc_multi_v21",
         )
 
-        start_dt, end_dt = period_controls("quality_v20", full_start, full_end)
+        start_dt, end_dt = period_controls("quality_v21", full_start, full_end)
 
         resolution_qc = st.selectbox(
             "Resolução temporal do QC",
             ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
             index=2,
-            key="quality_resolution_v20",
-            help="Para resoluções agregadas, a classe QC mostrada é a moda da janela.",
-        )
-
-        view_mode = st.radio(
-            "Visualização",
-            [
-                "Classes ao longo do tempo",
-                "Proporção das classes (%)",
-            ],
-            key="quality_view_mode_v20",
-            horizontal=True,
+            key="quality_resolution_v21",
+            help=(
+                "Em 30 min, cada registro QC é mostrado individualmente. "
+                "Nas resoluções agregadas, o EcoFlux mostra a proporção (%) das classes 0, 1 e 2."
+            ),
         )
 
         if start_dt > end_dt:
@@ -1420,53 +1413,72 @@ elif page == "Qualidade dos Dados":
                 hide_index=True,
             )
 
-            # Summary
+            # KPIs globais do período, somando todos os QCs selecionados
+            qc_values_all = []
+            for qc in selected_qc:
+                s = pd.to_numeric(qperiod[qc], errors="coerce").dropna()
+                qc_values_all.extend(s.tolist())
+
+            qc_values_all = pd.Series(qc_values_all, dtype="float64")
+            total_qc = len(qc_values_all)
+
+            pct0 = 100 * (qc_values_all == 0).sum() / total_qc if total_qc else 0.0
+            pct1 = 100 * (qc_values_all == 1).sum() / total_qc if total_qc else 0.0
+            pct2 = 100 * (qc_values_all == 2).sum() / total_qc if total_qc else 0.0
+
+            st.subheader("Qualidade no período selecionado")
+            c0, c1, c2, c3 = st.columns(4)
+            c0.metric("QC 0 — Alta qualidade", f"{pct0:.1f}%")
+            c1.metric("QC 1 — Intermediária", f"{pct1:.1f}%")
+            c2.metric("QC 2 — Baixa qualidade", f"{pct2:.1f}%")
+            c3.metric("Registros QC avaliados", f"{total_qc:,}".replace(",", "."))
+
+            # Resumo por indicador
             summary_rows = []
             for qc in selected_qc:
                 s = pd.to_numeric(qperiod[qc], errors="coerce")
+                valid = s.dropna()
+                total = len(valid)
+
                 summary_rows.append({
                     "Indicador QC": qc,
-                    "N válido no período": int(s.notna().sum()),
+                    "N válido no período": total,
                     "Disponibilidade (%)": round(valid_pct(s), 2),
-                    "Códigos observados": ", ".join(
-                        str(int(v)) if float(v).is_integer() else str(v)
-                        for v in sorted(s.dropna().unique())
-                    ) if s.notna().any() else "—",
+                    "QC 0 (%)": round(100 * (valid == 0).sum() / total, 2) if total else 0.0,
+                    "QC 1 (%)": round(100 * (valid == 1).sum() / total, 2) if total else 0.0,
+                    "QC 2 (%)": round(100 * (valid == 2).sum() / total, 2) if total else 0.0,
                 })
 
-            st.subheader("Resumo")
+            st.subheader("Resumo por indicador")
             st.dataframe(
                 pd.DataFrame(summary_rows),
                 use_container_width=True,
                 hide_index=True,
             )
 
-            if view_mode == "Classes ao longo do tempo":
-                st.subheader("Gráfico temporal dos códigos QC")
-                agg_qc = aggregate_qc_mode(qperiod, selected_qc, resolution_qc)
-
+            if resolution_qc == "30 min":
+                st.subheader("Gráfico temporal dos códigos QC — 30 min")
                 fig = go.Figure()
 
-                # Para múltiplos QCs, desloca levemente os pontos no eixo Y
-                # apenas visualmente; o valor real continua no hover.
                 offsets = np.linspace(-0.10, 0.10, len(selected_qc)) if len(selected_qc) > 1 else [0]
 
                 for offset, qc in zip(offsets, selected_qc):
-                    s = pd.to_numeric(agg_qc[qc], errors="coerce")
+                    s = pd.to_numeric(qperiod[qc], errors="coerce")
 
                     for cls in [0, 1, 2]:
                         mask = s == cls
                         if not mask.any():
                             continue
+
                         fig.add_trace(
                             go.Scattergl(
-                                x=agg_qc.loc[mask, "TIMESTAMP_parsed"],
+                                x=qperiod.loc[mask, "TIMESTAMP_parsed"],
                                 y=np.full(mask.sum(), cls + offset),
                                 mode="markers",
                                 name=f"{qc} — {qc_display_label(cls)}",
                                 marker=dict(
                                     color=QC_CLASS_COLORS[cls],
-                                    size=7,
+                                    size=6,
                                     symbol="circle",
                                 ),
                                 customdata=np.column_stack([
@@ -1507,10 +1519,10 @@ elif page == "Qualidade dos Dados":
                 st.plotly_chart(fig, use_container_width=True)
 
             else:
-                st.subheader("Proporção das classes QC ao longo do tempo")
+                st.subheader(f"Proporção das classes QC — resolução {resolution_qc.lower()}")
                 st.caption(
-                    "Cada gráfico mostra a porcentagem de registros classificados como 0, 1 e 2 "
-                    "em cada janela temporal."
+                    "Cada gráfico mostra a porcentagem de registros QC 0, 1 e 2 em cada janela temporal. "
+                    "Nenhuma classe é escondida por média ou moda."
                 )
 
                 for qc in selected_qc:
@@ -1521,17 +1533,17 @@ elif page == "Qualidade dos Dados":
                         continue
 
                     fig = go.Figure()
+
                     for cls in [0, 1, 2]:
                         if cls not in prop.columns:
                             prop[cls] = 0.0
+
                         fig.add_trace(
-                            go.Scatter(
+                            go.Bar(
                                 x=prop["Periodo"],
                                 y=prop[cls],
-                                mode="lines",
-                                stackgroup="one",
                                 name=qc_display_label(cls),
-                                line=dict(color=QC_CLASS_COLORS[cls], width=1.5),
+                                marker=dict(color=QC_CLASS_COLORS[cls]),
                                 hovertemplate=(
                                     f"<b>{qc}</b><br>"
                                     "Período: %{x}<br>"
@@ -1543,6 +1555,7 @@ elif page == "Qualidade dos Dados":
 
                     fig.update_layout(
                         title=qc,
+                        barmode="stack",
                         xaxis=dict(
                             title="Data e hora",
                             range=[start_dt, end_dt],
@@ -1552,12 +1565,13 @@ elif page == "Qualidade dos Dados":
                             range=[0, 100],
                         ),
                         hovermode="x unified",
-                        height=390,
+                        height=420,
                         margin=dict(l=20, r=20, t=50, b=20),
+                        legend_title="Classe QC",
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
-            # Distribution table
+            # Tabela detalhada
             st.subheader("Distribuição dos códigos no período")
             detail_rows = []
 
@@ -1588,6 +1602,7 @@ elif page == "Qualidade dos Dados":
             with st.expander("Ver registros QC por data e hora"):
                 qtable = qperiod[["TIMESTAMP_parsed"] + selected_qc].copy()
                 qtable = qtable.rename(columns={"TIMESTAMP_parsed": "TIMESTAMP"})
+
                 for qc in selected_qc:
                     qtable[f"Significado — {qc}"] = qtable[qc].apply(
                         lambda v: qc_display_label(v) if pd.notna(v) else "Sem dado"
