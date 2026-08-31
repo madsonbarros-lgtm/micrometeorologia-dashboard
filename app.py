@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # ============================================================
-# EcoFlux Brasil — V32
+# EcoFlux Brasil — V33
 # Arquitetura:
 # 1) Dados originais da torre CR3000: 1 min / 30 min / diário
 # 2) Eddy Covariance / QC
@@ -74,7 +74,7 @@ def show_table(data, hide_index=True):
         data = pd.DataFrame(data)
 
     if not CUSTOM_TABLES:
-        st.dataframe(data, use_container_width=True, hide_index=hide_index)
+        st.dataframe(data, width="stretch", hide_index=hide_index)
         return
 
     view = data.copy()
@@ -416,7 +416,7 @@ def line_plot(data, vars_, units, title, start, end, resolution, source_expected
         margin=dict(l=20, r=20, t=55, b=20),
     )
     fig.update_xaxes(range=[start, end])
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 def stats_table(df, vars_, units):
     rows = []
@@ -473,7 +473,7 @@ def plot_two_y_axes(data, vars_, units, start, end, resolution):
         height=500,
     )
     fig.update_xaxes(range=[start, end])
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 def plot_zscore(data, vars_, start, end, resolution):
     fig = go.Figure()
@@ -497,7 +497,7 @@ def plot_zscore(data, vars_, start, end, resolution):
         height=500,
     )
     fig.update_xaxes(range=[start, end])
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # ============================================================
 # Leitura Campbell TOA5 — modo econômico de memória
@@ -1183,7 +1183,7 @@ elif page_key == "compare":
         corr = data[vars_].corr(method="pearson", min_periods=3)
         st.subheader(tr("Correlação de Pearson", "Pearson correlation"))
         fig = px.imshow(corr, text_auto=".2f", aspect="auto", zmin=-1, zmax=1)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(tr("Correlação não implica causalidade.", "Correlation does not imply causation."))
 
 # ============================================================
@@ -1433,7 +1433,7 @@ elif page_key == "qc":
                         margin=dict(l=20, r=20, t=30, b=20),
                     )
                     fig_qc.update_xaxes(range=[start, end])
-                    st.plotly_chart(fig_qc, use_container_width=True)
+                    st.plotly_chart(fig_qc, width="stretch")
 
                     # -------------------------------------------------
                     # 2. Comparação opcional com Foken
@@ -1678,7 +1678,7 @@ elif page_key == "qc":
                                     )
                                     st.plotly_chart(
                                         fig_box,
-                                        use_container_width=True,
+                                        width="stretch",
                                     )
 
                                     summary = (
@@ -1802,7 +1802,7 @@ elif page_key == "qc":
                                     )
                                     st.plotly_chart(
                                         fig_joint,
-                                        use_container_width=True,
+                                        width="stretch",
                                     )
 
                                     st.caption(tr(
