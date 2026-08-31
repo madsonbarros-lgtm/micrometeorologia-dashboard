@@ -423,6 +423,114 @@ def line_plot(data, vars_, units, title, start=None, end=None, resolution="30 mi
     st.plotly_chart(fig, use_container_width=True)
 
 
+
+def comparison_mode_label(value):
+    if PT:
+        return value
+    return {
+        "Gráficos separados": "Separate charts",
+        "Mesmo gráfico — valores originais": "Same chart — original values",
+        "Dois eixos Y": "Two Y axes",
+        "Normalizado (z-score)": "Normalized (z-score)",
+    }.get(value, value)
+
+def plot_separate_variables(data, vars_, units, start, end, resolution):
+    for v in vars_:
+        line_plot(
+            data[["TIMESTAMP", v]].copy(),
+            [v],
+            units,
+            unit_label(v, units),
+            start,
+            end,
+            resolution,
+        )
+
+def plot_two_y_axes(data, vars_, units, start, end, resolution):
+    hover_time = [temporal_hover_text(ts, resolution) for ts in data["TIMESTAMP"]]
+    colors = colors_for_variables(vars_)
+    fig = go.Figure()
+
+    for i, v in enumerate(vars_):
+        axis_name = "y" if i % 2 == 0 else "y2"
+        values = pd.to_numeric(data[v], errors="coerce")
+
+        fig.add_trace(go.Scattergl(
+            x=data["TIMESTAMP"],
+            y=values,
+            mode="lines",
+            name=unit_label(v, units),
+            line=dict(color=colors[v], width=2),
+            yaxis=axis_name,
+            customdata=np.column_stack([
+                np.array(hover_time, dtype=object),
+                np.array([unit_only(v, units)] * len(data), dtype=object),
+            ]),
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                + str(v) + ": %{y:.6g} %{customdata[1]}"
+                "<extra></extra>"
+            ),
+        ))
+
+    left_vars = [v for i, v in enumerate(vars_) if i % 2 == 0]
+    right_vars = [v for i, v in enumerate(vars_) if i % 2 == 1]
+
+    fig.update_layout(
+        title="Comparação com dois eixos Y" if PT else "Comparison with two Y axes",
+        xaxis_title=temporal_axis_title(resolution),
+        yaxis=dict(
+            title=", ".join(left_vars),
+            side="left",
+        ),
+        yaxis2=dict(
+            title=", ".join(right_vars),
+            overlaying="y",
+            side="right",
+        ),
+        hovermode="x unified",
+        height=500,
+        margin=dict(l=20, r=20, t=55, b=20),
+    )
+    fig.update_xaxes(range=[start, end])
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_zscore(data, vars_, start, end, resolution):
+    hover_time = [temporal_hover_text(ts, resolution) for ts in data["TIMESTAMP"]]
+    colors = colors_for_variables(vars_)
+    fig = go.Figure()
+
+    for v in vars_:
+        s = pd.to_numeric(data[v], errors="coerce")
+        mean = s.mean()
+        std = s.std()
+        z = (s - mean) / std if pd.notna(std) and std != 0 else s * np.nan
+
+        fig.add_trace(go.Scattergl(
+            x=data["TIMESTAMP"],
+            y=z,
+            mode="lines",
+            name=v,
+            line=dict(color=colors[v], width=2),
+            customdata=np.array(hover_time, dtype=object).reshape(-1, 1),
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                + str(v) + ": %{y:.3f} z"
+                "<extra></extra>"
+            ),
+        ))
+
+    fig.update_layout(
+        title="Comparação normalizada (z-score)" if PT else "Normalized comparison (z-score)",
+        xaxis_title=temporal_axis_title(resolution),
+        yaxis_title="z-score",
+        hovermode="x unified",
+        height=500,
+        margin=dict(l=20, r=20, t=55, b=20),
+    )
+    fig.update_xaxes(range=[start, end])
+    st.plotly_chart(fig, use_container_width=True)
+
 def stats_table(df, vars_, units):
     rows = []
     for v in vars_:
@@ -938,37 +1046,109 @@ elif page_key == "series":
 
 elif page_key == "compare":
     st.header("Comparar Variáveis" if PT else "Compare Variables")
-    st.caption("Indicadores QC não aparecem nesta lista; eles ficam em Qualidade dos Dados.")
+    st.caption(
+        "Indicadores QC não aparecem nesta lista; eles ficam em Qualidade dos Dados."
+        if PT else
+        "QC indicators do not appear in this list; they are kept under Data Quality."
+    )
 
     vars_ = st.multiselect(
         "Variáveis/produtos" if PT else "Variables/products",
         phys_vars,
         format_func=lambda x: unit_label(x, units),
+        key="compare_vars_v28",
     )
-    start, end = period_controls("compare", full_start, full_end)
-    resolution = st.selectbox(
+
+    start, end = period_controls("compare_v28", full_start, full_end)
+
+    c1, c2 = st.columns(2)
+    resolution = c1.selectbox(
         "Resolução" if PT else "Resolution",
         ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
         index=2,
         format_func=resolution_label,
-        key="compare_res",
+        key="compare_res_v28",
+    )
+
+    comparison_mode = c2.selectbox(
+        "Forma de visualização" if PT else "Visualization mode",
+        [
+            "Gráficos separados",
+            "Mesmo gráfico — valores originais",
+            "Dois eixos Y",
+            "Normalizado (z-score)",
+        ],
+        index=1,
+        format_func=comparison_mode_label,
+        key="compare_mode_v28",
+    )
+
+    st.caption(
+        (
+            "Gráficos separados preservam a escala de cada variável; mesmo gráfico sobrepõe os valores originais; "
+            "dois eixos Y ajudam quando as magnitudes/unidades são muito diferentes; z-score compara apenas o padrão relativo."
+        )
+        if PT else
+        (
+            "Separate charts preserve each variable scale; same chart overlays original values; "
+            "two Y axes help when magnitudes/units differ strongly; z-score compares relative patterns only."
+        )
     )
 
     if len(vars_) < 2:
-        st.info("Selecione pelo menos duas variáveis.")
+        st.info(
+            "Selecione pelo menos duas variáveis."
+            if PT else
+            "Select at least two variables."
+        )
     elif start > end:
-        st.error("O início deve ser anterior ao fim.")
+        st.error(
+            "O início deve ser anterior ao fim."
+            if PT else
+            "Start must be earlier than end."
+        )
     else:
         sub = filter_period(df, start, end)
         data = aggregate_numeric(sub, vars_, resolution)
-        line_plot(data, vars_, units, "Comparação de variáveis", start, end, resolution)
+
+        if comparison_mode == "Gráficos separados":
+            plot_separate_variables(data, vars_, units, start, end, resolution)
+
+        elif comparison_mode == "Mesmo gráfico — valores originais":
+            line_plot(
+                data,
+                vars_,
+                units,
+                "Comparação de variáveis" if PT else "Variable comparison",
+                start,
+                end,
+                resolution,
+            )
+
+        elif comparison_mode == "Dois eixos Y":
+            plot_two_y_axes(data, vars_, units, start, end, resolution)
+
+        elif comparison_mode == "Normalizado (z-score)":
+            plot_zscore(data, vars_, start, end, resolution)
+
+        st.subheader("Estatísticas" if PT else "Statistics")
         stats_table(sub, vars_, units)
 
         corr = data[vars_].corr(method="pearson", min_periods=3)
-        st.subheader("Correlação de Pearson")
-        fig = px.imshow(corr, text_auto=".2f", aspect="auto", zmin=-1, zmax=1)
+        st.subheader("Correlação de Pearson" if PT else "Pearson correlation")
+        fig = px.imshow(
+            corr,
+            text_auto=".2f",
+            aspect="auto",
+            zmin=-1,
+            zmax=1,
+        )
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("Correlação não implica causalidade.")
+        st.caption(
+            "Correlação não implica causalidade."
+            if PT else
+            "Correlation does not imply causation."
+        )
 
 elif page_key == "gap":
     st.header("Preenchimento de Lacunas" if PT else "Gap Filling")
