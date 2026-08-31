@@ -1137,124 +1137,476 @@ elif page_key == "qc":
             if is_qc(c) and pd.api.types.is_numeric_dtype(df[c])
         ]
 
-        st.markdown(tr(
-            """
-**Referência de Foken:** o controle de qualidade clássico em Eddy Covariance combina testes
-de estacionariedade e características integrais da turbulência (ITC). A comparação abaixo
-não redefine automaticamente o significado original de uma coluna `_fqc` ou `_qc`.
-""",
-            """
-**Foken reference:** classic Eddy Covariance quality control combines stationarity and
-integral turbulence characteristics (ITC) tests. The comparison below does not automatically
-redefine the original meaning of an `_fqc` or `_qc` field.
-"""
-        ))
-
-        foken_ref = pd.DataFrame([
-            {
-                tr("Classe resumida","Summary class"): 0,
-                tr("Escala estendida","Extended scale"): "1–3",
-                tr("Qualidade","Quality"): tr("Alta qualidade","High quality"),
-                tr("Uso típico","Typical use"): tr(
-                    "Fluxos diretos e análises científicas, conforme protocolo.",
-                    "Direct fluxes and scientific analyses, subject to protocol.",
-                ),
-            },
-            {
-                tr("Classe resumida","Summary class"): 1,
-                tr("Escala estendida","Extended scale"): "4–6",
-                tr("Qualidade","Quality"): tr("Qualidade moderada","Moderate quality"),
-                tr("Uso típico","Typical use"): tr(
-                    "Integrações e balanços com cautela.",
-                    "Integrations and balances with caution.",
-                ),
-            },
-            {
-                tr("Classe resumida","Summary class"): 2,
-                tr("Escala estendida","Extended scale"): "7–9",
-                tr("Qualidade","Quality"): tr("Baixa qualidade","Low quality"),
-                tr("Uso típico","Typical use"): tr(
-                    "Geralmente rejeitada quando o protocolo exige alta qualidade.",
-                    "Usually rejected when the protocol requires high quality.",
-                ),
-            },
-        ])
-        show_table(foken_ref)
-
         if not qc_vars:
             st.info(tr("Nenhuma coluna QC encontrada.", "No QC column found."))
         else:
-            qc = st.selectbox(tr("Indicador QC","QC indicator"), qc_vars, key="qc_var_v29")
-            start, end = period_controls(
-                "qc_v29", df["TIMESTAMP"].min(), df["TIMESTAMP"].max()
-            )
-            scale = st.selectbox(
-                tr("Escala de comparação","Comparison scale"),
-                [
-                    "Foken — 3 classes (0, 1, 2)",
-                    "Foken — escala estendida (1–9)",
-                ],
-                key="qc_scale_v29",
+            st.write(tr(
+                "Os códigos QC originais são mostrados primeiro, exatamente como aparecem no arquivo. "
+                "A comparação com Foken é opcional e não altera o significado original do campo.",
+                "Original QC codes are shown first, exactly as stored in the file. "
+                "Foken comparison is optional and does not alter the field's original meaning.",
+            ))
+
+            qc = st.selectbox(
+                tr("Indicador QC", "QC indicator"),
+                qc_vars,
+                key="qc_var_v30",
             )
 
-            def classify(v):
-                if pd.isna(v):
-                    return None
-                try:
-                    x = int(float(v))
-                except Exception:
-                    return "Fora da escala selecionada"
-                if scale.startswith("Foken — 3"):
-                    return {
-                        0:"Alta qualidade",
-                        1:"Qualidade moderada",
-                        2:"Baixa qualidade",
-                    }.get(x,"Fora da escala selecionada")
-                if 1 <= x <= 3:
-                    return "Alta qualidade"
-                if 4 <= x <= 6:
-                    return "Qualidade moderada"
-                if 7 <= x <= 9:
-                    return "Baixa qualidade"
-                return "Fora da escala selecionada"
+            start, end = period_controls(
+                "qc_v30",
+                df["TIMESTAMP"].min(),
+                df["TIMESTAMP"].max(),
+            )
 
             if start <= end:
-                sub = filter_period(df,start,end)
-                s = pd.to_numeric(sub[qc],errors="coerce").dropna()
+                sub = filter_period(df, start, end)
+                s = pd.to_numeric(sub[qc], errors="coerce").dropna()
+
                 counts = s.value_counts().sort_index()
                 total = int(counts.sum())
+
                 rows = []
-                for code, n in counts.items():
+                for code_val, n in counts.items():
                     rows.append({
-                        tr("Código original","Original code"): int(code) if float(code).is_integer() else code,
+                        tr("Código QC original", "Original QC code"):
+                            int(code_val) if float(code_val).is_integer() else code_val,
                         "N": int(n),
-                        tr("Percentual (%)","Percentage (%)"): round(100*int(n)/total,2) if total else 0,
-                        tr("Comparação Foken","Foken comparison"): classify(code),
+                        tr("Percentual (%)", "Percentage (%)"):
+                            round(100 * int(n) / total, 2) if total else 0.0,
+                        tr("Interpretação", "Interpretation"):
+                            tr(
+                                "Código original preservado; significado depende da documentação do processamento.",
+                                "Original code preserved; meaning depends on processing documentation.",
+                            ),
                     })
-                qtable = pd.DataFrame(rows)
-                show_table(qtable)
+
+                raw_qc_table = pd.DataFrame(rows)
+
+                st.subheader(tr(
+                    "Distribuição dos códigos QC originais",
+                    "Distribution of original QC codes",
+                ))
+                show_table(raw_qc_table)
+
+                if not raw_qc_table.empty:
+                    dominant = raw_qc_table.sort_values("N", ascending=False).iloc[0]
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric(
+                        tr("Código predominante", "Dominant code"),
+                        str(dominant[tr("Código QC original", "Original QC code")]),
+                    )
+                    c2.metric(
+                        tr("Participação", "Share"),
+                        f"{dominant[tr('Percentual (%)','Percentage (%)')]:.2f}%",
+                    )
+                    c3.metric(
+                        tr("Códigos encontrados", "Codes found"),
+                        int(raw_qc_table[tr("Código QC original", "Original QC code")].nunique()),
+                    )
+
+                st.subheader(tr(
+                    "QC ao longo do tempo — códigos originais",
+                    "QC through time — original codes",
+                ))
+
+                qdf = sub[["TIMESTAMP", qc]].copy()
+                qdf[qc] = pd.to_numeric(qdf[qc], errors="coerce")
+                observed_codes = sorted(qdf[qc].dropna().unique().tolist())
 
                 fig = go.Figure()
-                for code in sorted(s.unique()):
-                    mask = pd.to_numeric(sub[qc],errors="coerce") == code
+                for code_val in observed_codes:
+                    mask = qdf[qc] == code_val
+                    label = str(int(code_val)) if float(code_val).is_integer() else str(code_val)
                     fig.add_trace(go.Scattergl(
-                        x=sub.loc[mask,"TIMESTAMP"],
-                        y=np.full(mask.sum(),code),
+                        x=qdf.loc[mask, "TIMESTAMP"],
+                        y=qdf.loc[mask, qc],
                         mode="markers",
-                        name=f"{tr('Código','Code')} {int(code) if float(code).is_integer() else code}",
-                        marker=dict(color=qc_color(code),size=6),
+                        name=f"{tr('Código','Code')} {label}",
+                        marker=dict(
+                            color=qc_color(code_val),
+                            size=6,
+                            symbol="circle",
+                        ),
+                        hovertemplate=(
+                            tr("Data", "Date") + ": %{x}<br>" +
+                            tr("Código QC original", "Original QC code") +
+                            f": {label}<extra></extra>"
+                        ),
                     ))
-                fig.update_layout(
-                    xaxis_title=tr("Data e hora","Date and time"),
-                    yaxis_title=tr("Código QC original","Original QC code"),
-                    height=430,
-                )
-                fig.update_xaxes(range=[start,end])
-                st.plotly_chart(fig,use_container_width=True)
 
-# ============================================================
-# Sobre os Dados
-# ============================================================
+                fig.update_layout(
+                    xaxis_title=tr("Data e hora", "Date and time"),
+                    yaxis_title=tr("Código QC original", "Original QC code"),
+                    height=430,
+                    margin=dict(l=20, r=20, t=30, b=20),
+                    legend_title=tr("Código original", "Original code"),
+                )
+                fig.update_xaxes(range=[start, end])
+                st.plotly_chart(fig, use_container_width=True)
+
+                # ---------------------------------------------------------
+                # Optional Foken comparison
+                # ---------------------------------------------------------
+                st.divider()
+                use_foken = st.checkbox(
+                    tr(
+                        "Comparar com referência Foken",
+                        "Compare with Foken reference",
+                    ),
+                    value=False,
+                    key="use_foken_v30",
+                    help=tr(
+                        "Ative apenas como referência. A comparação não prova que este campo QC foi gerado pelo critério de Foken.",
+                        "Enable only as a reference. The comparison does not prove that this QC field was generated using Foken criteria.",
+                    ),
+                )
+
+                if use_foken:
+                    st.subheader(tr(
+                        "Comparação opcional com o critério de Foken",
+                        "Optional comparison with Foken criteria",
+                    ))
+
+                    st.warning(tr(
+                        "Nem toda coluna `_qc`, `_fqc` ou `_fall_qc` representa Foken. "
+                        "Use esta equivalência somente se a documentação do processamento confirmar esse critério.",
+                        "Not every `_qc`, `_fqc` or `_fall_qc` column represents Foken. "
+                        "Use this equivalence only if the processing documentation confirms that criterion.",
+                    ))
+
+                    foken_ref = pd.DataFrame([
+                        {
+                            tr("Classe resumida", "Summary class"): 0,
+                            tr("Escala estendida", "Extended scale"): "1–3",
+                            tr("Qualidade", "Quality"): tr("Alta qualidade", "High quality"),
+                            tr("Uso típico", "Typical use"): tr(
+                                "Fluxos diretos e análises científicas, conforme protocolo.",
+                                "Direct fluxes and scientific analyses, subject to protocol.",
+                            ),
+                        },
+                        {
+                            tr("Classe resumida", "Summary class"): 1,
+                            tr("Escala estendida", "Extended scale"): "4–6",
+                            tr("Qualidade", "Quality"): tr("Qualidade moderada", "Moderate quality"),
+                            tr("Uso típico", "Typical use"): tr(
+                                "Integrações e balanços com cautela.",
+                                "Integrations and balances with caution.",
+                            ),
+                        },
+                        {
+                            tr("Classe resumida", "Summary class"): 2,
+                            tr("Escala estendida", "Extended scale"): "7–9",
+                            tr("Qualidade", "Quality"): tr("Baixa qualidade", "Low quality"),
+                            tr("Uso típico", "Typical use"): tr(
+                                "Geralmente rejeitada quando o protocolo exige alta qualidade.",
+                                "Usually rejected when the protocol requires high quality.",
+                            ),
+                        },
+                    ])
+                    show_table(foken_ref)
+
+                    scale = st.selectbox(
+                        tr("Escala de comparação", "Comparison scale"),
+                        [
+                            "Foken — 3 classes (0, 1, 2)",
+                            "Foken — escala estendida (1–9)",
+                        ],
+                        key="qc_scale_v30",
+                    )
+
+                    def classify_foken(v):
+                        if pd.isna(v):
+                            return None
+                        try:
+                            x = int(float(v))
+                        except Exception:
+                            return "Fora da escala selecionada"
+
+                        if scale.startswith("Foken — 3"):
+                            return {
+                                0: "Alta qualidade",
+                                1: "Qualidade moderada",
+                                2: "Baixa qualidade",
+                            }.get(x, "Fora da escala selecionada")
+
+                        if 1 <= x <= 3:
+                            return "Alta qualidade"
+                        if 4 <= x <= 6:
+                            return "Qualidade moderada"
+                        if 7 <= x <= 9:
+                            return "Baixa qualidade"
+                        return "Fora da escala selecionada"
+
+                    foken_rows = []
+                    for code_val, n in counts.items():
+                        cls = classify_foken(code_val)
+                        foken_rows.append({
+                            tr("Código QC original", "Original QC code"):
+                                int(code_val) if float(code_val).is_integer() else code_val,
+                            tr("Comparação Foken", "Foken comparison"): tr(
+                                {
+                                    "Alta qualidade": "Alta qualidade",
+                                    "Qualidade moderada": "Qualidade moderada",
+                                    "Baixa qualidade": "Baixa qualidade",
+                                    "Fora da escala selecionada": "Fora da escala selecionada",
+                                }[cls],
+                                {
+                                    "Alta qualidade": "High quality",
+                                    "Qualidade moderada": "Moderate quality",
+                                    "Baixa qualidade": "Low quality",
+                                    "Fora da escala selecionada": "Outside selected scale",
+                                }[cls],
+                            ),
+                            "N": int(n),
+                            tr("Percentual (%)", "Percentage (%)"):
+                                round(100 * int(n) / total, 2) if total else 0.0,
+                        })
+
+                    foken_table = pd.DataFrame(foken_rows)
+                    show_table(foken_table)
+
+                    foken_series = s.apply(classify_foken)
+                    order = [
+                        "Alta qualidade",
+                        "Qualidade moderada",
+                        "Baixa qualidade",
+                        "Fora da escala selecionada",
+                    ]
+                    vc = foken_series.value_counts()
+
+                    summary_rows = []
+                    for cls in order:
+                        n = int(vc.get(cls, 0))
+                        summary_rows.append({
+                            tr("Classe comparativa", "Comparative class"): tr(
+                                {
+                                    "Alta qualidade": "Alta qualidade",
+                                    "Qualidade moderada": "Qualidade moderada",
+                                    "Baixa qualidade": "Baixa qualidade",
+                                    "Fora da escala selecionada": "Fora da escala selecionada",
+                                }[cls],
+                                {
+                                    "Alta qualidade": "High quality",
+                                    "Qualidade moderada": "Moderate quality",
+                                    "Baixa qualidade": "Low quality",
+                                    "Fora da escala selecionada": "Outside selected scale",
+                                }[cls],
+                            ),
+                            "N": n,
+                            tr("Percentual (%)", "Percentage (%)"):
+                                round(100 * n / total, 2) if total else 0.0,
+                        })
+
+                    summary_foken = pd.DataFrame(summary_rows)
+                    st.subheader(tr(
+                        "Resumo da correspondência com Foken",
+                        "Summary of Foken correspondence",
+                    ))
+                    show_table(summary_foken)
+
+                # ---------------------------------------------------------
+                # Optional comparison with 30-min tower meteorology
+                # ---------------------------------------------------------
+                st.divider()
+                st.subheader(tr(
+                    "Comparar QC com meteorologia da torre",
+                    "Compare QC with tower meteorology",
+                ))
+
+                if "30 min" not in tower_sources:
+                    st.info(tr(
+                        "Carregue o arquivo CR3000 de 30 minutos para habilitar esta comparação.",
+                        "Upload the 30-minute CR3000 file to enable this comparison.",
+                    ))
+                else:
+                    use_met = st.checkbox(
+                        tr(
+                            "Ativar comparação com variável micrometeorológica",
+                            "Enable comparison with micrometeorological variable",
+                        ),
+                        value=False,
+                        key="use_qc_met_v30",
+                    )
+
+                    if use_met:
+                        met_src = tower_sources["30 min"]
+                        met_df = met_src["df"].copy()
+                        met_units = met_src["units"]
+
+                        met_vars = [
+                            c for c in met_df.columns
+                            if c not in {"TIMESTAMP", "RECORD"}
+                            and pd.api.types.is_numeric_dtype(met_df[c])
+                        ]
+
+                        met_var = st.selectbox(
+                            tr(
+                                "Variável micrometeorológica de 30 min",
+                                "30-min micrometeorological variable",
+                            ),
+                            met_vars,
+                            format_func=lambda x: unit_label(x, met_units),
+                            key="qc_met_var_v30",
+                        )
+
+                        # Pair on exact 30-min timestamps.
+                        qc_pair = sub[["TIMESTAMP", qc]].copy()
+                        qc_pair[qc] = pd.to_numeric(qc_pair[qc], errors="coerce")
+
+                        met_pair = met_df[["TIMESTAMP", met_var]].copy()
+                        met_pair[met_var] = pd.to_numeric(
+                            met_pair[met_var], errors="coerce"
+                        )
+
+                        paired = pd.merge(
+                            qc_pair,
+                            met_pair,
+                            on="TIMESTAMP",
+                            how="inner",
+                        ).dropna(subset=[qc, met_var])
+
+                        st.caption(tr(
+                            f"Pareamento por timestamp exato de 30 minutos: {len(paired):,} registros coincidentes.".replace(",", "."),
+                            f"Exact 30-minute timestamp pairing: {len(paired):,} matched records.",
+                        ))
+
+                        if paired.empty:
+                            st.info(tr(
+                                "Não há registros coincidentes no período selecionado.",
+                                "No matching records in the selected period.",
+                            ))
+                        else:
+                            # Boxplot: meteorological variable by raw QC code.
+                            paired["QC_label"] = paired[qc].apply(
+                                lambda x: str(int(x)) if float(x).is_integer() else str(x)
+                            )
+
+                            st.subheader(tr(
+                                "Distribuição da variável meteorológica por código QC",
+                                "Meteorological-variable distribution by QC code",
+                            ))
+
+                            fig_box = go.Figure()
+                            for code_val in sorted(paired[qc].dropna().unique()):
+                                mask = paired[qc] == code_val
+                                label = str(int(code_val)) if float(code_val).is_integer() else str(code_val)
+                                fig_box.add_trace(go.Box(
+                                    y=paired.loc[mask, met_var],
+                                    name=f"{tr('QC','QC')} {label}",
+                                    marker_color=qc_color(code_val),
+                                    boxpoints="outliers",
+                                ))
+
+                            fig_box.update_layout(
+                                xaxis_title=tr("Código QC original", "Original QC code"),
+                                yaxis_title=unit_label(met_var, met_units),
+                                height=470,
+                                margin=dict(l=20, r=20, t=30, b=20),
+                            )
+                            st.plotly_chart(fig_box, use_container_width=True)
+
+                            # Summary by QC code.
+                            summary = (
+                                paired.groupby(qc)[met_var]
+                                .agg(["count", "mean", "median", "std", "min", "max"])
+                                .reset_index()
+                            )
+
+                            summary = summary.rename(columns={
+                                qc: tr("Código QC original", "Original QC code"),
+                                "count": tr("N", "N"),
+                                "mean": tr("Média", "Mean"),
+                                "median": tr("Mediana", "Median"),
+                                "std": tr("Desvio-padrão", "Standard deviation"),
+                                "min": tr("Mínimo", "Minimum"),
+                                "max": tr("Máximo", "Maximum"),
+                            })
+
+                            st.subheader(tr(
+                                "Resumo meteorológico por código QC",
+                                "Meteorological summary by QC code",
+                            ))
+                            show_table(summary)
+
+                            # Time-series overlay: met variable + QC code on second axis.
+                            st.subheader(tr(
+                                "Evolução temporal conjunta",
+                                "Joint temporal evolution",
+                            ))
+
+                            fig_joint = go.Figure()
+
+                            fig_joint.add_trace(go.Scattergl(
+                                x=paired["TIMESTAMP"],
+                                y=paired[met_var],
+                                mode="lines",
+                                name=unit_label(met_var, met_units),
+                                line=dict(
+                                    color=variable_color(met_var),
+                                    width=1.5,
+                                ),
+                                yaxis="y",
+                                hovertemplate=(
+                                    tr("Data", "Date") + ": %{x}<br>" +
+                                    str(met_var) + ": %{y:.6g} " +
+                                    unit_only(met_var, met_units) +
+                                    "<extra></extra>"
+                                ),
+                            ))
+
+                            for code_val in sorted(paired[qc].dropna().unique()):
+                                mask = paired[qc] == code_val
+                                label = str(int(code_val)) if float(code_val).is_integer() else str(code_val)
+                                fig_joint.add_trace(go.Scattergl(
+                                    x=paired.loc[mask, "TIMESTAMP"],
+                                    y=paired.loc[mask, qc],
+                                    mode="markers",
+                                    name=f"{tr('Código QC','QC code')} {label}",
+                                    marker=dict(
+                                        color=qc_color(code_val),
+                                        size=5,
+                                    ),
+                                    yaxis="y2",
+                                    hovertemplate=(
+                                        tr("Data", "Date") + ": %{x}<br>" +
+                                        tr("Código QC original", "Original QC code") +
+                                        f": {label}<extra></extra>"
+                                    ),
+                                ))
+
+                            qc_vals = sorted(paired[qc].dropna().unique().tolist())
+
+                            fig_joint.update_layout(
+                                xaxis_title=tr("Data e hora", "Date and time"),
+                                yaxis=dict(
+                                    title=unit_label(met_var, met_units),
+                                    side="left",
+                                ),
+                                yaxis2=dict(
+                                    title=tr("Código QC original", "Original QC code"),
+                                    overlaying="y",
+                                    side="right",
+                                    tickmode="array",
+                                    tickvals=qc_vals,
+                                    ticktext=[
+                                        str(int(x)) if float(x).is_integer() else str(x)
+                                        for x in qc_vals
+                                    ],
+                                ),
+                                hovermode="x unified",
+                                height=500,
+                                margin=dict(l=20, r=20, t=30, b=20),
+                            )
+                            fig_joint.update_xaxes(range=[start, end])
+                            st.plotly_chart(fig_joint, use_container_width=True)
+
+                            st.caption(tr(
+                                "Esta comparação é exploratória. Uma associação entre meteorologia e código QC "
+                                "não implica causalidade e deve ser interpretada junto com o protocolo de QA/QC.",
+                                "This comparison is exploratory. An association between meteorology and QC code "
+                                "does not imply causality and should be interpreted together with the QA/QC protocol.",
+                            ))
 
 elif page_key == "about":
     st.header(tr("Sobre os Dados", "About the Data"))
