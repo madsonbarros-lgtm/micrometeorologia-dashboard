@@ -40,11 +40,11 @@ NON_SCIENTIFIC_NAMES = {
 def load_original_xlsx(uploaded_file):
     xls = pd.ExcelFile(uploaded_file)
     sheet = xls.sheet_names[0]
-    df = pd.read_excel(uploaded_file, sheet_name=sheet).copy()
+    raw = pd.read_excel(uploaded_file, sheet_name=sheet).copy()
 
     # Localiza a coluna temporal real.
     timestamp_candidates = [
-        c for c in df.columns
+        c for c in raw.columns
         if str(c).strip().lower() in {"timestamp", "datetime", "date_time", "datatime"}
     ]
     if not timestamp_candidates:
@@ -53,6 +53,23 @@ def load_original_xlsx(uploaded_file):
         )
 
     timestamp_col = timestamp_candidates[0]
+
+    # Extrai unidades da primeira linha não temporal, quando ela existir.
+    # Na planilha original, a linha de unidades não possui TIMESTAMP válido.
+    timestamp_probe = pd.to_datetime(raw[timestamp_col], errors="coerce")
+    unit_rows = raw[timestamp_probe.isna()].copy()
+
+    units = {}
+    if not unit_rows.empty:
+        candidate = unit_rows.iloc[0]
+        for c in raw.columns:
+            value = candidate.get(c)
+            if pd.notna(value):
+                text = str(value).strip()
+                if text and text.lower() not in {"nan", "none", "-", "--"}:
+                    units[c] = text
+
+    df = raw.copy()
     df["TIMESTAMP_parsed"] = pd.to_datetime(df[timestamp_col], errors="coerce")
     df = df[df["TIMESTAMP_parsed"].notna()].copy()
     df = df.sort_values("TIMESTAMP_parsed").reset_index(drop=True)
@@ -64,7 +81,7 @@ def load_original_xlsx(uploaded_file):
             if converted.notna().sum() > 0:
                 df[c] = converted
 
-    return df, sheet, timestamp_col
+    return df, sheet, timestamp_col, units
 
 def is_scientific_variable(col, df):
     name = str(col).strip().lower()
@@ -92,6 +109,16 @@ def existing_scientific(df, names):
 def valid_pct(s):
     return 100 * s.notna().mean() if len(s) else np.nan
 
+def unit_label(var, units):
+    unit = units.get(var)
+    if unit is None or str(unit).strip() == "":
+        return var
+    return f"{var} [{unit}]"
+
+def unit_only(var, units):
+    unit = units.get(var)
+    return str(unit).strip() if unit is not None and str(unit).strip() else "unidade não informada"
+
 def filter_period(df, start_dt, end_dt):
     return df[
         (df["TIMESTAMP_parsed"] >= start_dt)
@@ -113,7 +140,7 @@ def aggregate_time(df, var, resolution):
 
     return d.resample(rule).mean(numeric_only=True).reset_index()
 
-def plot_variable(df, var, resolution, title=None):
+def plot_variable(df, var, resolution, title=None, units=None):
     d = aggregate_time(df, var, resolution)
 
     if d.empty or d[var].notna().sum() == 0:
@@ -132,14 +159,14 @@ def plot_variable(df, var, resolution, title=None):
     fig.update_layout(
         title=title or f"{var} — período selecionado",
         xaxis_title="Data e hora",
-        yaxis_title=var,
+        yaxis_title=unit_label(var, units or {}),
         hovermode="x unified",
         height=470,
         margin=dict(l=20, r=20, t=55, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def stats_block(df, var):
+def stats_block(df, var, units=None):
     s = pd.to_numeric(df[var], errors="coerce")
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("N válido", f"{s.notna().sum():,}".replace(",", "."))
@@ -147,6 +174,7 @@ def stats_block(df, var):
     c3.metric("Mediana", f"{s.median():.3f}" if s.notna().any() else "—")
     c4.metric("Desvio-padrão", f"{s.std():.3f}" if s.notna().any() else "—")
     c5.metric("Disponibilidade", f"{valid_pct(s):.1f}%")
+    st.caption(f"Unidade de {var}: **{unit_only(var, units or {})}**")
 
 def period_controls(key_prefix, full_start, full_end):
     st.markdown("#### Período da análise")
@@ -186,7 +214,7 @@ def period_controls(key_prefix, full_start, full_end):
 
     return start_dt, end_dt
 
-def variable_analysis_panel(df, variable_options, key_prefix, full_start, full_end, heading=None):
+def variable_analysis_panel(df, variable_options, key_prefix, full_start, full_end, units, heading=None):
     if not variable_options:
         st.info("Nenhuma variável científica correspondente foi encontrada.")
         return
@@ -197,6 +225,7 @@ def variable_analysis_panel(df, variable_options, key_prefix, full_start, full_e
     var = st.selectbox(
         "Variável científica",
         variable_options,
+        format_func=lambda x: unit_label(x, units),
         key=f"{key_prefix}_variable",
     )
 
@@ -236,9 +265,10 @@ def variable_analysis_panel(df, variable_options, key_prefix, full_start, full_e
         selected,
         var,
         resolution,
-        title=f"{var} | {start_dt:%d/%m/%Y %H:%M} a {end_dt:%d/%m/%Y %H:%M}",
+        title=f"{unit_label(var, units)} | {start_dt:%d/%m/%Y %H:%M} a {end_dt:%d/%m/%Y %H:%M}",
+        units=units,
     )
-    stats_block(selected, var)
+    stats_block(selected, var, units=units)
 
 
 def aggregate_multiple(df, variables, resolution):
@@ -263,7 +293,7 @@ def normalize_zscore(series):
         return s * np.nan
     return (s - s.mean()) / sd
 
-def comparison_same_axis(data, variables, title):
+def comparison_same_axis(data, variables, title, units):
     fig = go.Figure()
     for var in variables:
         fig.add_trace(
@@ -271,7 +301,7 @@ def comparison_same_axis(data, variables, title):
                 x=data["TIMESTAMP_parsed"],
                 y=data[var],
                 mode="lines",
-                name=var,
+                name=unit_label(var, units),
                 connectgaps=False,
             )
         )
@@ -285,7 +315,7 @@ def comparison_same_axis(data, variables, title):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def comparison_two_axes(data, variables, title):
+def comparison_two_axes(data, variables, title, units):
     if len(variables) != 2:
         st.warning("O modo de dois eixos Y requer exatamente duas variáveis.")
         return
@@ -298,7 +328,7 @@ def comparison_two_axes(data, variables, title):
             x=data["TIMESTAMP_parsed"],
             y=data[v1],
             mode="lines",
-            name=v1,
+            name=unit_label(v1, units),
             yaxis="y",
             connectgaps=False,
         )
@@ -308,7 +338,7 @@ def comparison_two_axes(data, variables, title):
             x=data["TIMESTAMP_parsed"],
             y=data[v2],
             mode="lines",
-            name=v2,
+            name=unit_label(v2, units),
             yaxis="y2",
             connectgaps=False,
         )
@@ -317,9 +347,9 @@ def comparison_two_axes(data, variables, title):
     fig.update_layout(
         title=title,
         xaxis_title="Data e hora",
-        yaxis=dict(title=v1),
+        yaxis=dict(title=unit_label(v1, units)),
         yaxis2=dict(
-            title=v2,
+            title=unit_label(v2, units),
             overlaying="y",
             side="right",
         ),
@@ -329,7 +359,7 @@ def comparison_two_axes(data, variables, title):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def comparison_normalized(data, variables, title):
+def comparison_normalized(data, variables, title, units):
     nd = data[["TIMESTAMP_parsed"] + variables].copy()
 
     fig = go.Figure()
@@ -340,7 +370,7 @@ def comparison_normalized(data, variables, title):
                 x=nd["TIMESTAMP_parsed"],
                 y=nd[var],
                 mode="lines",
-                name=var,
+                name=unit_label(var, units),
                 connectgaps=False,
             )
         )
@@ -355,21 +385,21 @@ def comparison_normalized(data, variables, title):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def comparison_separate(data, variables):
+def comparison_separate(data, variables, units):
     for var in variables:
         fig = go.Figure(
             go.Scattergl(
                 x=data["TIMESTAMP_parsed"],
                 y=data[var],
                 mode="lines",
-                name=var,
+                name=unit_label(var, units),
                 connectgaps=False,
             )
         )
         fig.update_layout(
-            title=var,
+            title=unit_label(var, units),
             xaxis_title="Data e hora",
-            yaxis_title=var,
+            yaxis_title=unit_label(var, units),
             hovermode="x unified",
             height=330,
             margin=dict(l=20, r=20, t=50, b=20),
@@ -416,7 +446,7 @@ if uploaded is None:
     st.stop()
 
 try:
-    df, sheet_name, timestamp_col = load_original_xlsx(uploaded)
+    df, sheet_name, timestamp_col, units = load_original_xlsx(uploaded)
 except Exception as e:
     st.error(f"Não foi possível ler a planilha: {e}")
     st.stop()
@@ -468,6 +498,7 @@ if page == "Visão Geral":
     st.subheader("Variáveis científicas disponíveis")
     availability = pd.DataFrame({
         "Variável": sci_vars,
+        "Unidade": [unit_only(c, units) for c in sci_vars],
         "Disponibilidade (%)": [round(valid_pct(df[c]), 2) for c in sci_vars],
         "N válido": [int(df[c].notna().sum()) for c in sci_vars],
         "Ausentes": [int(df[c].isna().sum()) for c in sci_vars],
@@ -512,6 +543,7 @@ elif page == "Explorador de Variáveis":
         "explorer",
         full_start,
         full_end,
+        units,
     )
 
 # ------------------------------------------------------------
@@ -541,6 +573,7 @@ elif page == "Comparar Variáveis":
     selected_vars = st.multiselect(
         "Variáveis científicas para comparação",
         compare_options,
+        format_func=lambda x: unit_label(x, units),
         key="compare_variables",
         help="Selecione pelo menos duas variáveis.",
     )
@@ -593,7 +626,7 @@ elif page == "Comparar Variáveis":
             )
 
             if mode == "Gráficos separados":
-                comparison_separate(data, selected_vars)
+                comparison_separate(data, selected_vars, units)
 
             elif mode == "Mesmo gráfico — valores originais":
                 st.warning(
@@ -604,6 +637,7 @@ elif page == "Comparar Variáveis":
                     data,
                     selected_vars,
                     "Comparação — valores originais",
+                    units,
                 )
 
             elif mode == "Dois eixos Y":
@@ -611,6 +645,7 @@ elif page == "Comparar Variáveis":
                     data,
                     selected_vars,
                     "Comparação com dois eixos Y",
+                    units,
                 )
 
             elif mode == "Mesmo gráfico — normalizado (z-score)":
@@ -622,6 +657,7 @@ elif page == "Comparar Variáveis":
                     data,
                     selected_vars,
                     "Comparação normalizada (z-score)",
+                    units,
                 )
 
             st.subheader("Estatísticas do período")
@@ -630,6 +666,7 @@ elif page == "Comparar Variáveis":
                 s = pd.to_numeric(selected[var], errors="coerce")
                 stats_rows.append({
                     "Variável": var,
+                    "Unidade": unit_only(var, units),
                     "N válido": int(s.notna().sum()),
                     "Disponibilidade (%)": round(valid_pct(s), 2),
                     "Média": s.mean(),
@@ -680,6 +717,7 @@ elif page == "Eddy Covariance":
         "eddy",
         full_start,
         full_end,
+        units,
     )
 
 # ------------------------------------------------------------
@@ -705,6 +743,7 @@ elif page == "Meteorologia":
         "meteorology",
         full_start,
         full_end,
+        units,
     )
 
 # ------------------------------------------------------------
@@ -725,6 +764,7 @@ elif page == "Balanço de Energia":
         "energy",
         full_start,
         full_end,
+        units,
     )
 
 # ------------------------------------------------------------
@@ -745,6 +785,7 @@ elif page == "Água e Evapotranspiração":
         "water",
         full_start,
         full_end,
+        units,
     )
 
 # ------------------------------------------------------------
@@ -814,6 +855,11 @@ elif page == "Sobre os Dados":
 
         **Período total disponível:**  
         {full_start:%d/%m/%Y %H:%M} → {full_end:%d/%m/%Y %H:%M}
+
+        ### Unidades de medida
+        Quando a planilha original informa a unidade na linha de metadados, o EcoFlux a exibe
+        nos seletores, eixos dos gráficos e tabelas estatísticas. Se uma coluna não possuir
+        unidade documentada, a interface informa `unidade não informada` em vez de inventar uma unidade.
 
         ### Variáveis científicas
         A lista de variáveis exclui automaticamente campos temporais e administrativos,
