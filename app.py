@@ -240,6 +240,142 @@ def variable_analysis_panel(df, variable_options, key_prefix, full_start, full_e
     )
     stats_block(selected, var)
 
+
+def aggregate_multiple(df, variables, resolution):
+    d = df[["TIMESTAMP_parsed"] + variables].copy().set_index("TIMESTAMP_parsed")
+
+    if resolution == "30 min":
+        return d.reset_index()
+
+    rule = {
+        "Horário": "1h",
+        "Diário": "1D",
+        "Semanal": "1W",
+        "Mensal": "1MS",
+    }[resolution]
+
+    return d.resample(rule).mean(numeric_only=True).reset_index()
+
+def normalize_zscore(series):
+    s = pd.to_numeric(series, errors="coerce")
+    sd = s.std()
+    if pd.isna(sd) or sd == 0:
+        return s * np.nan
+    return (s - s.mean()) / sd
+
+def comparison_same_axis(data, variables, title):
+    fig = go.Figure()
+    for var in variables:
+        fig.add_trace(
+            go.Scattergl(
+                x=data["TIMESTAMP_parsed"],
+                y=data[var],
+                mode="lines",
+                name=var,
+                connectgaps=False,
+            )
+        )
+    fig.update_layout(
+        title=title,
+        xaxis_title="Data e hora",
+        yaxis_title="Valor",
+        hovermode="x unified",
+        height=500,
+        margin=dict(l=20, r=20, t=55, b=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+def comparison_two_axes(data, variables, title):
+    if len(variables) != 2:
+        st.warning("O modo de dois eixos Y requer exatamente duas variáveis.")
+        return
+
+    v1, v2 = variables
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scattergl(
+            x=data["TIMESTAMP_parsed"],
+            y=data[v1],
+            mode="lines",
+            name=v1,
+            yaxis="y",
+            connectgaps=False,
+        )
+    )
+    fig.add_trace(
+        go.Scattergl(
+            x=data["TIMESTAMP_parsed"],
+            y=data[v2],
+            mode="lines",
+            name=v2,
+            yaxis="y2",
+            connectgaps=False,
+        )
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Data e hora",
+        yaxis=dict(title=v1),
+        yaxis2=dict(
+            title=v2,
+            overlaying="y",
+            side="right",
+        ),
+        hovermode="x unified",
+        height=500,
+        margin=dict(l=20, r=70, t=55, b=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+def comparison_normalized(data, variables, title):
+    nd = data[["TIMESTAMP_parsed"] + variables].copy()
+
+    fig = go.Figure()
+    for var in variables:
+        nd[var] = normalize_zscore(nd[var])
+        fig.add_trace(
+            go.Scattergl(
+                x=nd["TIMESTAMP_parsed"],
+                y=nd[var],
+                mode="lines",
+                name=var,
+                connectgaps=False,
+            )
+        )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Data e hora",
+        yaxis_title="Valor padronizado (z-score)",
+        hovermode="x unified",
+        height=500,
+        margin=dict(l=20, r=20, t=55, b=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+def comparison_separate(data, variables):
+    for var in variables:
+        fig = go.Figure(
+            go.Scattergl(
+                x=data["TIMESTAMP_parsed"],
+                y=data[var],
+                mode="lines",
+                name=var,
+                connectgaps=False,
+            )
+        )
+        fig.update_layout(
+            title=var,
+            xaxis_title="Data e hora",
+            yaxis_title=var,
+            hovermode="x unified",
+            height=330,
+            margin=dict(l=20, r=20, t=50, b=20),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
 # ------------------------------------------------------------
 # Interface
 # ------------------------------------------------------------
@@ -253,6 +389,7 @@ page = st.sidebar.radio(
     [
         "Visão Geral",
         "Explorador de Variáveis",
+        "Comparar Variáveis",
         "Eddy Covariance",
         "Meteorologia",
         "Balanço de Energia",
@@ -376,6 +513,151 @@ elif page == "Explorador de Variáveis":
         full_start,
         full_end,
     )
+
+# ------------------------------------------------------------
+# COMPARAR VARIÁVEIS
+# ------------------------------------------------------------
+
+elif page == "Comparar Variáveis":
+    st.header("Comparar Variáveis")
+
+    st.write(
+        "Selecione duas ou mais variáveis científicas e informe o período comum da comparação. "
+        "TIMESTAMP, DOY, DAYTIME e outros campos temporais não aparecem como variáveis científicas."
+    )
+
+    search = st.text_input(
+        "Pesquisar variáveis",
+        placeholder="Ex.: co2_flux, VPD, LE, air_temperature",
+        key="compare_search",
+    )
+
+    compare_options = sci_vars
+    if search:
+        compare_options = [
+            c for c in sci_vars if search.lower() in str(c).lower()
+        ]
+
+    selected_vars = st.multiselect(
+        "Variáveis científicas para comparação",
+        compare_options,
+        key="compare_variables",
+        help="Selecione pelo menos duas variáveis.",
+    )
+
+    start_dt, end_dt = period_controls("compare", full_start, full_end)
+
+    resolution = st.selectbox(
+        "Resolução para comparação",
+        ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
+        index=2,
+        key="compare_resolution",
+    )
+
+    mode = st.radio(
+        "Forma de comparação",
+        [
+            "Gráficos separados",
+            "Mesmo gráfico — valores originais",
+            "Dois eixos Y",
+            "Mesmo gráfico — normalizado (z-score)",
+        ],
+        key="compare_mode",
+        help=(
+            "Use valores originais apenas quando as escalas/unidades forem comparáveis. "
+            "Para variáveis de grandezas diferentes, prefira gráficos separados, dois eixos Y "
+            "ou normalização por z-score."
+        ),
+    )
+
+    if start_dt > end_dt:
+        st.error("A data/hora inicial deve ser anterior à data/hora final.")
+    elif len(selected_vars) < 2:
+        st.info("Selecione pelo menos duas variáveis científicas para iniciar a comparação.")
+    else:
+        selected = filter_period(df, start_dt, end_dt)
+
+        st.markdown(
+            f"**Período da comparação:** {start_dt:%d/%m/%Y %H:%M} → "
+            f"{end_dt:%d/%m/%Y %H:%M}"
+        )
+
+        if selected.empty:
+            st.warning("Não há registros nesse período.")
+        else:
+            data = aggregate_multiple(selected, selected_vars, resolution)
+
+            st.caption(
+                f"{len(selected):,} registros temporais no intervalo; "
+                f"{len(data):,} pontos após a agregação selecionada.".replace(",", ".")
+            )
+
+            if mode == "Gráficos separados":
+                comparison_separate(data, selected_vars)
+
+            elif mode == "Mesmo gráfico — valores originais":
+                st.warning(
+                    "Variáveis com unidades ou escalas diferentes podem parecer distorcidas "
+                    "quando compartilharem o mesmo eixo Y."
+                )
+                comparison_same_axis(
+                    data,
+                    selected_vars,
+                    "Comparação — valores originais",
+                )
+
+            elif mode == "Dois eixos Y":
+                comparison_two_axes(
+                    data,
+                    selected_vars,
+                    "Comparação com dois eixos Y",
+                )
+
+            elif mode == "Mesmo gráfico — normalizado (z-score)":
+                st.info(
+                    "O z-score remove a unidade e coloca as séries em uma escala comparável. "
+                    "Ele é útil para comparar padrões temporais, não magnitudes físicas."
+                )
+                comparison_normalized(
+                    data,
+                    selected_vars,
+                    "Comparação normalizada (z-score)",
+                )
+
+            st.subheader("Estatísticas do período")
+            stats_rows = []
+            for var in selected_vars:
+                s = pd.to_numeric(selected[var], errors="coerce")
+                stats_rows.append({
+                    "Variável": var,
+                    "N válido": int(s.notna().sum()),
+                    "Disponibilidade (%)": round(valid_pct(s), 2),
+                    "Média": s.mean(),
+                    "Mediana": s.median(),
+                    "Desvio-padrão": s.std(),
+                    "Mínimo": s.min(),
+                    "Máximo": s.max(),
+                })
+            st.dataframe(pd.DataFrame(stats_rows), use_container_width=True)
+
+            st.subheader("Correlação no período")
+            corr_data = data[selected_vars].copy()
+            corr = corr_data.corr(method="pearson", min_periods=3)
+
+            if corr.shape[0] >= 2:
+                fig = px.imshow(
+                    corr,
+                    text_auto=".2f",
+                    aspect="auto",
+                    zmin=-1,
+                    zmax=1,
+                    title="Matriz de correlação de Pearson",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(
+                    "A correlação é calculada apenas para o período e a resolução selecionados. "
+                    "Correlação não implica causalidade."
+                )
 
 # ------------------------------------------------------------
 # EDDY COVARIANCE
