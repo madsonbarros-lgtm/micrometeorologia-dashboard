@@ -22,148 +22,105 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-SAMPLING_MINUTES = 30
-FIRST_OBSERVED_TIMESTAMP = pd.Timestamp("2025-06-04 20:00:00")
-
-EXPECTED_COLUMNS = [
-    "season",
-    "NEE_orig", "NEE_f", "NEE_fqc", "NEE_fall", "NEE_fall_qc",
-    "NEE_fnum", "NEE_fsd", "NEE_fmeth", "NEE_fwin",
-    "Rg_orig", "Rg_f", "Rg_fqc", "Rg_fall", "Rg_fall_qc",
-    "Rg_fnum", "Rg_fsd", "Rg_fmeth", "Rg_fwin",
-    "Tair_orig", "Tair_f", "Tair_fqc", "Tair_fall", "Tair_fall_qc",
-    "Tair_fnum", "Tair_fsd", "Tair_fmeth", "Tair_fwin",
-    "VPD_orig", "VPD_f", "VPD_fqc", "VPD_fall", "VPD_fall_qc",
-    "VPD_fnum", "VPD_fsd", "VPD_fmeth", "VPD_fwin",
-    "PotRad_NEW", "FP_Temp_NEW", "E_0_NEW", "FP_VARnight", "FP_VARday",
-    "NEW_FP_Temp", "NEW_FP_VPD", "FP_RRef_Night", "FP_qc", "FP_dRecPar",
-    "FP_errorcode", "FP_GPP2000", "FP_k", "FP_beta", "FP_alpha",
-    "FP_RRef", "FP_E0", "FP_k_sd", "FP_beta_sd", "FP_alpha_sd",
-    "FP_RRef_sd", "FP_E0_sd", "Reco_DT", "GPP_DT", "Reco_DT_SD", "GPP_DT_SD"
+EXPECTED_ORIGINAL_VARS = [
+    "TIMESTAMP", "Tau", "H", "LE", "co2_flux", "h2o_flux",
+    "air_temperature", "RH", "VPD", "wind_speed", "wind_dir",
+    "u*", "TKE", "ET", "met_Rg_i_Avg", "met_Rg_r_Avg",
+    "met_G_Avg", "met_NET_Avg", "met_T_ar_Avg", "met_UR_ar",
+    "met_PPT_Tot", "met_WS_S_WVT", "met_WindDir_D1_WVT"
 ]
 
-def season_label(value):
-    try:
-        s = str(int(float(value))).zfill(7)
-        year = int(s[:4])
-        month = int(s[-3:])
-        months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
-        if 1 <= month <= 12:
-            return f"{months[month-1]}/{year}"
-    except Exception:
-        pass
-    return str(value)
-
 @st.cache_data(show_spinner=False)
-def load_xlsx(uploaded_file):
+def load_original_xlsx(uploaded_file):
     xls = pd.ExcelFile(uploaded_file)
     sheet = xls.sheet_names[0]
     df = pd.read_excel(uploaded_file, sheet_name=sheet)
-    df = df.copy()
 
+    # Remove eventual linha de unidades/cabeçalho auxiliar quando TIMESTAMP não for válido.
+    df = df.copy()
+    df["TIMESTAMP_parsed"] = pd.to_datetime(df["TIMESTAMP"], errors="coerce", dayfirst=False)
+    df = df[df["TIMESTAMP_parsed"].notna()].copy()
+    df = df.sort_values("TIMESTAMP_parsed")
+
+    # Converte variáveis numéricas quando possível.
     for c in df.columns:
-        if c != "season":
+        if c not in ["TIMESTAMP", "TIMESTAMP_parsed", "filename", "date", "time"]:
             df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    df["season_label"] = df["season"].apply(season_label)
-    df["_global_obs"] = np.arange(1, len(df) + 1)
-    df["_season_obs"] = df.groupby("season", sort=False).cumcount()
-    df["elapsed_hours"] = df["_season_obs"] * (SAMPLING_MINUTES / 60.0)
-    df["elapsed_days"] = df["elapsed_hours"] / 24.0
-
-    first_season = pd.unique(df["season"].dropna())[0]
-    mask = df["season"] == first_season
-    df["known_datetime"] = pd.NaT
-    df.loc[mask, "known_datetime"] = (
-        FIRST_OBSERVED_TIMESTAMP
-        + pd.to_timedelta(df.loc[mask, "_season_obs"] * SAMPLING_MINUTES, unit="min")
-    )
     return df, sheet
 
 def existing(df, names):
     return [c for c in names if c in df.columns]
 
-def valid_pct(s):
-    return 100 * s.notna().mean() if len(s) else np.nan
+def valid_pct(series):
+    return 100 * series.notna().mean() if len(series) else np.nan
 
-def stats_df(df, var):
-    s = pd.to_numeric(df[var], errors="coerce")
-    return pd.DataFrame({
-        "Métrica": [
-            "N válido", "Disponibilidade (%)", "Média", "Mediana",
-            "Desvio-padrão", "Mínimo", "Máximo"
-        ],
-        "Valor": [
-            int(s.notna().sum()),
-            round(valid_pct(s), 2),
-            s.mean(),
-            s.median(),
-            s.std(),
-            s.min(),
-            s.max(),
-        ],
-    })
+def aggregate_time(df, variables, resolution):
+    variables = existing(df, variables)
+    if not variables:
+        return pd.DataFrame()
 
-def aggregate_relative(part, var, resolution):
-    d = part[["_season_obs", "elapsed_days", var]].copy()
+    d = df[["TIMESTAMP_parsed"] + variables].copy().set_index("TIMESTAMP_parsed")
 
     if resolution == "30 min":
-        d["x"] = d["elapsed_days"]
-        return d[["x", var]]
+        return d.reset_index()
 
-    factor = {"Diário": 48, "Semanal": 48 * 7}[resolution]
-    d["bin"] = d["_season_obs"] // factor
-    out = d.groupby("bin", as_index=False)[var].mean()
-    out["x"] = out["bin"] * factor / 48.0
-    return out[["x", var]]
+    rule = {
+        "Horário": "1H",
+        "Diário": "1D",
+        "Semanal": "1W",
+        "Mensal": "1MS",
+    }[resolution]
 
-def clip_for_display(series, enabled=True, low_q=0.005, high_q=0.995):
-    s = pd.to_numeric(series, errors="coerce")
-    if not enabled or s.dropna().empty:
-        return s
-    lo = s.quantile(low_q)
-    hi = s.quantile(high_q)
-    return s.clip(lo, hi)
+    return d.resample(rule).mean(numeric_only=True).reset_index()
 
-def plot_by_season(df, var, title, resolution, clip_extremes=False):
-    fig = go.Figure()
+def line_chart(df, var, title, resolution, y_title=None):
+    if var not in df.columns:
+        st.info("Variável não disponível.")
+        return
 
-    for season_name in pd.unique(df["season_label"]):
-        part = df[df["season_label"] == season_name].copy()
-
-        if clip_extremes and resolution == "30 min":
-            part[var] = clip_for_display(part[var], enabled=True)
-
-        agg = aggregate_relative(part, var, resolution)
-
-        fig.add_trace(
-            go.Scattergl(
-                x=agg["x"],
-                y=agg[var],
-                mode="lines",
-                name=season_name,
-                connectgaps=False,
-            )
+    d = aggregate_time(df, [var], resolution)
+    fig = go.Figure(
+        go.Scattergl(
+            x=d["TIMESTAMP_parsed"],
+            y=d[var],
+            mode="lines",
+            name=var,
+            connectgaps=False,
         )
-
+    )
     fig.update_layout(
         title=title,
-        xaxis_title="Tempo relativo dentro do bloco (dias)",
-        yaxis_title=var,
+        xaxis_title="Data e hora",
+        yaxis_title=y_title or var,
         hovermode="x unified",
         height=420,
         margin=dict(l=20, r=20, t=55, b=20),
-        legend_title="season",
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def show_stat_cards(df, var):
+def stats_cards(df, var):
     s = pd.to_numeric(df[var], errors="coerce")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Média", f"{s.mean():.3f}" if s.notna().any() else "—")
     c2.metric("Mediana", f"{s.median():.3f}" if s.notna().any() else "—")
     c3.metric("Desvio-padrão", f"{s.std():.3f}" if s.notna().any() else "—")
     c4.metric("Disponibilidade", f"{valid_pct(s):.1f}%")
+
+def qc_distribution(df, var):
+    s = df[var].astype("string").fillna("NA")
+    q = s.value_counts().rename_axis("Código").reset_index(name="Frequência")
+    q["Percentual (%)"] = 100 * q["Frequência"] / q["Frequência"].sum()
+    fig = px.bar(
+        q,
+        x="Código",
+        y="Frequência",
+        text="Percentual (%)",
+        title=f"Distribuição dos códigos — {var}",
+    )
+    fig.update_traces(texttemplate="%{text:.1f}%")
+    st.plotly_chart(fig, use_container_width=True)
+    st.dataframe(q, use_container_width=True)
 
 st.title("🌱 EcoFlux Brasil")
 st.caption("Plataforma de Dados Micrometeorológicos e Fluxos Ecossistêmicos")
@@ -173,10 +130,11 @@ page = st.sidebar.radio(
     "Seção",
     [
         "Visão Geral",
+        "Eddy Covariance",
         "Meteorologia",
-        "Fluxos de Carbono",
-        "Qualidade e Gap-filling",
-        "Particionamento de Carbono",
+        "Balanço de Energia",
+        "Água e Evapotranspiração",
+        "Qualidade dos Dados",
         "Sobre os Dados",
         "Solicitar Dados",
     ],
@@ -186,89 +144,82 @@ st.sidebar.divider()
 st.sidebar.subheader("Fonte de dados")
 
 uploaded = st.sidebar.file_uploader(
-    "Carregar XLSX para esta sessão",
+    "Carregar dados originais (XLSX)",
     type=["xlsx"],
-    help="O arquivo é usado apenas na sessão e não é oferecido para download.",
-)
-
-st.sidebar.caption(
-    "Política de acesso: visualização pública permitida; dados brutos somente mediante autorização."
-)
-
-if uploaded is None:
-    st.info("Carregue o XLSX para visualizar os dados.")
-    st.warning("Não coloque o XLSX bruto em um repositório público do GitHub.")
-    st.stop()
-
-try:
-    df, sheet_name = load_xlsx(uploaded)
-except Exception as e:
-    st.error(f"Não foi possível ler o XLSX: {e}")
-    st.stop()
-
-season_options = list(pd.unique(df["season_label"]))
-selected_seasons = st.sidebar.multiselect(
-    "Período (season)",
-    options=season_options,
-    default=season_options,
-)
-
-filtered = df[df["season_label"].isin(selected_seasons)].copy()
-
-resolution = st.sidebar.selectbox(
-    "Agregação temporal",
-    ["30 min", "Diário", "Semanal"],
-    index=1,
-)
-
-clip_sd = st.sidebar.checkbox(
-    "Limitar extremos apenas na exibição de incertezas (_SD)",
-    value=True,
     help=(
-        "Aplica winsorização visual entre os percentis 0,5% e 99,5% apenas no gráfico. "
-        "Os dados originais e as estatísticas permanecem inalterados."
+        "Para desenvolvimento. Na versão pública final, os dados deverão ser carregados "
+        "automaticamente de uma fonte privada, sem botão de download."
     ),
 )
 
-# ============================================================
-# VISÃO GERAL
-# ============================================================
+st.sidebar.caption(
+    "Política de acesso: visualização pública; dados brutos somente mediante autorização."
+)
+
+if uploaded is None:
+    st.info(
+        "Carregue a planilha original para visualizar o painel. "
+        "Na versão pública final, este upload será substituído por carregamento automático protegido."
+    )
+    st.stop()
+
+try:
+    df, sheet_name = load_original_xlsx(uploaded)
+except Exception as e:
+    st.error(f"Não foi possível ler o arquivo: {e}")
+    st.stop()
+
+# Filtros temporais
+st.sidebar.subheader("Período")
+min_dt = df["TIMESTAMP_parsed"].min()
+max_dt = df["TIMESTAMP_parsed"].max()
+
+date_range = st.sidebar.date_input(
+    "Intervalo de datas",
+    value=(min_dt.date(), max_dt.date()),
+    min_value=min_dt.date(),
+    max_value=max_dt.date(),
+)
+
+filtered = df.copy()
+if isinstance(date_range, tuple) and len(date_range) == 2:
+    d0, d1 = date_range
+    filtered = filtered[
+        (filtered["TIMESTAMP_parsed"].dt.date >= d0)
+        & (filtered["TIMESTAMP_parsed"].dt.date <= d1)
+    ].copy()
+
+resolution = st.sidebar.selectbox(
+    "Agregação temporal",
+    ["30 min", "Horário", "Diário", "Semanal", "Mensal"],
+    index=2,
+)
 
 if page == "Visão Geral":
     st.header("Visão Geral")
 
-    matched = len(set(EXPECTED_COLUMNS).intersection(df.columns))
-    compatibility = 100 * matched / len(EXPECTED_COLUMNS)
-
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Registros exibidos", f"{len(filtered):,}".replace(",", "."))
-    c2.metric("Variáveis originais", 63)
+    c1.metric("Registros", f"{len(filtered):,}".replace(",", "."))
+    c2.metric("Variáveis", len([c for c in df.columns if c != "TIMESTAMP_parsed"]))
     c3.metric("Resolução original", "30 min")
-    c4.metric("Compatibilidade", f"{compatibility:.0f}%")
+    c4.metric("Cobertura temporal", f"{(max_dt - min_dt).days} dias")
 
+    st.markdown(
+        f"**Período da série:** {min_dt:%d/%m/%Y %H:%M} — {max_dt:%d/%m/%Y %H:%M}"
+    )
     st.caption(f"Aba lida: {sheet_name}")
 
-    st.warning(
-        "As datas absolutas não são reconstruídas para blocos sem timestamp documentado. "
-        "Os gráficos usam tempo relativo dentro de cada `season`."
+    matched = len(existing(df, EXPECTED_ORIGINAL_VARS))
+    st.info(
+        f"Foram reconhecidas {matched} variáveis-chave da estrutura original, "
+        "incluindo fluxos, meteorologia, turbulência, QC e variáveis pareadas da estação."
     )
 
-    block_summary = (
-        df.groupby(["season", "season_label"], sort=False)
-        .agg(Registros=("_season_obs", "size"))
-        .reset_index()
-    )
-    block_summary["Duração equivalente (dias)"] = block_summary["Registros"] / 48.0
-
-    st.subheader("Blocos observacionais")
-    st.dataframe(block_summary, use_container_width=True)
-
+    st.subheader("Disponibilidade das variáveis")
     data_cols = [
         c for c in df.columns
-        if c not in [
-            "season", "season_label", "_global_obs", "_season_obs",
-            "elapsed_hours", "elapsed_days", "known_datetime"
-        ]
+        if c not in ["TIMESTAMP", "TIMESTAMP_parsed", "filename", "date", "time"]
+        and pd.api.types.is_numeric_dtype(df[c])
     ]
 
     availability = pd.DataFrame({
@@ -277,218 +228,162 @@ if page == "Visão Geral":
         "Ausentes": [int(filtered[c].isna().sum()) for c in data_cols],
     }).sort_values(["Disponibilidade (%)", "Variável"])
 
-    st.subheader("Disponibilidade das variáveis")
     fig = px.bar(
-        availability.head(25),
+        availability.head(30),
         x="Disponibilidade (%)",
         y="Variável",
         orientation="h",
         hover_data=["Ausentes"],
-        title="25 variáveis com menor disponibilidade",
+        title="30 variáveis com menor disponibilidade",
     )
-    fig.update_layout(height=650, yaxis={"categoryorder": "total ascending"})
+    fig.update_layout(height=750, yaxis={"categoryorder": "total ascending"})
     st.plotly_chart(fig, use_container_width=True)
 
-# ============================================================
-# METEOROLOGIA
-# ============================================================
+    with st.expander("Tabela completa de disponibilidade"):
+        st.dataframe(availability, use_container_width=True)
+
+elif page == "Eddy Covariance":
+    st.header("Eddy Covariance")
+
+    sections = [
+        ("Fluxo de CO₂", ["co2_flux"]),
+        ("Fluxo de calor sensível", ["H"]),
+        ("Fluxo de calor latente", ["LE"]),
+        ("Fluxo de vapor d'água", ["h2o_flux"]),
+        ("Fricção / turbulência", ["u*", "TKE"]),
+    ]
+
+    for title, opts in sections:
+        vars_ok = existing(filtered, opts)
+        if not vars_ok:
+            continue
+        var = st.selectbox(f"Variável — {title}", vars_ok, key=f"ec_{title}")
+        line_chart(filtered, var, f"{title}: {var}", resolution)
+        stats_cards(filtered, var)
 
 elif page == "Meteorologia":
     st.header("Meteorologia")
 
-    st.info(
-        "Radiação, temperatura do ar e VPD aparecem em gráficos separados para preservar suas escalas."
-    )
-
-    groups = [
-        ("Radiação", existing(filtered, ["Rg_fall", "Rg_f", "Rg_orig", "PotRad_NEW"])),
-        ("Temperatura do ar", existing(filtered, ["Tair_fall", "Tair_f", "Tair_orig", "FP_Temp_NEW", "NEW_FP_Temp"])),
-        ("VPD", existing(filtered, ["VPD_fall", "VPD_f", "VPD_orig", "NEW_FP_VPD"])),
+    sections = [
+        ("Temperatura do ar", ["air_temperature", "met_T_ar_Avg"]),
+        ("Umidade relativa", ["RH", "met_UR_ar"]),
+        ("VPD", ["VPD"]),
+        ("Velocidade do vento", ["wind_speed", "met_WS_S_WVT"]),
+        ("Direção do vento", ["wind_dir", "met_WindDir_D1_WVT"]),
+        ("Radiação incidente", ["met_Rg_i_Avg"]),
+        ("Radiação refletida", ["met_Rg_r_Avg"]),
     ]
 
-    for title, opts in groups:
-        if not opts:
+    for title, opts in sections:
+        vars_ok = existing(filtered, opts)
+        if not vars_ok:
             continue
-        st.subheader(title)
-        var = st.selectbox(f"Variável — {title}", opts, key=f"met_{title}")
-        plot_by_season(filtered, var, f"{title}: {var}", resolution)
-        show_stat_cards(filtered, var)
+        var = st.selectbox(f"Variável — {title}", vars_ok, key=f"met_{title}")
+        line_chart(filtered, var, f"{title}: {var}", resolution)
+        stats_cards(filtered, var)
 
-# ============================================================
-# FLUXOS DE CARBONO
-# ============================================================
+elif page == "Balanço de Energia":
+    st.header("Balanço de Energia")
 
-elif page == "Fluxos de Carbono":
-    st.header("Fluxos de Carbono")
+    energy_vars = existing(filtered, ["H", "LE", "met_G_Avg", "met_NET_Avg"])
+    if not energy_vars:
+        st.info("Nenhuma variável de balanço de energia disponível.")
+    else:
+        for var in energy_vars:
+            line_chart(filtered, var, f"Componente do balanço de energia: {var}", resolution)
+            stats_cards(filtered, var)
 
-    st.info(
-        "NEE, Reco e GPP são exibidos separadamente. Cada gráfico compara os `season` selecionados."
-    )
+        if all(v in filtered.columns for v in ["H", "LE", "met_G_Avg", "met_NET_Avg"]):
+            st.subheader("Fechamento simplificado do balanço de energia")
+            d = filtered[["TIMESTAMP_parsed", "H", "LE", "met_G_Avg", "met_NET_Avg"]].dropna()
+            if not d.empty:
+                d["Disponivel"] = d["met_NET_Avg"] - d["met_G_Avg"]
+                d["Turbulento"] = d["H"] + d["LE"]
+                fig = px.scatter(
+                    d,
+                    x="Disponivel",
+                    y="Turbulento",
+                    opacity=0.4,
+                    title="H + LE versus Rn - G",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(
+                    "Diagnóstico exploratório. A interpretação do fechamento requer confirmar "
+                    "as unidades, convenções de sinal e o significado exato de `met_NET_Avg` e `met_G_Avg`."
+                )
 
-    groups = [
-        ("NEE", existing(filtered, ["NEE_fall", "NEE_f", "NEE_orig"])),
-        ("Reco", existing(filtered, ["Reco_DT", "FP_RRef", "FP_RRef_Night"])),
-        ("GPP", existing(filtered, ["GPP_DT", "FP_GPP2000"])),
-    ]
+elif page == "Água e Evapotranspiração":
+    st.header("Água e Evapotranspiração")
 
-    selected_main = {}
+    vars_ok = existing(filtered, ["ET", "h2o_flux", "VPD", "met_PPT_Tot"])
+    for var in vars_ok:
+        line_chart(filtered, var, var, resolution)
+        stats_cards(filtered, var)
 
-    for title, opts in groups:
-        if not opts:
-            continue
-
-        st.subheader(title)
-        var = st.selectbox(f"Variável — {title}", opts, key=f"carbon_{title}")
-        selected_main[title] = var
-
-        plot_by_season(filtered, var, f"{title}: {var}", resolution)
-        show_stat_cards(filtered, var)
-
-        with st.expander(f"Estatísticas completas — {var}"):
-            st.dataframe(stats_df(filtered, var), use_container_width=True)
-
-    if "NEE" in selected_main and "GPP" in selected_main:
-        st.subheader("Relação NEE × GPP")
-        d = filtered[[selected_main["NEE"], selected_main["GPP"], "season_label"]].dropna()
-        if not d.empty:
-            fig = px.scatter(
-                d,
-                x=selected_main["NEE"],
-                y=selected_main["GPP"],
-                color="season_label",
-                opacity=0.45,
-                title=f"{selected_main['GPP']} × {selected_main['NEE']}",
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-# ============================================================
-# QUALIDADE
-# ============================================================
-
-elif page == "Qualidade e Gap-filling":
-    st.header("Qualidade e Gap-filling")
+elif page == "Qualidade dos Dados":
+    st.header("Qualidade dos Dados")
 
     qc_vars = existing(
         filtered,
         [
-            "NEE_fqc", "NEE_fall_qc",
-            "Rg_fqc", "Rg_fall_qc",
-            "Tair_fqc", "Tair_fall_qc",
-            "VPD_fqc", "VPD_fall_qc",
-            "FP_qc", "FP_errorcode"
+            "qc_Tau", "qc_H", "qc_LE", "qc_co2_flux",
+            "qc_h2o_flux", "qc_ch4_flux",
+            "spikes_hf", "drop_out_hf",
+            "absolute_limits_hf", "skewness_kurtosis_hf",
+            "discontinuities_hf", "timelag_hf",
+            "attack_angle_hf", "non_steady_wind_hf"
         ],
     )
 
     if qc_vars:
-        chosen = st.selectbox("Flag / código QC", qc_vars)
-        q = (
-            filtered[chosen]
-            .astype("string")
-            .fillna("NA")
-            .value_counts()
-            .rename_axis("Código")
-            .reset_index(name="Frequência")
-        )
-        q["Percentual (%)"] = 100 * q["Frequência"] / q["Frequência"].sum()
+        chosen = st.selectbox("Indicador de qualidade", qc_vars)
+        qc_distribution(filtered, chosen)
 
-        fig = px.bar(
-            q,
-            x="Código",
-            y="Frequência",
-            text="Percentual (%)",
-            title=f"Distribuição dos códigos — {chosen}",
-        )
-        fig.update_traces(texttemplate="%{text:.1f}%")
-        st.plotly_chart(fig, use_container_width=True)
-        st.dataframe(q, use_container_width=True)
-
-# ============================================================
-# PARTICIONAMENTO
-# ============================================================
-
-elif page == "Particionamento de Carbono":
-    st.header("Particionamento de Carbono")
-
-    st.info(
-        "Produtos e incertezas são separados para evitar que valores extremos das colunas `_SD` comprimam os demais sinais."
+    st.subheader("Cobertura de dados por variável-chave")
+    keys = existing(
+        filtered,
+        [
+            "co2_flux", "H", "LE", "h2o_flux", "u*", "TKE",
+            "air_temperature", "RH", "VPD", "wind_speed",
+            "met_Rg_i_Avg", "met_NET_Avg", "met_PPT_Tot"
+        ],
     )
-
-    st.subheader("Produtos principais")
-
-    product_groups = [
-        ("Reco", existing(filtered, ["Reco_DT"])),
-        ("GPP", existing(filtered, ["GPP_DT"])),
-    ]
-
-    for title, opts in product_groups:
-        if not opts:
-            continue
-        var = opts[0]
-        plot_by_season(filtered, var, f"{title}: {var}", resolution)
-        show_stat_cards(filtered, var)
-
-    st.subheader("Incertezas / desvio-padrão")
-
-    sd_groups = [
-        ("Reco", existing(filtered, ["Reco_DT_SD"])),
-        ("GPP", existing(filtered, ["GPP_DT_SD"])),
-    ]
-
-    for title, opts in sd_groups:
-        if not opts:
-            continue
-        var = opts[0]
-        plot_by_season(
-            filtered,
-            var,
-            f"Incerteza {title}: {var}",
-            resolution,
-            clip_extremes=clip_sd,
-        )
-        show_stat_cards(filtered, var)
-
-        if clip_sd:
-            st.caption(
-                f"No gráfico de {var}, os extremos são limitados apenas visualmente "
-                f"entre os percentis 0,5% e 99,5%. Os dados e estatísticas permanecem inalterados."
-            )
-
-# ============================================================
-# SOBRE
-# ============================================================
+    cov = pd.DataFrame({
+        "Variável": keys,
+        "Disponibilidade (%)": [valid_pct(filtered[c]) for c in keys],
+        "Ausentes": [int(filtered[c].isna().sum()) for c in keys],
+    })
+    st.dataframe(cov, use_container_width=True)
 
 elif page == "Sobre os Dados":
     st.header("Sobre os Dados")
 
     st.markdown(
         """
+        ### Dados originais
+        Esta versão usa a planilha original pareada de **Eddy Covariance + micrometeorologia**.
+        O eixo temporal é baseado diretamente em `TIMESTAMP`, sem reconstrução artificial.
+
+        ### Resolução temporal
+        A série original possui resolução de **30 minutos**.
+
         ### Política de acesso
-        Esta plataforma é destinada à **visualização científica pública**.
-        O conjunto bruto não é oferecido para download direto.
-        Solicitações de acesso devem ser avaliadas e autorizadas pelo responsável.
+        A plataforma é destinada à **visualização científica pública**.
+        Não há download público direto do conjunto bruto.
+        Qualquer fornecimento de dados depende de autorização do responsável.
 
-        ### Estrutura temporal
-        A resolução original é de **30 minutos** e os registros seguem continuamente
-        dentro de cada bloco `season`. A coluna `season` codifica **ano e mês**.
-
-        Como o arquivo não contém timestamp absoluto para todos os blocos,
-        os gráficos usam **tempo relativo dentro de cada bloco**.
-
-        ### Transparência científica
-        O aplicativo não altera os dados originais. Quando a limitação visual de extremos
-        é ativada para variáveis `_SD`, ela é aplicada apenas ao gráfico.
+        ### Próxima integração
+        Os produtos processados, incluindo NEE tratado, gap-filling, Reco e GPP,
+        poderão ser incorporados como uma segunda camada do EcoFlux Brasil.
         """
     )
-
-# ============================================================
-# SOLICITAÇÃO
-# ============================================================
 
 elif page == "Solicitar Dados":
     st.header("Solicitar Dados")
 
     st.warning(
-        "Não há download público direto. O fornecimento dos dados depende de autorização expressa do responsável."
+        "O conjunto de dados não está disponível para download público. "
+        "Solicitações dependem de autorização expressa do responsável."
     )
 
     with st.form("request_form"):
@@ -498,7 +393,7 @@ elif page == "Solicitar Dados":
         variables = st.text_input("Variáveis / período de interesse")
         purpose = st.text_area("Finalidade científica ou acadêmica")
         agreement = st.checkbox(
-            "Declaro que o acesso aos dados dependerá de autorização prévia."
+            "Declaro que o acesso dependerá de autorização prévia."
         )
         submitted = st.form_submit_button("Preparar solicitação")
 
@@ -507,10 +402,11 @@ elif page == "Solicitar Dados":
                 st.error("Preencha nome, e-mail e finalidade e confirme a declaração.")
             else:
                 st.success(
-                    "Solicitação preparada. Nesta versão gratuita, o formulário ainda não envia nem armazena automaticamente."
+                    "Solicitação preparada. Nesta versão gratuita, "
+                    "o formulário ainda não envia nem armazena automaticamente."
                 )
                 st.text_area(
-                    "Resumo da solicitação",
+                    "Resumo",
                     value=(
                         f"Nome: {name}\n"
                         f"Instituição: {institution}\n"
