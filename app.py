@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # ============================================================
-# EcoFlux Brasil — V33
+# EcoFlux Brasil — V34
 # Arquitetura:
 # 1) Dados originais da torre CR3000: 1 min / 30 min / diário
 # 2) Eddy Covariance / QC
@@ -533,15 +533,42 @@ def read_toa5_header(uploaded_file):
 
     return meta, headers, units_row, proc_row
 
-def identify_toa5_resolution(table_name, filename):
+def classify_resolution_from_seconds(seconds):
+    """
+    Classifica a resolução a partir do intervalo temporal típico entre TIMESTAMPs.
+    A classificação é baseada no conteúdo do arquivo, não no nome do arquivo.
+    """
+    if seconds is None or not np.isfinite(seconds) or seconds <= 0:
+        return "Desconhecida"
+
+    minutes = seconds / 60.0
+
+    if 0.5 <= minutes <= 1.5:
+        return "1 min"
+    if 25 <= minutes <= 35:
+        return "30 min"
+    if 20 * 60 <= minutes <= 28 * 60:
+        return "Diário"
+
+    return "Desconhecida"
+
+def identify_toa5_resolution(table_name, filename, interval_seconds=None):
+    """
+    Primeiro usa o intervalo temporal detectado no conteúdo.
+    O nome do arquivo serve apenas como fallback.
+    """
+    detected = classify_resolution_from_seconds(interval_seconds)
+    if detected != "Desconhecida":
+        return detected
+
     text = f"{table_name} {filename}".lower()
     if "1min" in text or "1_min" in text:
         return "1 min"
     if "30min" in text or "30_min" in text:
         return "30 min"
-    if "diario" in text or "daily" in text:
+    if "diario" in text or "diário" in text or "daily" in text:
         return "Diário"
-    return table_name
+    return "Desconhecida"
 
 def toa5_file_key(uploaded_file):
     size = getattr(uploaded_file, "size", None)
@@ -554,45 +581,61 @@ def toa5_file_key(uploaded_file):
 
 def scan_toa5_summary(uploaded_file):
     """
-    Lê o arquivo linha a linha para obter metadados temporais sem carregar
-    a tabela completa em memória. É usado principalmente para o arquivo de 1 min.
+    Lê somente TIMESTAMP para reconhecer automaticamente:
+    - número de registros
+    - início/fim
+    - intervalo temporal típico
+    - resolução 1 min / 30 min / diário
+
+    A detecção usa o conteúdo temporal do arquivo e não depende do nome.
     """
     meta, headers, units_row, proc_row = read_toa5_header(uploaded_file)
     table_name = meta[-1] if meta else uploaded_file.name
-    res = identify_toa5_resolution(table_name, uploaded_file.name)
 
-    try:
-        ts_idx = headers.index("TIMESTAMP")
-    except ValueError:
+    if "TIMESTAMP" not in headers:
         raise ValueError("Coluna TIMESTAMP não encontrada.")
 
     uploaded_file.seek(0)
-    for _ in range(4):
-        uploaded_file.readline()
+    ts_df = pd.read_csv(
+        uploaded_file,
+        skiprows=4,
+        names=headers,
+        usecols=["TIMESTAMP"],
+        low_memory=True,
+    )
+    uploaded_file.seek(0)
 
-    n = 0
-    first_ts = None
-    last_ts = None
+    ts = pd.to_datetime(ts_df["TIMESTAMP"], errors="coerce").dropna().sort_values()
+    del ts_df
 
-    text_stream = io.TextIOWrapper(uploaded_file, encoding="utf-8", errors="replace", newline="")
-    try:
-        reader = csv.reader(text_stream)
-        for row in reader:
-            if len(row) <= ts_idx:
-                continue
-            ts = pd.to_datetime(row[ts_idx], errors="coerce")
-            if pd.isna(ts):
-                continue
-            n += 1
-            if first_ts is None:
-                first_ts = ts
-            last_ts = ts
-    finally:
-        try:
-            text_stream.detach()
-        except Exception:
-            pass
-        uploaded_file.seek(0)
+    n = int(len(ts))
+    first_ts = ts.iloc[0] if n else None
+    last_ts = ts.iloc[-1] if n else None
+
+    typical_seconds = None
+    median_seconds = None
+
+    if n >= 2:
+        diffs = ts.diff().dropna().dt.total_seconds()
+        diffs = diffs[diffs > 0]
+
+        if not diffs.empty:
+            median_seconds = float(diffs.median())
+
+            # O intervalo modal é mais robusto que a mediana quando há uma lacuna
+            # real longa na série.
+            rounded = diffs.round().astype("int64")
+            modes = rounded.mode()
+            if not modes.empty:
+                typical_seconds = float(modes.iloc[0])
+            else:
+                typical_seconds = median_seconds
+
+    res = identify_toa5_resolution(
+        table_name,
+        uploaded_file.name,
+        interval_seconds=typical_seconds if typical_seconds is not None else median_seconds,
+    )
 
     return {
         "resolution": res,
@@ -601,6 +644,8 @@ def scan_toa5_summary(uploaded_file):
         "records": n,
         "start": first_ts,
         "end": last_ts,
+        "interval_seconds": typical_seconds,
+        "median_interval_seconds": median_seconds,
         "headers": headers,
         "units": {
             h: str(u).strip()
@@ -731,7 +776,7 @@ tower_files = st.sidebar.file_uploader(
     tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
     type=["dat"],
     accept_multiple_files=True,
-    key="tower_dat_v32",
+    key="tower_dat_v34",
     help=tr(
         "Carregue os arquivos TOA5 de 1 min, 30 min e diário. "
         "O arquivo de 1 min é carregado somente quando necessário para economizar memória.",
@@ -743,7 +788,7 @@ tower_files = st.sidebar.file_uploader(
 processed_file = st.sidebar.file_uploader(
     tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
     type=["xlsx"],
-    key="processed_xlsx_v32",
+    key="processed_xlsx_v34",
 )
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
@@ -770,11 +815,41 @@ for f in tower_files or []:
 
         summary = summary_cache[key]
         res = summary["resolution"]
+
+        if res == "Desconhecida":
+            st.sidebar.warning(
+                tr(
+                    f"{f.name}: resolução temporal não reconhecida automaticamente.",
+                    f"{f.name}: temporal resolution could not be recognized automatically.",
+                )
+            )
+            continue
+
+        if res in tower_file_map:
+            st.sidebar.warning(
+                tr(
+                    f"Há mais de um arquivo reconhecido como {res}. O último selecionado será usado.",
+                    f"More than one file was recognized as {res}. The last selected file will be used.",
+                )
+            )
+
         tower_file_map[res] = f
         tower_summaries[res] = summary
 
+        interval_txt = (
+            f"{summary['interval_seconds']:.0f} s"
+            if summary.get("interval_seconds") is not None
+            else "—"
+        )
+        st.sidebar.success(
+            tr(
+                f"✓ {res} reconhecido automaticamente ({interval_txt})",
+                f"✓ {res} automatically recognized ({interval_txt})",
+            )
+        )
+
         # 30 min e diário são pequenos e úteis em várias páginas.
-        # O arquivo de 1 min (~centenas de milhares de linhas) fica sob demanda.
+        # O arquivo de 1 min fica sob demanda.
         if res != "1 min" and key not in parsed_cache:
             parsed_cache[key] = parse_toa5_stream(f)
 
@@ -825,12 +900,22 @@ if processed_file is not None:
 
 if not tower_file_map and processed is None:
     st.title("EcoFlux Brasil")
-    st.info(
-        tr(
-            "Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.",
-            "Upload the CR3000 tower files and, optionally, the processed-products workbook.",
+    if tower_files:
+        st.error(
+            tr(
+                "Os arquivos foram enviados, mas nenhuma resolução temporal pôde ser reconhecida. "
+                "Verifique se são arquivos Campbell TOA5 com uma coluna TIMESTAMP válida.",
+                "Files were uploaded, but no temporal resolution could be recognized. "
+                "Check that they are Campbell TOA5 files with a valid TIMESTAMP column.",
+            )
         )
-    )
+    else:
+        st.info(
+            tr(
+                "Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.",
+                "Upload the CR3000 tower files and, optionally, the processed-products workbook.",
+            )
+        )
     st.stop()
 
 # ============================================================
@@ -860,6 +945,20 @@ if page_key == "overview":
     st.title("EcoFlux Brasil")
     st.subheader(tr("Arquitetura atual das fontes", "Current data-source architecture"))
 
+    if tower_summaries:
+        st.success(
+            tr(
+                f"{len(tower_summaries)} arquivo(s) CR3000 carregado(s) e reconhecido(s) automaticamente pelo TIMESTAMP.",
+                f"{len(tower_summaries)} CR3000 file(s) loaded and automatically recognized from TIMESTAMP.",
+            )
+        )
+        st.caption(
+            tr(
+                "A classificação usa o intervalo temporal típico entre registros; o nome do arquivo é apenas um fallback.",
+                "Classification uses the typical interval between records; the filename is only a fallback.",
+            )
+        )
+
     cards = []
     order = ["1 min", "30 min", "Diário"]
     for res in order:
@@ -867,11 +966,16 @@ if page_key == "overview":
             sm = tower_summaries[res]
             cards.append({
                 tr("Camada", "Layer"): tr("Dados originais da torre", "Original tower data"),
-                tr("Fonte", "Source"): sm["table_name"],
-                tr("Resolução", "Resolution"): resolution_label(res),
+                tr("Fonte", "Source"): sm["filename"],
+                tr("Resolução detectada", "Detected resolution"): resolution_label(res),
                 tr("Registros", "Records"): sm["records"],
                 tr("Início", "Start"): sm["start"].strftime("%d/%m/%Y %H:%M") if sm["start"] is not None else "—",
                 tr("Fim", "End"): sm["end"].strftime("%d/%m/%Y %H:%M") if sm["end"] is not None else "—",
+                tr("Intervalo típico", "Typical interval"): (
+                    f"{sm['interval_seconds']:.0f} s"
+                    if sm.get("interval_seconds") is not None else "—"
+                ),
+                tr("Status", "Status"): tr("Reconhecido", "Recognized"),
             })
 
     if processed is not None:
@@ -932,7 +1036,7 @@ elif page_key == "tower":
         tr("Resolução observacional", "Observational resolution"),
         source_order,
         format_func=resolution_label,
-        key="tower_source_v32",
+        key="tower_source_v34",
     )
 
     src = get_tower_source(source, load_if_needed=True)
@@ -1018,7 +1122,7 @@ elif page_key == "structure":
             "Include detailed structure of the 1-min file",
         ),
         value=False,
-        key="structure_1min_v32",
+        key="structure_1min_v34",
         help=tr(
             "Deixe desmarcado para economizar memória. O cabeçalho de 1 min continua reconhecido na Visão Geral.",
             "Leave unchecked to save memory. The 1-min header remains recognized in Overview.",
