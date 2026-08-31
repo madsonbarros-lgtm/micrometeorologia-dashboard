@@ -77,6 +77,71 @@ def qc_color(code):
         return "#7f7f7f"
     return QC_CODE_COLORS.get(c, "#7f7f7f")
 
+
+FOKEN_CLASS_COLORS = {
+    "Alta qualidade": "#2ca02c",
+    "Qualidade moderada": "#ff7f0e",
+    "Baixa qualidade": "#d62728",
+    "Fora da escala selecionada": "#7f7f7f",
+}
+
+def foken_reference_table():
+    return pd.DataFrame([
+        {
+            "Classe resumida": "0",
+            "Escala estendida": "1–3",
+            "Qualidade": "Alta qualidade",
+            "Aplicação recomendada": (
+                "Dados adequados para análises de fluxos diretos e pesquisas científicas, "
+                "desde que os demais critérios do estudo também sejam atendidos."
+            ),
+        },
+        {
+            "Classe resumida": "1",
+            "Escala estendida": "4–6",
+            "Qualidade": "Qualidade moderada",
+            "Aplicação recomendada": (
+                "Pode ser utilizada com cautela em integrações e balanços de longo prazo; "
+                "o tratamento depende do protocolo científico adotado."
+            ),
+        },
+        {
+            "Classe resumida": "2",
+            "Escala estendida": "7–9",
+            "Qualidade": "Baixa qualidade",
+            "Aplicação recomendada": (
+                "Classe geralmente rejeitada em análises de fluxo que exigem alta qualidade; "
+                "a regra final de exclusão deve seguir o protocolo do estudo."
+            ),
+        },
+    ])
+
+def foken_classify(value, scale):
+    if pd.isna(value):
+        return None
+    try:
+        v = int(float(value))
+    except Exception:
+        return "Fora da escala selecionada"
+
+    if scale == "Foken — 3 classes (0, 1, 2)":
+        return {
+            0: "Alta qualidade",
+            1: "Qualidade moderada",
+            2: "Baixa qualidade",
+        }.get(v, "Fora da escala selecionada")
+
+    if scale == "Foken — escala estendida (1–9)":
+        if 1 <= v <= 3:
+            return "Alta qualidade"
+        if 4 <= v <= 6:
+            return "Qualidade moderada"
+        if 7 <= v <= 9:
+            return "Baixa qualidade"
+        return "Fora da escala selecionada"
+
+    return "Fora da escala selecionada"
+
 def base_name_for_grouping(name):
     n = str(name)
     suffixes = [
@@ -744,19 +809,48 @@ elif page == "Balanço de Carbono":
 
 elif page == "Qualidade dos Dados":
     st.header("Qualidade dos Dados")
+
     st.write(
-        "Todos os indicadores QC/QA ficam concentrados nesta página. "
-        "As cores servem apenas para distinguir códigos e não representam automaticamente uma escala de bom/ruim."
+        "O EcoFlux mantém os códigos QC originais e permite compará-los com o critério de Foken. "
+        "A comparação é uma referência interpretativa: ela não altera os valores da planilha."
     )
+
+    st.subheader("Referência — critério de Foken")
+    st.markdown(
+        """
+O critério de Foken combina dois componentes clássicos de QA/QC em Eddy Covariance:
+
+- **Teste de estacionariedade (steady-state):** avalia se as propriedades estatísticas do fluxo permanecem suficientemente estáveis durante o intervalo de amostragem.
+- **Características integrais da turbulência (ITC):** compara características observadas da turbulência com relações esperadas pela teoria de similaridade de Monin–Obukhov.
+
+A classificação pode aparecer em uma forma resumida de **3 classes (0, 1, 2)** ou em uma
+**escala estendida (1–9)**, dependendo do software e do protocolo de processamento.
+"""
+    )
+    st.dataframe(foken_reference_table(), use_container_width=True, hide_index=True)
 
     st.warning(
-        "A planilha apresenta códigos diferentes entre famílias, incluindo 0, 1, 2, 3 e, em alguns indicadores, 4. "
-        "Enquanto a documentação específica do processamento não for vinculada ao EcoFlux, o significado científico "
-        "de cada código permanece como 'não documentado na planilha'."
+        "Importante: nem toda coluna que contém `QC`, `_fqc` ou `_fall_qc` é necessariamente uma classe Foken. "
+        "Campos de gap-filling e outros produtos podem usar códigos próprios. Por isso, o EcoFlux mostra "
+        "a classificação de Foken como comparação, e não como significado automático do campo."
     )
 
-    qc = st.selectbox("Indicador QC", qc_vars, key="qc_select_v23")
-    start, end = period_controls("qc_v23", full_start, full_end)
+    qc = st.selectbox("Indicador QC", qc_vars, key="qc_select_v24")
+
+    comparison_scale = st.selectbox(
+        "Escala para comparação com Foken",
+        [
+            "Foken — 3 classes (0, 1, 2)",
+            "Foken — escala estendida (1–9)",
+        ],
+        key="foken_scale_v24",
+        help=(
+            "Escolha a escala apenas para comparar os códigos observados com a referência de Foken. "
+            "Isso não redefine o significado original da coluna selecionada."
+        ),
+    )
+
+    start, end = period_controls("qc_v24", full_start, full_end)
 
     if start <= end:
         sub = filter_period(df, start, end)
@@ -769,14 +863,18 @@ elif page == "Qualidade dos Dados":
                 f"{n:,} registros disponíveis no arquivo".replace(",", ".")
             )
 
-        table = qc_code_table(s)
+        raw_table = qc_code_table(s)
 
-        if not table.empty:
-            dominant_row = table.sort_values(["N", "Código QC"], ascending=[False, True]).iloc[0]
+        if not raw_table.empty:
+            raw_table["Comparação Foken"] = raw_table["Código QC"].apply(
+                lambda x: foken_classify(x, comparison_scale)
+            )
+
+            dominant_row = raw_table.sort_values(["N", "Código QC"], ascending=[False, True]).iloc[0]
             dominant_code = dominant_row["Código QC"]
             dominant_pct = dominant_row["Percentual (%)"]
-            num_codes = table["Código QC"].nunique()
-            total_available = int(table["N"].sum())
+            num_codes = raw_table["Código QC"].nunique()
+            total_available = int(raw_table["N"].sum())
 
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Código predominante", str(dominant_code))
@@ -784,40 +882,114 @@ elif page == "Qualidade dos Dados":
             c3.metric("Códigos encontrados", int(num_codes))
             c4.metric("Registros QC disponíveis", f"{total_available:,}".replace(",", "."))
 
-        st.subheader("Distribuição dos códigos")
-        st.dataframe(table, use_container_width=True, hide_index=True)
+        st.subheader("Códigos observados × referência de Foken")
+        st.dataframe(raw_table, use_container_width=True, hide_index=True)
 
-        if not table.empty:
-            bar_colors = [qc_color(x) for x in table["Código QC"]]
+        if not raw_table.empty:
+            st.subheader("Distribuição dos códigos originais")
+            bar_colors = [qc_color(x) for x in raw_table["Código QC"]]
             fig = go.Figure()
             fig.add_trace(go.Bar(
-                x=[str(x) for x in table["Código QC"]],
-                y=table["Percentual (%)"],
-                text=[f"{x:.2f}%" for x in table["Percentual (%)"]],
+                x=[str(x) for x in raw_table["Código QC"]],
+                y=raw_table["Percentual (%)"],
+                text=[f"{x:.2f}%" for x in raw_table["Percentual (%)"]],
                 textposition="outside",
                 marker=dict(color=bar_colors),
-                customdata=np.column_stack([table["N"], table["Significado"]]),
+                customdata=np.column_stack([
+                    raw_table["N"],
+                    raw_table["Comparação Foken"],
+                ]),
                 hovertemplate=(
-                    "Código QC: %{x}<br>"
+                    "Código original: %{x}<br>"
                     "Percentual: %{y:.2f}%<br>"
                     "N: %{customdata[0]}<br>"
-                    "Significado: %{customdata[1]}"
+                    "Comparação Foken: %{customdata[1]}"
                     "<extra></extra>"
                 ),
                 showlegend=False,
             ))
             fig.update_layout(
-                title=f"Distribuição de {qc}",
-                xaxis_title="Código QC (sem unidade)",
+                title=f"Distribuição original de {qc}",
+                xaxis_title="Código QC original (sem unidade)",
                 yaxis_title="Percentual dos registros (%)",
                 height=420,
                 margin=dict(l=20, r=20, t=55, b=20),
             )
             st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader("QC ao longo do tempo")
+            # Reclassificação comparativa Foken
+            foken_series = s.apply(lambda x: foken_classify(x, comparison_scale))
+            foken_order = [
+                "Alta qualidade",
+                "Qualidade moderada",
+                "Baixa qualidade",
+                "Fora da escala selecionada",
+            ]
+            foken_counts = foken_series.value_counts()
+            total_foken = int(foken_counts.sum())
+
+            foken_rows = []
+            for label in foken_order:
+                count = int(foken_counts.get(label, 0))
+                foken_rows.append({
+                    "Classe comparativa": label,
+                    "N": count,
+                    "Percentual (%)": round(100 * count / total_foken, 2) if total_foken else 0.0,
+                })
+            foken_df = pd.DataFrame(foken_rows)
+
+            st.subheader("Comparação agregada com o critério de Foken")
+            fc1, fc2, fc3, fc4 = st.columns(4)
+            vals = dict(zip(foken_df["Classe comparativa"], foken_df["Percentual (%)"]))
+            fc1.metric("Alta qualidade", f"{vals['Alta qualidade']:.2f}%")
+            fc2.metric("Qualidade moderada", f"{vals['Qualidade moderada']:.2f}%")
+            fc3.metric("Baixa qualidade", f"{vals['Baixa qualidade']:.2f}%")
+            fc4.metric(
+                "Fora da escala",
+                f"{vals['Fora da escala selecionada']:.2f}%"
+            )
+
+            fig_foken = go.Figure()
+            foken_visible = foken_df[foken_df["N"] > 0]
+            fig_foken.add_trace(go.Bar(
+                x=foken_visible["Classe comparativa"],
+                y=foken_visible["Percentual (%)"],
+                marker=dict(
+                    color=[
+                        FOKEN_CLASS_COLORS[x]
+                        for x in foken_visible["Classe comparativa"]
+                    ]
+                ),
+                text=[f"{x:.2f}%" for x in foken_visible["Percentual (%)"]],
+                textposition="outside",
+                customdata=foken_visible["N"],
+                hovertemplate=(
+                    "%{x}<br>"
+                    "Percentual: %{y:.2f}%<br>"
+                    "N: %{customdata}"
+                    "<extra></extra>"
+                ),
+                showlegend=False,
+            ))
+            fig_foken.update_layout(
+                title=f"{qc} comparado com {comparison_scale}",
+                xaxis_title="Classe comparativa",
+                yaxis_title="Percentual dos registros (%)",
+                height=420,
+                margin=dict(l=20, r=20, t=55, b=20),
+            )
+            st.plotly_chart(fig_foken, use_container_width=True)
+
+            st.caption(
+                "Os percentuais acima representam somente a correspondência matemática dos códigos "
+                "com a escala Foken escolhida. Antes de usar essa classificação para filtrar ou descartar "
+                "dados, confirme que o campo selecionado foi realmente produzido segundo esse critério."
+            )
+
+        st.subheader("QC ao longo do tempo — códigos originais")
         st.caption(
-            "Cada cor identifica somente um código QC. A cor não implica, por si só, qualidade superior ou inferior."
+            "As cores abaixo identificam os códigos existentes no arquivo. "
+            "Elas não representam automaticamente uma hierarquia de qualidade."
         )
 
         qdf = sub[["TIMESTAMP", qc]].copy()
@@ -828,6 +1000,7 @@ elif page == "Qualidade dos Dados":
         for code_val in observed_codes:
             mask = qdf[qc] == code_val
             label = str(int(code_val)) if float(code_val).is_integer() else str(code_val)
+            comparison = foken_classify(code_val, comparison_scale)
             fig2.add_trace(go.Scattergl(
                 x=qdf.loc[mask, "TIMESTAMP"],
                 y=qdf.loc[mask, qc],
@@ -840,8 +1013,8 @@ elif page == "Qualidade dos Dados":
                 ),
                 hovertemplate=(
                     "Data: %{x}<br>"
-                    f"Código QC: {label}<br>"
-                    "Significado: não documentado na planilha"
+                    f"Código original: {label}<br>"
+                    f"Comparação Foken: {comparison}"
                     "<extra></extra>"
                 ),
             ))
@@ -849,7 +1022,7 @@ elif page == "Qualidade dos Dados":
         fig2.update_layout(
             xaxis_title="Data e hora",
             yaxis=dict(
-                title="Código QC (sem unidade)",
+                title="Código QC original (sem unidade)",
                 tickmode="array",
                 tickvals=observed_codes,
                 ticktext=[
@@ -857,23 +1030,71 @@ elif page == "Qualidade dos Dados":
                     for x in observed_codes
                 ],
             ),
-            legend_title="Identificação visual",
+            legend_title="Código original",
             height=450,
             margin=dict(l=20, r=20, t=30, b=20),
         )
         fig2.update_xaxes(range=[start, end])
         st.plotly_chart(fig2, use_container_width=True)
 
-        st.subheader("Legenda visual dos códigos")
-        legend_df = pd.DataFrame([
-            {
-                "Código QC": int(x) if float(x).is_integer() else x,
-                "Cor": qc_color(x),
-                "Interpretação no EcoFlux": "Código identificado; significado científico ainda não documentado",
-            }
-            for x in observed_codes
-        ])
-        st.dataframe(legend_df, use_container_width=True, hide_index=True)
+        st.subheader("Comparação Foken ao longo do tempo")
+        qdf["Classe_Foken"] = qdf[qc].apply(
+            lambda x: foken_classify(x, comparison_scale) if pd.notna(x) else None
+        )
+
+        class_to_y = {
+            "Alta qualidade": 0,
+            "Qualidade moderada": 1,
+            "Baixa qualidade": 2,
+            "Fora da escala selecionada": 3,
+        }
+
+        fig3 = go.Figure()
+        for cls in [
+            "Alta qualidade",
+            "Qualidade moderada",
+            "Baixa qualidade",
+            "Fora da escala selecionada",
+        ]:
+            mask = qdf["Classe_Foken"] == cls
+            if not mask.any():
+                continue
+            fig3.add_trace(go.Scattergl(
+                x=qdf.loc[mask, "TIMESTAMP"],
+                y=np.full(mask.sum(), class_to_y[cls]),
+                mode="markers",
+                name=cls,
+                marker=dict(
+                    size=6,
+                    color=FOKEN_CLASS_COLORS[cls],
+                    symbol="circle",
+                ),
+                hovertemplate=(
+                    "Data: %{x}<br>"
+                    f"Comparação Foken: {cls}"
+                    "<extra></extra>"
+                ),
+            ))
+
+        fig3.update_layout(
+            xaxis_title="Data e hora",
+            yaxis=dict(
+                title="Classe comparativa de Foken",
+                tickmode="array",
+                tickvals=[0, 1, 2, 3],
+                ticktext=[
+                    "Alta qualidade",
+                    "Qualidade moderada",
+                    "Baixa qualidade",
+                    "Fora da escala",
+                ],
+            ),
+            legend_title="Referência Foken",
+            height=450,
+            margin=dict(l=20, r=20, t=30, b=20),
+        )
+        fig3.update_xaxes(range=[start, end])
+        st.plotly_chart(fig3, use_container_width=True)
 
 elif page == "Sobre os Dados":
     st.header("Sobre os Dados")
