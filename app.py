@@ -30,6 +30,107 @@ UNCERTAINTY_SUFFIXES = ("_fsd", "_fsdu", "_fsdug", "_sd")
 
 GAPFILL_FAMILIES = ["NEE", "LE", "H", "Rg", "VPD", "rH", "Tair", "Tsoil"]
 
+
+# Organização científica típica de uma torre micrometeorológica.
+# As unidades exibidas nas séries continuam vindo da planilha original;
+# estas categorias servem para navegação e documentação, não para sobrescrever metadados.
+SCIENTIFIC_STRUCTURE = {
+    "Temporal e Identificação": {
+        "aliases": ["TIMESTAMP", "Date", "Time", "RECORD"],
+        "description": "Referência temporal e identificação sequencial dos registros.",
+    },
+    "Ventos e Turbulência": {
+        "aliases": ["u", "v", "w", "wind_speed", "WS", "wind_dir", "WD", "u*", "Ustar", "T_sonic", "Ts"],
+        "description": "Anemometria sônica, componentes do vento e indicadores de turbulência.",
+    },
+    "Fluxos de Energia e Massa": {
+        "aliases": ["H", "LE", "Fc", "co2_flux", "Tau", "NEE"],
+        "description": "Fluxos turbulentos de calor, CO₂, água e quantidade de movimento.",
+    },
+    "Balanço de Radiação": {
+        "aliases": ["SW_IN", "Rg", "SW_OUT", "LW_IN", "LW_OUT", "Rn", "NET", "PAR_in", "PPFD"],
+        "description": "Componentes radiativos de onda curta, onda longa, saldo de radiação e PAR.",
+    },
+    "Variáveis Bioclimáticas e de Solo": {
+        "aliases": ["Ta", "Tair", "AirTC", "RH", "rH", "VPD", "P", "PA", "Ts_1", "Ts_2", "Tsoil",
+                    "SWC_1", "VWC", "G_1", "G_2"],
+        "description": "Estado atmosférico próximo à superfície e condições térmicas/hídricas do solo.",
+    },
+    "Diagnósticos e Controle de Qualidade": {
+        "aliases": ["qc_H", "qc_LE", "qc_Fc", "footprint_50", "footprint_90"],
+        "description": "Indicadores QC/QA, diagnósticos e área de contribuição dos fluxos.",
+    },
+}
+
+QC_CODE_COLORS = {
+    0: "#1f77b4",
+    1: "#ff7f0e",
+    2: "#2ca02c",
+    3: "#d62728",
+    4: "#9467bd",
+}
+
+def qc_color(code):
+    try:
+        c = int(code)
+    except Exception:
+        return "#7f7f7f"
+    return QC_CODE_COLORS.get(c, "#7f7f7f")
+
+def base_name_for_grouping(name):
+    n = str(name)
+    suffixes = [
+        "_orig", "_fall_qc", "_fqc", "_fall", "_fsdug", "_fsdu",
+        "_fsd", "_fnum", "_fmeth", "_fwin", "_f", "_qc", "_sd"
+    ]
+    changed = True
+    while changed:
+        changed = False
+        for s in suffixes:
+            if n.lower().endswith(s.lower()):
+                n = n[:-len(s)]
+                changed = True
+                break
+    return n
+
+def scientific_group(name):
+    raw = str(name)
+    base = base_name_for_grouping(raw)
+    candidates = {raw.lower(), base.lower()}
+
+    if is_qc(raw):
+        return "Diagnósticos e Controle de Qualidade"
+
+    if raw.lower() in TEMPORAL_FIELDS or base.lower() in TEMPORAL_FIELDS:
+        return "Temporal e Identificação"
+
+    for group, info in SCIENTIFIC_STRUCTURE.items():
+        aliases = {str(a).lower() for a in info["aliases"]}
+        if candidates & aliases:
+            return group
+
+    # Heurísticas para nomes compostos da planilha
+    low = raw.lower()
+    if any(k in low for k in ["wind", "ustar", "u*", "sonic", "tke", "tau"]):
+        return "Ventos e Turbulência"
+    if any(k in low for k in ["co2", "nee", "gpp", "reco", "h2o_flux", "latent", "sensible"]):
+        return "Fluxos de Energia e Massa"
+    if any(k in low for k in ["rad", "rg", "sw_", "lw_", "net", "par", "ppfd"]):
+        return "Balanço de Radiação"
+    if any(k in low for k in ["tair", "airtc", "rh", "vpd", "tsoil", "soil", "swc", "vwc", "precip", "press"]):
+        return "Variáveis Bioclimáticas e de Solo"
+    if any(k in low for k in ["footprint", "diag", "qc"]):
+        return "Diagnósticos e Controle de Qualidade"
+
+    return "Outras Variáveis / Produtos Derivados"
+
+def grouped_physical_columns(df):
+    groups = {}
+    for c in physical_columns(df):
+        g = scientific_group(c)
+        groups.setdefault(g, []).append(c)
+    return groups
+
 VARIABLE_PALETTE = [
     "#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e",
     "#17becf", "#8c564b", "#e377c2", "#bcbd22", "#7f7f7f",
@@ -364,6 +465,7 @@ page = st.sidebar.radio(
     "Navegação",
     [
         "Visão Geral",
+        "Estrutura Científica",
         "Séries Científicas",
         "Comparar Variáveis",
         "Preenchimento de Lacunas",
@@ -411,16 +513,92 @@ if page == "Visão Geral":
                 "Unidade base": unit_only(base, units),
                 "Produtos encontrados": ", ".join(cols),
             })
+    st.subheader("Organização científica")
+    grouped = grouped_physical_columns(df)
+    structure_rows = []
+    for group, vals in grouped.items():
+        structure_rows.append({
+            "Grupo": group,
+            "Variáveis/produtos identificados": len(vals),
+        })
+    st.dataframe(pd.DataFrame(structure_rows), use_container_width=True, hide_index=True)
+
     st.subheader("Famílias de processamento identificadas")
     st.dataframe(pd.DataFrame(family_rows), use_container_width=True, hide_index=True)
+
+
+elif page == "Estrutura Científica":
+    st.header("Estrutura Científica dos Dados")
+    st.write(
+        "O EcoFlux organiza as variáveis segundo a estrutura típica de uma torre micrometeorológica. "
+        "Essa classificação melhora a navegação, mas não altera nomes, valores ou unidades da planilha."
+    )
+
+    st.info(
+        "As unidades mostradas nas análises são sempre lidas do arquivo original quando disponíveis. "
+        "As unidades típicas abaixo funcionam apenas como referência científica e não substituem os metadados da fonte."
+    )
+
+    grouped = grouped_physical_columns(df)
+
+    typical_units = {
+        "Ventos e Turbulência": "m/s; graus; temperatura sônica em °C ou K, conforme a fonte",
+        "Fluxos de Energia e Massa": "H e LE tipicamente W/m²; fluxos de CO₂ tipicamente µmol m⁻² s⁻¹; Tau tipicamente Pa",
+        "Balanço de Radiação": "componentes radiativos tipicamente W/m²; PAR/PPFD tipicamente µmol m⁻² s⁻¹",
+        "Variáveis Bioclimáticas e de Solo": "temperatura, umidade, VPD, pressão, água no solo e fluxo de calor conforme o sensor/fonte",
+        "Diagnósticos e Controle de Qualidade": "QC sem unidade; footprint tipicamente em metros quando aplicável",
+        "Outras Variáveis / Produtos Derivados": "conforme metadados da planilha",
+    }
+
+    for group in [
+        "Ventos e Turbulência",
+        "Fluxos de Energia e Massa",
+        "Balanço de Radiação",
+        "Variáveis Bioclimáticas e de Solo",
+        "Diagnósticos e Controle de Qualidade",
+        "Outras Variáveis / Produtos Derivados",
+    ]:
+        with st.expander(group, expanded=(group in ["Fluxos de Energia e Massa", "Balanço de Radiação"])):
+            info = SCIENTIFIC_STRUCTURE.get(group, {})
+            if info.get("description"):
+                st.write(info["description"])
+            st.caption(f"Referência típica: {typical_units[group]}")
+
+            vars_here = grouped.get(group, [])
+            if group == "Diagnósticos e Controle de Qualidade":
+                vars_here = sorted(set(vars_here + qc_vars))
+
+            if not vars_here:
+                st.write("Nenhuma variável desta categoria foi identificada no arquivo atual.")
+            else:
+                rows = []
+                for v in vars_here:
+                    first, last, n = valid_range(df, v)
+                    rows.append({
+                        "Variável": v,
+                        "Unidade da fonte": "sem unidade" if is_qc(v) else unit_only(v, units),
+                        "Primeiro registro disponível": first.strftime("%d/%m/%Y %H:%M") if first is not None else "—",
+                        "Último registro disponível": last.strftime("%d/%m/%Y %H:%M") if last is not None else "—",
+                        "N disponível": n,
+                    })
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 elif page == "Séries Científicas":
     st.header("Séries Científicas")
 
+    groups = grouped_physical_columns(df)
+    group_options = [g for g, vals in groups.items() if vals]
+    selected_group = st.selectbox(
+        "Grupo científico",
+        group_options,
+        key="single_group_v23",
+    )
+    vars_group = groups[selected_group]
     var = st.selectbox(
         "Variável/produto científico",
-        phys_vars,
+        vars_group,
         format_func=lambda x: unit_label(x, units),
+        key="single_var_v23",
     )
     start, end = period_controls("single", full_start, full_end)
     resolution = st.selectbox(
@@ -567,59 +745,107 @@ elif page == "Balanço de Carbono":
 elif page == "Qualidade dos Dados":
     st.header("Qualidade dos Dados")
     st.write(
-        "Todos os campos que contêm indicadores QC ficam concentrados aqui. "
-        "Eles não possuem unidade física."
+        "Todos os indicadores QC/QA ficam concentrados nesta página. "
+        "As cores servem apenas para distinguir códigos e não representam automaticamente uma escala de bom/ruim."
     )
 
     st.warning(
-        "A planilha contém códigos diferentes entre famílias (por exemplo 0–3 e, em alguns casos, 4). "
-        "Como o arquivo não traz uma legenda textual para esses códigos, a V22 não atribui automaticamente "
-        "significados como 'bom' ou 'ruim'. Isso evita uma interpretação científica não documentada."
+        "A planilha apresenta códigos diferentes entre famílias, incluindo 0, 1, 2, 3 e, em alguns indicadores, 4. "
+        "Enquanto a documentação específica do processamento não for vinculada ao EcoFlux, o significado científico "
+        "de cada código permanece como 'não documentado na planilha'."
     )
 
-    qc = st.selectbox("Indicador QC", qc_vars)
-    start, end = period_controls("qc", full_start, full_end)
+    qc = st.selectbox("Indicador QC", qc_vars, key="qc_select_v23")
+    start, end = period_controls("qc_v23", full_start, full_end)
 
     if start <= end:
         sub = filter_period(df, start, end)
-        s = pd.to_numeric(sub[qc], errors="coerce")
+        s = pd.to_numeric(sub[qc], errors="coerce").dropna()
 
         a, b, n = valid_range(df, qc)
         if a is not None:
             st.caption(
-                f"Disponibilidade de {qc}: {a:%d/%m/%Y %H:%M} → {b:%d/%m/%Y %H:%M}"
+                f"Disponibilidade de {qc}: {a:%d/%m/%Y %H:%M} → {b:%d/%m/%Y %H:%M} | "
+                f"{n:,} registros disponíveis no arquivo".replace(",", ".")
             )
 
         table = qc_code_table(s)
+
+        if not table.empty:
+            dominant_row = table.sort_values(["N", "Código QC"], ascending=[False, True]).iloc[0]
+            dominant_code = dominant_row["Código QC"]
+            dominant_pct = dominant_row["Percentual (%)"]
+            num_codes = table["Código QC"].nunique()
+            total_available = int(table["N"].sum())
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Código predominante", str(dominant_code))
+            c2.metric("Participação do predominante", f"{dominant_pct:.2f}%")
+            c3.metric("Códigos encontrados", int(num_codes))
+            c4.metric("Registros QC disponíveis", f"{total_available:,}".replace(",", "."))
+
         st.subheader("Distribuição dos códigos")
         st.dataframe(table, use_container_width=True, hide_index=True)
 
         if not table.empty:
-            fig = px.bar(
-                table,
-                x="Código QC",
-                y="Percentual (%)",
-                text="Percentual (%)",
-                title=f"Distribuição de {qc}",
-            )
+            bar_colors = [qc_color(x) for x in table["Código QC"]]
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=[str(x) for x in table["Código QC"]],
+                y=table["Percentual (%)"],
+                text=[f"{x:.2f}%" for x in table["Percentual (%)"]],
+                textposition="outside",
+                marker=dict(color=bar_colors),
+                customdata=np.column_stack([table["N"], table["Significado"]]),
+                hovertemplate=(
+                    "Código QC: %{x}<br>"
+                    "Percentual: %{y:.2f}%<br>"
+                    "N: %{customdata[0]}<br>"
+                    "Significado: %{customdata[1]}"
+                    "<extra></extra>"
+                ),
+                showlegend=False,
+            ))
             fig.update_layout(
+                title=f"Distribuição de {qc}",
                 xaxis_title="Código QC (sem unidade)",
                 yaxis_title="Percentual dos registros (%)",
-                height=400,
+                height=420,
+                margin=dict(l=20, r=20, t=55, b=20),
             )
             st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("QC ao longo do tempo")
+        st.caption(
+            "Cada cor identifica somente um código QC. A cor não implica, por si só, qualidade superior ou inferior."
+        )
+
         qdf = sub[["TIMESTAMP", qc]].copy()
         qdf[qc] = pd.to_numeric(qdf[qc], errors="coerce")
-        fig2 = go.Figure(go.Scattergl(
-            x=qdf["TIMESTAMP"],
-            y=qdf[qc],
-            mode="markers",
-            name=qc,
-            marker=dict(size=5, color="#111111", symbol="diamond"),
-        ))
         observed_codes = sorted(qdf[qc].dropna().unique().tolist())
+
+        fig2 = go.Figure()
+        for code_val in observed_codes:
+            mask = qdf[qc] == code_val
+            label = str(int(code_val)) if float(code_val).is_integer() else str(code_val)
+            fig2.add_trace(go.Scattergl(
+                x=qdf.loc[mask, "TIMESTAMP"],
+                y=qdf.loc[mask, qc],
+                mode="markers",
+                name=f"Código {label}",
+                marker=dict(
+                    size=6,
+                    color=qc_color(code_val),
+                    symbol="circle",
+                ),
+                hovertemplate=(
+                    "Data: %{x}<br>"
+                    f"Código QC: {label}<br>"
+                    "Significado: não documentado na planilha"
+                    "<extra></extra>"
+                ),
+            ))
+
         fig2.update_layout(
             xaxis_title="Data e hora",
             yaxis=dict(
@@ -631,11 +857,23 @@ elif page == "Qualidade dos Dados":
                     for x in observed_codes
                 ],
             ),
-            height=420,
+            legend_title="Identificação visual",
+            height=450,
             margin=dict(l=20, r=20, t=30, b=20),
         )
         fig2.update_xaxes(range=[start, end])
         st.plotly_chart(fig2, use_container_width=True)
+
+        st.subheader("Legenda visual dos códigos")
+        legend_df = pd.DataFrame([
+            {
+                "Código QC": int(x) if float(x).is_integer() else x,
+                "Cor": qc_color(x),
+                "Interpretação no EcoFlux": "Código identificado; significado científico ainda não documentado",
+            }
+            for x in observed_codes
+        ])
+        st.dataframe(legend_df, use_container_width=True, hide_index=True)
 
 elif page == "Sobre os Dados":
     st.header("Sobre os Dados")
