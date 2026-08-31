@@ -14,23 +14,20 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .block-container {padding-top: 1.5rem; padding-bottom: 2rem;}
+    .block-container {padding-top: 1.4rem; padding-bottom: 2rem;}
     h1, h2, h3 {letter-spacing: -0.02em;}
-    [data-testid="stMetricValue"] {font-size: 1.55rem;}
-    .ecoflux-note {
-        padding: .75rem 1rem;
-        border: 1px solid rgba(128,128,128,.22);
-        border-radius: .5rem;
-        margin: .25rem 0 1rem 0;
-    }
+    [data-testid="stMetricValue"] {font-size: 1.5rem;}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 # ============================================================
-# Estrutura conhecida do arquivo dados_Uisa_FINAL_CORRIGIDO_V2
+# CONFIGURAÇÃO CIENTÍFICA DO CONJUNTO
 # ============================================================
+
+FIRST_TIMESTAMP = pd.Timestamp("2025-06-04 20:00:00")
+SAMPLING_MINUTES = 30
 
 EXPECTED_COLUMNS = [
     "season",
@@ -49,75 +46,118 @@ EXPECTED_COLUMNS = [
     "FP_RRef_sd", "FP_E0_sd", "Reco_DT", "GPP_DT", "Reco_DT_SD", "GPP_DT_SD"
 ]
 
-CARBON_MAIN = ["NEE_fall", "Reco_DT", "GPP_DT"]
-CARBON_AUX = [
-    "NEE_orig", "NEE_f", "NEE_fsd",
-    "Reco_DT_SD", "GPP_DT_SD", "FP_GPP2000",
-    "FP_RRef", "FP_RRef_Night", "FP_E0", "E_0_NEW"
-]
-MET_MAIN = ["Rg_fall", "Tair_fall", "VPD_fall"]
-MET_AUX = [
-    "Rg_orig", "Rg_f", "Rg_fsd",
-    "Tair_orig", "Tair_f", "Tair_fsd",
-    "VPD_orig", "VPD_f", "VPD_fsd",
-    "PotRad_NEW", "FP_Temp_NEW", "NEW_FP_Temp", "NEW_FP_VPD"
-]
-QC_COLUMNS = [
+MET_VARS = ["Rg_fall", "Tair_fall", "VPD_fall"]
+CARBON_VARS = ["NEE_fall", "Reco_DT", "GPP_DT"]
+QC_VARS = [
     "NEE_fqc", "NEE_fall_qc",
     "Rg_fqc", "Rg_fall_qc",
     "Tair_fqc", "Tair_fall_qc",
     "VPD_fqc", "VPD_fall_qc",
     "FP_qc", "FP_errorcode"
 ]
-GAPFILL_DIAGNOSTICS = [
+GAP_VARS = [
     "NEE_fnum", "NEE_fmeth", "NEE_fwin", "NEE_fsd",
     "Rg_fnum", "Rg_fmeth", "Rg_fwin", "Rg_fsd",
     "Tair_fnum", "Tair_fmeth", "Tair_fwin", "Tair_fsd",
     "VPD_fnum", "VPD_fmeth", "VPD_fwin", "VPD_fsd",
 ]
 
-# O XLSX não contém coluna explícita de data-hora.
-# A coluna 'season' é mantida como identificador de período de processamento.
-# O eixo temporal usa a ordem original das observações, sem inventar timestamps.
+def season_label(value):
+    try:
+        s = str(int(float(value))).zfill(7)
+        year = int(s[:4])
+        month = int(s[-3:])
+        months = [
+            "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+            "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+        ]
+        if 1 <= month <= 12:
+            return f"{months[month-1]}/{year}"
+    except Exception:
+        pass
+    return str(value)
+
+def season_start(value, first_season=False):
+    """
+    Reconstrói o início de cada bloco.
+    O primeiro bloco é ancorado no timestamp informado pelo pesquisador.
+    Para os blocos seguintes, o código season fornece ano/mês; o início
+    é fixado no primeiro dia daquele mês às 20:00, coerente com a passagem
+    dos blocos trimestrais observada no arquivo.
+    """
+    if first_season:
+        return FIRST_TIMESTAMP
+
+    s = str(int(float(value))).zfill(7)
+    year = int(s[:4])
+    month = int(s[-3:])
+    return pd.Timestamp(year=year, month=month, day=1, hour=20, minute=0)
 
 @st.cache_data(show_spinner=False)
 def load_xlsx(uploaded_file):
     xls = pd.ExcelFile(uploaded_file)
     sheet = xls.sheet_names[0]
     df = pd.read_excel(uploaded_file, sheet_name=sheet)
-
-    # Preserva ordem original e cria índice de observação.
     df = df.copy()
-    df["_obs"] = np.arange(1, len(df) + 1)
 
-    # Converte colunas numéricas quando possível, preservando season como rótulo.
     for c in df.columns:
-        if c not in ["season", "_obs"]:
+        if c != "season":
             df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    if "season" in df.columns:
-        df["season"] = df["season"].astype("string")
+    # Preserva a ordem original dos blocos.
+    unique_seasons = list(pd.unique(df["season"].dropna()))
+    parts = []
 
-    return df, sheet
+    for i, season in enumerate(unique_seasons):
+        part = df[df["season"] == season].copy()
+        start = season_start(season, first_season=(i == 0))
+        part["datetime"] = pd.date_range(
+            start=start,
+            periods=len(part),
+            freq=f"{SAMPLING_MINUTES}min"
+        )
+        part["season_label"] = season_label(season)
+        parts.append(part)
+
+    out = pd.concat(parts, ignore_index=True)
+    out["_obs"] = np.arange(1, len(out) + 1)
+    return out, sheet
 
 def existing(df, names):
     return [c for c in names if c in df.columns]
 
-def valid_percent(series):
-    return 100.0 * series.notna().mean() if len(series) else np.nan
+def valid_pct(s):
+    return 100 * s.notna().mean() if len(s) else np.nan
 
-def make_line_chart(data, variables, title, y_title="Valor"):
-    vars_ok = [v for v in variables if v in data.columns]
-    if not vars_ok:
-        st.info("Nenhuma variável compatível está disponível nesta seção.")
+def aggregate_time(df, variables, resolution):
+    use = ["datetime"] + variables
+    d = df[use].copy().set_index("datetime")
+
+    if resolution == "30 min":
+        return d.reset_index()
+
+    rule = {
+        "Diário": "D",
+        "Semanal": "W",
+        "Mensal": "MS",
+    }[resolution]
+
+    return d.resample(rule).mean(numeric_only=True).reset_index()
+
+def line_chart(df, variables, title, resolution="30 min"):
+    variables = existing(df, variables)
+    if not variables:
+        st.info("Nenhuma variável compatível está disponível.")
         return
 
+    d = aggregate_time(df, variables, resolution)
+
     fig = go.Figure()
-    for var in vars_ok:
+    for var in variables:
         fig.add_trace(
             go.Scattergl(
-                x=data["_obs"],
-                y=data[var],
+                x=d["datetime"],
+                y=d[var],
                 mode="lines",
                 name=var,
                 connectgaps=False,
@@ -126,46 +166,26 @@ def make_line_chart(data, variables, title, y_title="Valor"):
 
     fig.update_layout(
         title=title,
-        xaxis_title="Índice sequencial da observação",
-        yaxis_title=y_title,
+        xaxis_title="Data e hora",
+        yaxis_title="Valor",
         hovermode="x unified",
-        height=500,
+        height=510,
         margin=dict(l=20, r=20, t=55, b=20),
         legend_title="Variável",
     )
     st.plotly_chart(fig, use_container_width=True)
 
-def stats_table(data, variables):
-    vars_ok = [v for v in variables if v in data.columns]
-    if not vars_ok:
+def stats_table(df, variables):
+    variables = existing(df, variables)
+    if not variables:
         return
-    d = data[vars_ok].describe().T
-    d["Disponibilidade (%)"] = [valid_percent(data[v]) for v in vars_ok]
-    cols = [
-        c for c in
-        ["count", "mean", "std", "min", "25%", "50%", "75%", "max", "Disponibilidade (%)"]
-        if c in d.columns
-    ]
-    st.dataframe(d[cols], use_container_width=True)
 
-def season_counts(df):
-    if "season" not in df.columns:
-        return pd.DataFrame()
-    out = (
-        df.groupby("season", dropna=False)
-        .size()
-        .rename("Registros")
-        .reset_index()
-    )
-    return out
-
-def filter_by_season(df, selected):
-    if "season" not in df.columns or not selected:
-        return df
-    return df[df["season"].isin(selected)].copy()
+    d = df[variables].describe().T
+    d["Disponibilidade (%)"] = [valid_pct(df[v]) for v in variables]
+    st.dataframe(d, use_container_width=True)
 
 # ============================================================
-# Interface
+# CABEÇALHO / NAVEGAÇÃO
 # ============================================================
 
 st.title("🌱 EcoFlux Brasil")
@@ -187,113 +207,137 @@ page = st.sidebar.radio(
 
 st.sidebar.divider()
 st.sidebar.subheader("Fonte de dados")
+
 uploaded = st.sidebar.file_uploader(
     "Carregar XLSX para esta sessão",
     type=["xlsx"],
-    help="O arquivo é usado apenas na sessão do aplicativo e não é oferecido para download.",
+    help=(
+        "O XLSX permanece apenas na sessão. "
+        "O aplicativo não oferece botão de download do conjunto bruto."
+    ),
+)
+
+st.sidebar.caption(
+    "Política de acesso: visualização permitida; fornecimento do conjunto "
+    "de dados somente mediante autorização do responsável."
 )
 
 if uploaded is None:
     st.info(
-        "Carregue o arquivo XLSX na barra lateral para visualizar os dados. "
-        "O arquivo não é publicado pelo aplicativo nem é disponibilizado para download."
+        "Carregue o XLSX para validar a plataforma. "
+        "Na publicação definitiva, a fonte de dados deverá ficar em armazenamento privado."
     )
-    st.markdown(
-        """
-        ### Estrutura desta versão
-        - **Visão Geral:** número de registros, variáveis, períodos `season` e disponibilidade.
-        - **Meteorologia:** Rg, Tair, VPD e produtos associados.
-        - **Fluxos de Carbono:** NEE, Reco e GPP.
-        - **Qualidade e Gap-filling:** flags, métodos e diagnósticos de preenchimento.
-        - **Particionamento de Carbono:** parâmetros e produtos associados ao particionamento.
-        - **Solicitar Dados:** fluxo de solicitação sem download público direto.
-        """
+    st.warning(
+        "Importante: não coloque o XLSX bruto em um repositório público do GitHub."
     )
     st.stop()
 
 try:
     df, sheet_name = load_xlsx(uploaded)
 except Exception as e:
-    st.error(f"Não foi possível ler o XLSX: {e}")
+    st.error(f"Não foi possível ler o arquivo: {e}")
     st.stop()
 
 # ============================================================
-# Diagnóstico estrutural
+# FILTROS
 # ============================================================
 
-known_matches = len(set(EXPECTED_COLUMNS).intersection(df.columns))
-structure_match = 100 * known_matches / len(EXPECTED_COLUMNS)
+season_options = list(pd.unique(df["season_label"]))
+selected_seasons = st.sidebar.multiselect(
+    "Período (season)",
+    options=season_options,
+    default=season_options,
+)
 
-if "season" in df.columns:
-    seasons = [x for x in df["season"].dropna().unique().tolist()]
-    selected_seasons = st.sidebar.multiselect(
-        "Período (season)",
-        options=seasons,
-        default=seasons,
-        help=(
-            "A coluna 'season' existe no arquivo, mas não é uma coluna de data-hora. "
-            "Ela é usada aqui apenas como identificador de período."
-        ),
+filtered = df[df["season_label"].isin(selected_seasons)].copy()
+
+if not filtered.empty:
+    min_dt = filtered["datetime"].min().to_pydatetime()
+    max_dt = filtered["datetime"].max().to_pydatetime()
+
+    date_range = st.sidebar.date_input(
+        "Intervalo de datas",
+        value=(min_dt.date(), max_dt.date()),
+        min_value=min_dt.date(),
+        max_value=max_dt.date(),
     )
-else:
-    selected_seasons = []
 
-filtered = filter_by_season(df, selected_seasons)
+    if isinstance(date_range, tuple) and len(date_range) == 2:
+        start_date, end_date = date_range
+        filtered = filtered[
+            (filtered["datetime"].dt.date >= start_date)
+            & (filtered["datetime"].dt.date <= end_date)
+        ]
 
-st.sidebar.caption(
-    "Importante: este XLSX não contém uma coluna explícita de data-hora. "
-    "Os gráficos usam a ordem sequencial dos registros."
+resolution = st.sidebar.selectbox(
+    "Resolução dos gráficos",
+    ["30 min", "Diário", "Semanal", "Mensal"],
+    index=1,
 )
 
 # ============================================================
-# Páginas
+# PÁGINAS
 # ============================================================
 
 if page == "Visão Geral":
     st.header("Visão Geral")
 
+    matched = len(set(EXPECTED_COLUMNS).intersection(df.columns))
+    compatibility = 100 * matched / len(EXPECTED_COLUMNS)
+
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Registros", f"{len(filtered):,}".replace(",", "."))
-    c2.metric("Variáveis no XLSX", len([c for c in df.columns if c != "_obs"]))
-    c3.metric("Períodos season", df["season"].nunique() if "season" in df.columns else "—")
-    c4.metric("Compatibilidade estrutural", f"{structure_match:.0f}%")
+    c1.metric("Registros exibidos", f"{len(filtered):,}".replace(",", "."))
+    c2.metric("Variáveis originais", len([c for c in df.columns if c not in ["datetime", "season_label", "_obs"]]))
+    c3.metric("Resolução original", "30 min")
+    c4.metric("Compatibilidade", f"{compatibility:.0f}%")
+
+    if not filtered.empty:
+        st.markdown(
+            f"**Intervalo reconstruído na seleção:** "
+            f"{filtered['datetime'].min():%d/%m/%Y %H:%M} — "
+            f"{filtered['datetime'].max():%d/%m/%Y %H:%M}"
+        )
 
     st.caption(f"Aba lida: {sheet_name}")
 
-    st.warning(
-        "O arquivo contém a coluna `season`, mas não contém uma coluna explícita de data-hora. "
-        "Por rigor científico, esta versão não inventa datas para os 14.544 registros. "
-        "Os gráficos usam o índice sequencial das observações. Se houver um arquivo original "
-        "com timestamp, podemos incorporá-lo na próxima versão."
+    st.info(
+        "O eixo temporal é reconstruído em intervalos de 30 minutos dentro de cada "
+        "bloco `season`. O primeiro bloco é ancorado em 04/06/2025 20:00."
     )
 
-    if "season" in df.columns:
-        st.subheader("Distribuição dos registros por `season`")
-        sc = season_counts(filtered)
-        fig = px.bar(
-            sc,
-            x="season",
-            y="Registros",
-            text="Registros",
-            title="Número de registros em cada identificador de período",
+    # Diagnóstico da coerência dos blocos
+    block_summary = (
+        df.groupby(["season", "season_label"], sort=False)
+        .agg(
+            Registros=("datetime", "size"),
+            Inicio=("datetime", "min"),
+            Fim=("datetime", "max"),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        .reset_index()
+    )
+    block_summary["Dias_equivalentes"] = block_summary["Registros"] / 48.0
+
+    st.subheader("Blocos temporais reconstruídos")
+    st.dataframe(block_summary, use_container_width=True)
 
     st.subheader("Disponibilidade das variáveis")
-    data_cols = [c for c in df.columns if c not in ["_obs", "season"]]
+    data_cols = [
+        c for c in df.columns
+        if c not in ["season", "season_label", "datetime", "_obs"]
+    ]
     availability = pd.DataFrame({
         "Variável": data_cols,
-        "Disponibilidade (%)": [valid_percent(filtered[c]) for c in data_cols],
+        "Disponibilidade (%)": [valid_pct(filtered[c]) for c in data_cols],
         "Ausentes": [int(filtered[c].isna().sum()) for c in data_cols],
-    }).sort_values(["Disponibilidade (%)", "Variável"], ascending=[True, True])
+    }).sort_values(["Disponibilidade (%)", "Variável"])
 
     fig = px.bar(
         availability.head(25),
         x="Disponibilidade (%)",
         y="Variável",
         orientation="h",
-        title="25 variáveis com menor disponibilidade de dados",
         hover_data=["Ausentes"],
+        title="25 variáveis com menor disponibilidade",
     )
     fig.update_layout(height=650, yaxis={"categoryorder": "total ascending"})
     st.plotly_chart(fig, use_container_width=True)
@@ -301,111 +345,100 @@ if page == "Visão Geral":
     with st.expander("Tabela completa de disponibilidade"):
         st.dataframe(availability, use_container_width=True)
 
-    with st.expander("Pré-visualização dos dados"):
-        st.dataframe(
-            filtered.drop(columns=["_obs"]).head(200),
-            use_container_width=True
-        )
-
 elif page == "Meteorologia":
     st.header("Meteorologia")
 
-    defaults = existing(filtered, MET_MAIN)
-    options = existing(filtered, MET_MAIN + MET_AUX)
-
-    st.info(
-        "As unidades não estão registradas nos cabeçalhos do XLSX. "
-        "Por isso, esta versão exibe os nomes originais das variáveis sem atribuir unidades não verificadas."
+    aux = existing(
+        filtered,
+        [
+            "Rg_orig", "Rg_f", "Rg_fall",
+            "Tair_orig", "Tair_f", "Tair_fall",
+            "VPD_orig", "VPD_f", "VPD_fall",
+            "PotRad_NEW", "FP_Temp_NEW", "NEW_FP_Temp", "NEW_FP_VPD"
+        ]
     )
 
     selected = st.multiselect(
-        "Variáveis meteorológicas",
-        options=options,
-        default=defaults,
+        "Variáveis",
+        options=aux,
+        default=existing(filtered, MET_VARS),
     )
 
-    make_line_chart(
+    line_chart(
         filtered,
         selected,
-        "Variáveis meteorológicas — ordem sequencial das observações"
+        f"Variáveis meteorológicas — resolução: {resolution}",
+        resolution,
     )
     stats_table(filtered, selected)
 
-    st.subheader("Cobertura dos produtos meteorológicos")
-    cov = pd.DataFrame({
-        "Variável": options,
-        "Disponibilidade (%)": [valid_percent(filtered[c]) for c in options],
-        "Ausentes": [filtered[c].isna().sum() for c in options],
-    })
-    st.dataframe(cov, use_container_width=True)
+    st.caption(
+        "As unidades serão exibidas no eixo somente após validação do dicionário "
+        "de metadados do processamento."
+    )
 
 elif page == "Fluxos de Carbono":
     st.header("Fluxos de Carbono")
 
-    defaults = existing(filtered, CARBON_MAIN)
-    options = existing(filtered, CARBON_MAIN + CARBON_AUX)
-
-    st.info(
-        "A figura compara os produtos disponíveis no arquivo. "
-        "As unidades devem ser confirmadas a partir da documentação do processamento antes de serem publicadas no eixo."
+    options = existing(
+        filtered,
+        [
+            "NEE_orig", "NEE_f", "NEE_fall", "NEE_fsd",
+            "Reco_DT", "GPP_DT", "Reco_DT_SD", "GPP_DT_SD"
+        ],
     )
 
     selected = st.multiselect(
-        "Variáveis de carbono",
+        "Variáveis",
         options=options,
-        default=defaults,
+        default=existing(filtered, CARBON_VARS),
     )
 
-    make_line_chart(
+    line_chart(
         filtered,
         selected,
-        "NEE, Reco, GPP e produtos relacionados"
+        f"NEE, Reco e GPP — resolução: {resolution}",
+        resolution,
     )
     stats_table(filtered, selected)
 
     if len(selected) >= 2:
-        st.subheader("Relação entre duas variáveis")
+        st.subheader("Relação entre variáveis")
         c1, c2 = st.columns(2)
         xvar = c1.selectbox("Eixo X", selected, index=0)
         yvar = c2.selectbox("Eixo Y", selected, index=1)
-        dxy = filtered[[xvar, yvar]].dropna()
 
+        dxy = filtered[[xvar, yvar]].dropna()
         fig = px.scatter(
             dxy,
             x=xvar,
             y=yvar,
-            opacity=0.5,
+            opacity=0.45,
             title=f"{yvar} × {xvar}",
         )
         st.plotly_chart(fig, use_container_width=True)
 
         if len(dxy) >= 3:
-            r = dxy[xvar].corr(dxy[yvar])
-            st.metric("Correlação de Pearson (r)", f"{r:.3f}")
+            st.metric("Correlação de Pearson (r)", f"{dxy[xvar].corr(dxy[yvar]):.3f}")
 
 elif page == "Qualidade e Gap-filling":
     st.header("Qualidade e Gap-filling")
 
-    qc_options = existing(filtered, QC_COLUMNS)
-    gap_options = existing(filtered, GAPFILL_DIAGNOSTICS)
-
-    st.markdown(
-        """
-        Esta seção mantém os **códigos originais** de QC e gap-filling.
-        A interpretação semântica dos valores (por exemplo, o significado exato de 0, 1, 2 ou 3)
-        deve seguir a documentação do algoritmo/processamento utilizado.
-        """
+    st.info(
+        "Os códigos originais de QC são preservados. A interpretação de cada classe "
+        "deve seguir a documentação do processamento utilizado."
     )
 
-    if qc_options:
-        st.subheader("Flags de qualidade")
-        chosen_qc = st.selectbox("Variável QC", qc_options)
+    qc = existing(filtered, QC_VARS)
+    gap = existing(filtered, GAP_VARS)
 
+    if qc:
+        chosen = st.selectbox("Flag / código de qualidade", qc)
         q = (
-            filtered[chosen_qc]
+            filtered[chosen]
             .astype("string")
             .fillna("NA")
-            .value_counts(dropna=False)
+            .value_counts()
             .rename_axis("Código")
             .reset_index(name="Frequência")
         )
@@ -416,25 +449,25 @@ elif page == "Qualidade e Gap-filling":
             x="Código",
             y="Frequência",
             text="Percentual (%)",
-            title=f"Distribuição dos códigos — {chosen_qc}",
+            title=f"Distribuição dos códigos — {chosen}",
         )
         fig.update_traces(texttemplate="%{text:.1f}%")
         st.plotly_chart(fig, use_container_width=True)
         st.dataframe(q, use_container_width=True)
 
-    if gap_options:
-        st.subheader("Diagnósticos de gap-filling")
-        selected_gap = st.multiselect(
-            "Variáveis diagnósticas",
-            options=gap_options,
-            default=gap_options[:4],
+    if gap:
+        st.subheader("Diagnósticos de preenchimento")
+        chosen_gap = st.multiselect(
+            "Variáveis de gap-filling",
+            options=gap,
+            default=gap[:4],
         )
-        stats_table(filtered, selected_gap)
+        stats_table(filtered, chosen_gap)
 
 elif page == "Particionamento de Carbono":
     st.header("Particionamento de Carbono")
 
-    partition_cols = existing(
+    options = existing(
         filtered,
         [
             "Reco_DT", "GPP_DT", "Reco_DT_SD", "GPP_DT_SD",
@@ -442,20 +475,21 @@ elif page == "Particionamento de Carbono":
             "NEW_FP_Temp", "NEW_FP_VPD", "FP_RRef_Night",
             "FP_qc", "FP_dRecPar", "FP_errorcode", "FP_GPP2000",
             "FP_k", "FP_beta", "FP_alpha", "FP_RRef", "FP_E0",
-            "FP_k_sd", "FP_beta_sd", "FP_alpha_sd", "FP_RRef_sd", "FP_E0_sd"
+            "FP_k_sd", "FP_beta_sd", "FP_alpha_sd", "FP_RRef_sd", "FP_E0_sd",
         ],
     )
 
     selected = st.multiselect(
-        "Produtos/parâmetros",
-        options=partition_cols,
+        "Produtos / parâmetros",
+        options=options,
         default=existing(filtered, ["Reco_DT", "GPP_DT", "Reco_DT_SD", "GPP_DT_SD"]),
     )
 
-    make_line_chart(
+    line_chart(
         filtered,
         selected,
-        "Produtos e parâmetros de particionamento"
+        f"Produtos de particionamento — resolução: {resolution}",
+        resolution,
     )
     stats_table(filtered, selected)
 
@@ -464,32 +498,31 @@ elif page == "Sobre os Dados":
 
     st.markdown(
         """
-        ### Estrutura detectada
+        ### Política de acesso
 
-        O XLSX possui **63 colunas originais** e foi organizado em grupos que incluem:
-        NEE, radiação global (`Rg`), temperatura do ar (`Tair`), VPD,
-        indicadores de preenchimento de falhas e produtos de particionamento
-        como `Reco_DT` e `GPP_DT`.
+        Esta plataforma é destinada à **visualização científica pública**.
+        O conjunto de dados bruto não é oferecido para download direto.
+        Solicitações de acesso aos dados devem ser avaliadas e autorizadas
+        pelo responsável pela plataforma.
 
-        A coluna `season` foi preservada como identificador de período. Ela **não é tratada
-        como timestamp**, pois o arquivo não contém uma coluna explícita de data-hora.
-        Essa decisão evita atribuir datas artificiais aos registros.
+        ### Resolução temporal
 
-        ### Unidades e metadados
+        As observações possuem resolução original de **30 minutos**.
+        A coluna `season` codifica **ano e mês** do bloco de processamento.
 
-        Os cabeçalhos do arquivo não contêm unidades. Antes da publicação definitiva,
-        recomenda-se adicionar uma tabela de metadados com **nome da variável, definição,
-        unidade, método de processamento e significado dos códigos QC**.
+        ### Transparência metodológica
+
+        O aplicativo não atribui unidades ou interpreta códigos QC sem
+        documentação de metadados. Esse dicionário poderá ser incorporado
+        posteriormente para tornar a plataforma autoexplicativa.
         """
     )
 
     schema = pd.DataFrame({
-        "Variável": [c for c in df.columns if c != "_obs"],
-        "Tipo no aplicativo": [str(df[c].dtype) for c in df.columns if c != "_obs"],
-        "Ausentes": [int(df[c].isna().sum()) for c in df.columns if c != "_obs"],
-        "Disponibilidade (%)": [
-            valid_percent(df[c]) for c in df.columns if c != "_obs"
-        ],
+        "Variável": [c for c in df.columns if c not in ["datetime", "season_label", "_obs"]],
+        "Tipo": [str(df[c].dtype) for c in df.columns if c not in ["datetime", "season_label", "_obs"]],
+        "Ausentes": [int(df[c].isna().sum()) for c in df.columns if c not in ["datetime", "season_label", "_obs"]],
+        "Disponibilidade (%)": [valid_pct(df[c]) for c in df.columns if c not in ["datetime", "season_label", "_obs"]],
     })
     st.dataframe(schema, use_container_width=True)
 
@@ -497,33 +530,38 @@ elif page == "Solicitar Dados":
     st.header("Solicitar Dados")
 
     st.warning(
-        "Os dados são disponibilizados nesta plataforma somente para visualização. "
-        "Não há download público direto."
+        "Não existe download público direto. O fornecimento dos dados depende "
+        "de autorização do responsável pela plataforma."
     )
 
     with st.form("request_form"):
         name = st.text_input("Nome")
         institution = st.text_input("Instituição")
         email = st.text_input("E-mail")
-        purpose = st.text_area("Finalidade científica/acadêmica da solicitação")
-        dataset = st.text_input("Dados ou variáveis de interesse")
-        submitted = st.form_submit_button("Gerar solicitação")
+        variables = st.text_input("Variáveis / período de interesse")
+        purpose = st.text_area("Finalidade científica ou acadêmica")
+        agreement = st.checkbox(
+            "Declaro que a utilização dos dados dependerá de autorização prévia."
+        )
+        submitted = st.form_submit_button("Preparar solicitação")
 
         if submitted:
-            if not name or not email or not purpose:
-                st.error("Preencha pelo menos nome, e-mail e finalidade.")
+            if not name or not email or not purpose or not agreement:
+                st.error(
+                    "Preencha nome, e-mail e finalidade e confirme a declaração de autorização."
+                )
             else:
                 st.success(
-                    "Solicitação preparada. Nesta versão, o formulário ainda não envia "
-                    "nem armazena dados automaticamente."
+                    "Solicitação preparada. Nesta versão gratuita inicial, "
+                    "o formulário ainda não envia nem armazena a solicitação automaticamente."
                 )
                 st.text_area(
-                    "Resumo da solicitação",
+                    "Resumo",
                     value=(
                         f"Nome: {name}\n"
                         f"Instituição: {institution}\n"
                         f"E-mail: {email}\n"
-                        f"Dados/variáveis: {dataset}\n\n"
+                        f"Variáveis/período: {variables}\n\n"
                         f"Finalidade:\n{purpose}"
                     ),
                     height=220,
@@ -531,6 +569,6 @@ elif page == "Solicitar Dados":
 
 st.divider()
 st.caption(
-    "EcoFlux Brasil • Plataforma científica de visualização • "
-    "Sem download público direto dos dados"
+    "EcoFlux Brasil • Visualização científica pública • "
+    "Dados brutos somente mediante autorização"
 )
