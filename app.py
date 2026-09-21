@@ -1292,6 +1292,84 @@ section[data-testid="stSidebar"] .stSelectbox svg {
 </style>
 """, unsafe_allow_html=True)
 
+
+st.markdown("""
+<style>
+/* ===== CORREÇÃO DEFINITIVA DE ESCALA DA INTERFACE ===== */
+/* Sidebar proporcional à tela, como na referência aprovada. */
+:root { --ca-sidebar-final: 20vw; }
+
+section[data-testid="stSidebar"] {
+    width:var(--ca-sidebar-final) !important;
+    min-width:var(--ca-sidebar-final) !important;
+    max-width:var(--ca-sidebar-final) !important;
+    height:100vh !important;
+    background:linear-gradient(180deg,#003d2e 0%,#004735 55%,#00392c 100%) !important;
+    z-index:1001 !important;
+}
+section[data-testid="stSidebar"] > div {
+    padding:.9rem 1.35rem 1rem !important;
+}
+
+/* A HOME usa exatamente toda a área restante da janela. */
+.main .block-container:has(.ca-home-fixed) {
+    position:static !important;
+    margin:0 !important;
+    padding:0 !important;
+    width:0 !important;
+    height:0 !important;
+    max-width:none !important;
+    min-height:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+}
+.ca-home-fixed {
+    position:fixed !important;
+    left:var(--ca-sidebar-final) !important;
+    top:0 !important;
+    right:0 !important;
+    bottom:0 !important;
+    width:calc(100vw - var(--ca-sidebar-final)) !important;
+    height:100vh !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+
+    /* IMPORTANTE: mostra a composição INTEIRA.
+       cover estava cortando os cards, marca e slogan. */
+    background-size:100% 100% !important;
+    background-position:center center !important;
+    background-repeat:no-repeat !important;
+    background-color:#063b2d !important;
+}
+
+header[data-testid="stHeader"] {
+    height:0 !important;
+    min-height:0 !important;
+    background:transparent !important;
+}
+
+/* Mantém proporções utilizáveis em telas menores. */
+@media (max-width:1100px) {
+    :root { --ca-sidebar-final: 300px; }
+}
+@media (max-width:700px) {
+    :root { --ca-sidebar-final: 0px; }
+    section[data-testid="stSidebar"] {
+        width:300px !important;
+        min-width:300px !important;
+        max-width:300px !important;
+    }
+    .ca-home-fixed {
+        left:0 !important;
+        width:100vw !important;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ============================================================
 # Uploads — 1 min carregado sob demanda para evitar estouro de memória
 # ============================================================
