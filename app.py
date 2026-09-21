@@ -1,4 +1,5 @@
 import csv
+import base64
 import io
 from pathlib import Path
 
@@ -235,6 +236,32 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+st.markdown("""
+<style>
+:root{--ca-side:20vw}
+html,body,.stApp,[data-testid="stAppViewContainer"]{background:#063b2d!important}
+header[data-testid="stHeader"]{height:0!important;min-height:0!important;background:transparent!important}
+section[data-testid="stSidebar"]{width:var(--ca-side)!important;min-width:var(--ca-side)!important;max-width:var(--ca-side)!important;background:linear-gradient(180deg,#003d2e,#004735 58%,#00392c)!important}
+section[data-testid="stSidebar"]>div{padding:.85rem 1.05rem 1rem!important}
+.ca-brand{display:flex;gap:.65rem;align-items:center;color:#fff;margin:.15rem 0 .7rem}.ca-brand-icon{font-size:2.1rem;color:#54ef8a}.ca-brand-name{font-size:1.05rem;font-weight:900}.ca-brand-sub{font-size:.61rem;line-height:1.25;color:#e3f2e8}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"]{background:#07553e!important;border:1px solid rgba(75,235,139,.24)!important;border-radius:10px!important;padding:.45rem .55rem .55rem!important;margin-bottom:.55rem!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] label,section[data-testid="stSidebar"] [data-testid="stFileUploader"] p,section[data-testid="stSidebar"] [data-testid="stFileUploader"] span{color:#f5fff8!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{background:#086047!important;border:1px solid rgba(92,241,151,.18)!important;border-radius:8px!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button{background:#0a7652!important;color:#fff!important;border:1px solid rgba(116,255,169,.28)!important}
+.ca-help{display:flex;gap:.45rem;background:#07533d;border:1px solid rgba(78,226,137,.18);color:#f2fff6;border-radius:8px;padding:.58rem .65rem;margin:.1rem 0 .55rem;font-size:.67rem;line-height:1.25}.ca-rule{height:1px;background:rgba(255,255,255,.16);margin:.38rem 0 .5rem}
+section[data-testid="stSidebar"] div[data-testid="stButton"]{margin:0!important}section[data-testid="stSidebar"] div[data-testid="stButton"] button{justify-content:flex-start!important;border:0!important;box-shadow:none!important;min-height:31px!important;padding:.22rem .55rem!important;border-radius:6px!important;font-size:.76rem!important}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"]{background:transparent!important;color:#fff!important}section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]{background:linear-gradient(90deg,#079552,#0ca55c)!important;color:#fff!important;font-weight:700!important}
+section[data-testid="stSidebar"] .stSelectbox label{color:#b9e7c8!important;font-size:.72rem!important}section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{background:#075d43!important;border:1px solid #0c9b61!important;color:#fff!important}
+.ca-footer{display:flex;align-items:center;gap:.55rem;color:#8df1a4;padding:.55rem .15rem .1rem;font-size:.78rem;line-height:1.2}.ca-footer-icon{font-size:1.8rem}
+.ca-home-fixed{position:fixed!important;left:var(--ca-side)!important;top:0!important;right:0!important;bottom:0!important;width:calc(100vw - var(--ca-side))!important;height:100vh!important;background-repeat:no-repeat!important;background-position:center!important;background-size:100% 100%!important;z-index:0!important}
+.main .block-container:has(.ca-home-fixed){margin:0!important;padding:0!important;width:0!important;height:0!important;min-height:0!important;background:transparent!important}
+.main .block-container:not(:has(.ca-home-fixed)){max-width:calc(100% - 2rem)!important;margin:1rem auto 2rem!important;padding:1.4rem 1.6rem 2rem!important;background:rgba(250,253,249,.98)!important;border-radius:14px!important;box-shadow:0 15px 42px rgba(0,25,15,.22)!important}
+section[data-testid="stSidebar"] .sidebar-status{background:#07533d!important;border-color:#0a684a!important;color:#dff8e7!important}
+@media(max-width:1100px){:root{--ca-side:300px}}@media(max-width:700px){:root{--ca-side:0px}.ca-home-fixed{left:0!important;width:100vw!important}section[data-testid="stSidebar"]{width:300px!important;min-width:300px!important;max-width:300px!important}}
+</style>
+""", unsafe_allow_html=True)
+
 # ============================================================
 # EcoFlux Brasil — V37
 # Arquitetura:
@@ -244,45 +271,14 @@ st.markdown(
 # ============================================================
 
 # -----------------------------
-# Idioma
+# Idioma / tabelas — estado interno
 # -----------------------------
-st.sidebar.title("EcoFlux Brasil")
-
-LANGUAGE = st.sidebar.selectbox(
-    "Idioma / Language",
-    ["Português", "English"],
-    index=0,
-    key="language_v29",
-)
+LANGUAGE = st.session_state.get("carbono_language", "Português")
 PT = LANGUAGE == "Português"
-
 def tr(pt, en):
     return pt if PT else en
-
-st.sidebar.caption(
-    tr(
-        "Interface bilíngue. Nomes de variáveis e unidades da fonte são preservados.",
-        "Bilingual interface. Source variable names and units are preserved.",
-    )
-)
-
-# -----------------------------
-# Tabelas sem menu nativo em inglês
-# -----------------------------
-TABLE_MODE = st.sidebar.radio(
-    tr("Tabelas", "Tables"),
-    [
-        tr("Controles próprios", "Custom controls"),
-        tr("Nativa do Streamlit", "Native Streamlit"),
-    ],
-    index=0,
-    key="table_mode_v29",
-    help=tr(
-        "Controles próprios evitam o menu interno do Streamlit em inglês.",
-        "Custom controls avoid Streamlit's native context menu.",
-    ),
-)
-CUSTOM_TABLES = TABLE_MODE == tr("Controles próprios", "Custom controls")
+TABLE_MODE = tr("Controles próprios", "Custom controls")
+CUSTOM_TABLES = True
 
 _TABLE_COUNTER = 0
 
@@ -983,43 +979,6 @@ def load_processed_xlsx(file_bytes):
 
     return df, units, sheet
 
-
-st.markdown("""
-<style>
-section[data-testid="stSidebar"]{
-    background:linear-gradient(180deg,#063d2e,#0a4935)!important;
-}
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3{
-    color:#f5fff8!important;
-}
-.ca-restored-brand{
-    padding:.35rem 0 .8rem;
-    color:white;
-}
-.ca-restored-brand b{
-    font-size:1.25rem;
-    letter-spacing:.02em;
-}
-.ca-restored-brand small{
-    display:block;
-    margin-top:.18rem;
-    color:#d9eee2;
-    line-height:1.25;
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.sidebar.markdown("""
-<div class="ca-restored-brand">
-  <b>🌿 CARBONO EM AÇÃO</b>
-  <small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small>
-</div>
-""", unsafe_allow_html=True)
-
 # ============================================================
 # Uploads — 1 min carregado sob demanda para evitar estouro de memória
 # ============================================================
@@ -1029,6 +988,8 @@ st.sidebar.caption(tr(
     "Modo econômico de memória: o arquivo de 1 min é aberto apenas quando uma análise de 1 min é selecionada.",
     "Memory-saving mode: the 1-min file is opened only when a 1-min analysis is selected.",
 ))
+
+st.sidebar.markdown("""<div class="ca-brand"><div class="ca-brand-icon">❧</div><div><div class="ca-brand-name">CARBONO EM AÇÃO</div><div class="ca-brand-sub">Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</div></div></div>""",unsafe_allow_html=True)
 
 tower_files = st.sidebar.file_uploader(
     tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
@@ -1048,6 +1009,23 @@ processed_file = st.sidebar.file_uploader(
     type=["xlsx"],
     key="processed_xlsx_v34",
 )
+
+st.sidebar.markdown("""<div class="ca-help"><b>ⓘ</b><span>Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.</span></div><div class="ca-rule"></div>""",unsafe_allow_html=True)
+if "carbono_nav" not in st.session_state: st.session_state["carbono_nav"]="Início"
+for _ico,_label in [("⌂","Início"),("▥","Visualizar Dados"),("♜","Estações"),("▧","Mapa"),("▤","Documentação"),("?","Sobre o Projeto"),("⌁","Contato")]:
+    if st.sidebar.button(f"{_ico}   {_label}",key=f"ca_{_label}",use_container_width=True,type="primary" if st.session_state["carbono_nav"]==_label else "secondary"):
+        st.session_state["carbono_nav"]=_label; st.rerun()
+st.sidebar.markdown('<div class="ca-rule"></div>',unsafe_allow_html=True)
+_lang=st.sidebar.selectbox("Idioma / Language",["Português","English"],index=0 if st.session_state.get("carbono_language","Português")=="Português" else 1,key="ca_lang_widget")
+if _lang!=st.session_state.get("carbono_language","Português"): st.session_state["carbono_language"]=_lang; st.rerun()
+st.sidebar.markdown('<div class="ca-footer"><span class="ca-footer-icon">❧</span><span>Ciência hoje,<br>florestas amanhã.</span></div>',unsafe_allow_html=True)
+if st.session_state["carbono_nav"]=="Início":
+    _hp=Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
+    if _hp.exists():
+        _b64=base64.b64encode(_hp.read_bytes()).decode("ascii")
+        st.markdown(f'<div class="ca-home-fixed" style="background-image:url(data:image/jpeg;base64,{_b64})"></div>',unsafe_allow_html=True)
+    else: st.error("Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.")
+    st.stop()
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
     st.session_state["_ecoflux_parsed_toa5"] = {}
@@ -1193,12 +1171,6 @@ if not tower_file_map and processed is None:
         )
     st.stop()
 
-st.sidebar.markdown(
-    "<div style='margin:.55rem 0 .2rem;color:#b9e7c8;font-size:.78rem'>"
-    "Análises científicas</div>",
-    unsafe_allow_html=True,
-)
-
 # ============================================================
 # Navegação
 # ============================================================
@@ -1215,8 +1187,18 @@ pages = {
     "request": tr("Solicitar Dados", "Request Data"),
 }
 
-page = st.sidebar.radio(tr("Navegação", "Navigation"), list(pages.values()))
-page_key = next(k for k, v in pages.items() if v == page)
+_top=st.session_state.get("carbono_nav","Visualizar Dados")
+if _top=="Visualizar Dados":
+    st.sidebar.markdown('<div class="ca-rule"></div>',unsafe_allow_html=True)
+    page=st.sidebar.radio(tr("Análises científicas","Scientific analyses"),list(pages.values()),key="eco_science_nav")
+    page_key=next(k for k,v in pages.items() if v==page)
+elif _top=="Estações": page_key="structure"
+elif _top=="Documentação": page_key="about"
+elif _top=="Contato": page_key="request"
+elif _top=="Sobre o Projeto": page_key="about"
+elif _top=="Mapa":
+    st.title(tr("Mapa","Map")); st.info(tr("O mapa será incorporado aqui sem remover as análises científicas existentes.","The map will be incorporated here without removing the existing scientific analyses.")); st.stop()
+else: page_key="overview"
 
 # ============================================================
 # Visão Geral
