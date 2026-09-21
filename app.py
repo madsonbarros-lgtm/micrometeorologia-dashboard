@@ -239,231 +239,97 @@ st.markdown(
 
 
 # Fundo fotográfico oficial da página inicial.
-# No GitHub, mantenha carbono_em_acao_fundo.jpg na mesma pasta do app.py.
-_CARBONO_BG = Path(__file__).with_name("carbono_em_acao_fundo.jpg")
+# No GitHub, mantenha carbono_em_acao_fundo_limpo.jpg na mesma pasta do app.py.
+_CARBONO_BG = Path(__file__).with_name("carbono_em_acao_fundo_limpo.jpg")
 if _CARBONO_BG.exists():
     _CARBONO_BG_B64 = base64.b64encode(_CARBONO_BG.read_bytes()).decode("ascii")
 else:
     _CARBONO_BG_B64 = ""
 
+
+
 # ============================================================
-# CARBONO EM AÇÃO — identidade visual
+# CARBONO EM AÇÃO V3 — camada visual única, sem duplicações
 # ============================================================
-st.markdown("""
+st.markdown(f"""
 <style>
-:root{--ca-dark:#123d26;--ca-green:#245f3a;--ca-soft:#e5f3e1;--ca-cream:#f4efe1}
-section[data-testid="stSidebar"]{
- background:linear-gradient(180deg,#0d321f 0%,#123d26 62%,#194c30 100%)!important;
- border-right:1px solid rgba(255,255,255,.08)}
-section[data-testid="stSidebar"]>div{padding-top:.85rem}
+:root{{--ca-dark:#073b2e;--ca-green:#16854b;--ca-pale:#e6f4df}}
+[data-testid="stAppViewContainer"],[data-testid="stAppViewContainer"]>.main{{background:#fff}}
+.block-container{{max-width:none!important;padding:0!important}}
+header[data-testid="stHeader"]{{background:rgba(255,255,255,.96)}}
+
+/* Sidebar */
+section[data-testid="stSidebar"]{{
+ width:360px!important;min-width:360px!important;
+ background:linear-gradient(180deg,#073a2d 0%,#0b4232 58%,#103d30 100%)!important;
+ border-right:0!important}}
+section[data-testid="stSidebar"]>div{{padding:.8rem 1.15rem 1.2rem!important}}
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3{color:#f5fbf6!important}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"]{
- background:#e4f2df;border:1px solid rgba(255,255,255,.18);border-radius:14px;
- padding:.5rem .6rem;margin-bottom:.45rem}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] *{color:#173c26!important}
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{
- background:rgba(255,255,255,.76);border:1px dashed rgba(32,92,54,.35);border-radius:10px}
-section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{
- background:#fff;color:#173c26;border-radius:10px}
-.carbon-brand{display:flex;gap:.65rem;align-items:center;padding:.2rem 0 .8rem;
- border-bottom:1px solid rgba(255,255,255,.14);margin-bottom:.35rem;color:white}
-.carbon-brand b{display:block;font-size:1.05rem;letter-spacing:.02em}
-.carbon-brand small{display:block;color:#d3e8d8;font-size:.66rem;line-height:1.25;margin-top:.12rem}
-.carbon-logo{width:42px;height:42px;min-width:42px;border-radius:50%;display:flex;
- align-items:center;justify-content:center;background:#f1efd8;color:#17603a;font-size:1.35rem;font-weight:800}
-.block-container{max-width:1500px;padding-top:1.2rem;padding-bottom:2rem}
-.ecoflux-hero{color:#205b38!important}
-.ecoflux-success{border-radius:14px;background:linear-gradient(90deg,#e4f3df,#f1f8ee)!important}
-.ecoflux-summary-wrap,.ecoflux-action-card{border-radius:14px!important;
- box-shadow:0 8px 24px rgba(28,70,45,.07)}
-.sidebar-status{background:#e4f3df!important;color:#285f3b!important}
-.sidebar-status *{color:#285f3b!important}
-.carbon-home{position:relative;min-height:735px;overflow:hidden;border-radius:22px;
- padding:4.7rem 4.3rem 2.5rem;
- background:
- linear-gradient(90deg,rgba(245,240,225,.98) 0%,rgba(245,240,225,.91) 34%,rgba(245,240,225,.28) 62%,rgba(14,54,31,.08) 100%),
- radial-gradient(circle at 78% 27%,rgba(255,194,92,.55),transparent 24%),
- linear-gradient(155deg,#d7d5bc 0%,#8da17b 38%,#46694b 68%,#203d2c 100%);
- box-shadow:0 18px 55px rgba(25,60,40,.14)}
-.carbon-home:before{content:"";position:absolute;inset:0;pointer-events:none;
- background:radial-gradient(ellipse at 72% 80%,rgba(18,70,39,.50) 0 17%,transparent 18%),
- radial-gradient(ellipse at 91% 76%,rgba(21,76,43,.48) 0 18%,transparent 19%),
- radial-gradient(ellipse at 55% 84%,rgba(29,86,49,.38) 0 20%,transparent 21%)}
-.carbon-tower{position:absolute;right:12%;top:14%;width:155px;height:400px;opacity:.7;
- background:linear-gradient(78deg,transparent 47%,#203b2a 48% 51%,transparent 52%),
- linear-gradient(102deg,transparent 47%,#203b2a 48% 51%,transparent 52%);
- clip-path:polygon(47% 0,53% 0,72% 100%,28% 100%)}
-.carbon-content{position:relative;z-index:2;max-width:650px}
-.carbon-welcome{font-size:3.55rem;line-height:1.04;font-weight:900;color:#183d29;
- letter-spacing:-.045em;margin-bottom:.8rem}
-.carbon-lead{font-size:1.34rem;line-height:1.55;color:#294e39;max-width:620px}
-.carbon-quote{margin-top:2.1rem;font-size:1.18rem;color:#315d43;font-style:italic}
-.carbon-divider{width:360px;height:1px;background:rgba(36,92,57,.25);margin:2.3rem 0 1.2rem}
-.carbon-grid{position:relative;z-index:2;display:grid;grid-template-columns:repeat(4,1fr);
- gap:.85rem;margin-top:3.1rem}
-.carbon-card{background:rgba(232,245,227,.92);border:1px solid rgba(48,105,67,.13);
- border-radius:14px;padding:1rem;min-height:92px;box-shadow:0 8px 22px rgba(23,62,39,.08)}
-.carbon-card b{display:block;color:#285b3b;font-size:1.02rem;margin-bottom:.2rem}
-.carbon-card span{color:#587363;font-size:.84rem}
-.carbon-footer{position:relative;z-index:2;text-align:center;margin-top:1.5rem;
- color:#42664f;font-size:.82rem;letter-spacing:.08em}
-@media(max-width:900px){.carbon-home{padding:3rem 1.4rem}.carbon-welcome{font-size:2.55rem}
- .carbon-grid{grid-template-columns:repeat(2,1fr)}.carbon-tower{right:1%;opacity:.32}}
+section[data-testid="stSidebar"] h3{{color:#f4fff7!important}}
+.carbon-brand{{display:flex;align-items:center;gap:.7rem;padding:.05rem 0 .65rem!important;
+ border:0!important;margin:0!important;color:white}}
+.carbon-brand b{{font-size:1.25rem!important;letter-spacing:.015em}}
+.carbon-brand small{{display:block;color:#d6eadb!important;font-size:.72rem!important;line-height:1.25}}
+.carbon-logo{{width:48px;height:48px;min-width:48px;border-radius:50%;display:flex;align-items:center;
+ justify-content:center;background:#e9f4d9;color:#087142!important;font-size:1.45rem;font-weight:900}}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"]{{
+ background:#e3f2dd!important;border:0!important;border-radius:11px!important;
+ padding:.45rem .55rem!important;margin:.25rem 0 .55rem!important}}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] *{{color:#173b27!important}}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{{
+ background:#fff!important;border:0!important;border-radius:8px!important}}
+section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{{
+ background:#fff!important;color:#173b27!important;border-radius:8px!important}}
+
+/* Home: one visual layer only */
+.carbon-home{{
+ position:relative;width:100%;height:calc(100vh - 3.75rem);min-height:720px;overflow:hidden;
+ background-image:url("data:image/jpeg;base64,{_CARBONO_BG_B64}")!important;
+ background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important;
+ border:0!important;border-radius:0!important;box-shadow:none!important;margin:0!important;padding:0!important}}
+.carbon-home:before{{
+ content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+ background:linear-gradient(90deg,rgba(255,243,222,.20) 0%,rgba(255,255,255,0) 48%)}}
+/* Soft masks hide UI that was baked into the supplied reference screenshot. */
+.carbon-home:after{{
+ content:"";position:absolute;z-index:2;left:2.5%;top:20%;width:61%;height:29%;
+ background:linear-gradient(90deg,rgba(250,226,201,.91),rgba(250,226,201,.63) 62%,rgba(250,226,201,0));
+ filter:blur(8px);border-radius:28px;pointer-events:none}}
+.carbon-content{{position:absolute!important;z-index:5;left:4.2%;top:22%;max-width:900px!important}}
+.carbon-welcome{{margin:0!important;font-size:4rem!important;line-height:1.02!important;font-weight:900!important;
+ letter-spacing:-.045em!important;color:#06392e!important;text-shadow:none!important}}
+.carbon-lead{{margin-top:1rem!important;max-width:920px!important;font-size:1.48rem!important;line-height:1.3!important;
+ font-weight:600!important;color:#4a5d61!important}}
+.carbon-slogan{{position:absolute;z-index:5;right:3%;top:6%;text-align:right;color:#0b302a;
+ font-size:1.16rem;line-height:1.2;font-weight:800;background:rgba(255,234,211,.72);
+ padding:.25rem .4rem;border-radius:6px}}
+.carbon-slogan div{{width:48px;height:4px;background:#07864d;margin:.85rem 0 0 auto}}
+.carbon-grid{{position:absolute!important;z-index:5;left:4%;right:4%;bottom:16%;display:grid!important;
+ grid-template-columns:repeat(4,1fr)!important;gap:1rem!important;margin:0!important}}
+.carbon-card{{min-height:120px!important;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ padding:1rem!important;border-radius:11px!important;border:1px solid rgba(112,230,145,.14)!important;
+ background:linear-gradient(180deg,rgba(3,51,31,.94),rgba(5,57,35,.92))!important;
+ box-shadow:0 8px 24px rgba(0,28,17,.20)!important}}
+.carbon-card-icon{{color:#83f49b;font-size:2.35rem;line-height:1;margin-bottom:.55rem;font-weight:800}}
+.carbon-card b{{color:#f5fff6!important;font-size:1.08rem!important;margin:0!important}}
+.carbon-footer-brand{{position:absolute;z-index:5;left:4%;bottom:4%;color:#fff;border-left:3px solid #42d36b;
+ padding-left:.75rem;text-shadow:0 1px 4px rgba(0,0,0,.55)}}
+.carbon-footer-brand b{{font-size:1.02rem}} .carbon-footer-brand span{{font-size:.82rem}}
+
+/* Hide legacy home elements if older CSS/classes survive. */
+.carbon-tower,.carbon-quote,.carbon-divider,.carbon-footer{{display:none!important}}
+
+@media(max-width:900px){{
+ section[data-testid="stSidebar"]{{width:300px!important;min-width:300px!important}}
+ .carbon-welcome{{font-size:2.65rem!important}} .carbon-lead{{font-size:1.05rem!important}}
+ .carbon-grid{{grid-template-columns:repeat(2,1fr)!important;bottom:7%!important}}
+ .carbon-card{{min-height:88px!important}} .carbon-footer-brand{{display:none}}
+}}
 </style>
 """,unsafe_allow_html=True)
-
-
-st.markdown(
-    f"""
-    <style>
-    /* CARBONO EM AÇÃO V2 — composição aprovada */
-    [data-testid="stAppViewContainer"] {{
-      background:#fff;
-    }}
-    [data-testid="stAppViewContainer"] > .main {{
-      background:#fff;
-    }}
-    .block-container {{
-      max-width:none !important;
-      padding:0 !important;
-    }}
-
-    section[data-testid="stSidebar"] {{
-      width:360px !important;
-      min-width:360px !important;
-      background:linear-gradient(180deg,#063a2e 0%,#0b3f31 58%,#103c30 100%) !important;
-    }}
-    section[data-testid="stSidebar"] > div {{
-      padding:.9rem 1.15rem 1.2rem !important;
-    }}
-    .carbon-brand {{
-      border-bottom:0 !important;
-      padding:.05rem 0 .55rem !important;
-    }}
-    .carbon-brand b {{font-size:1.25rem !important;}}
-    .carbon-brand small {{font-size:.73rem !important;}}
-
-    .carbon-home {{
-      position:relative;
-      width:100%;
-      min-height:100vh;
-      border-radius:0 !important;
-      box-shadow:none !important;
-      overflow:hidden;
-      padding:0 !important;
-      background-image:
-        linear-gradient(90deg,rgba(245,231,210,.12) 0%,rgba(255,255,255,0) 43%),
-        url("data:image/jpeg;base64,{_CARBONO_BG_B64}") !important;
-      background-size:cover !important;
-      background-position:center center !important;
-      background-repeat:no-repeat !important;
-    }}
-    .carbon-home:before {{display:none !important;}}
-    .carbon-tower {{display:none !important;}}
-
-    .carbon-content {{
-      position:absolute !important;
-      z-index:3;
-      left:4.2%;
-      top:25%;
-      max-width:900px !important;
-    }}
-    .carbon-welcome {{
-      margin:0 !important;
-      font-size:4.25rem !important;
-      line-height:1.02 !important;
-      font-weight:900 !important;
-      letter-spacing:-.045em !important;
-      color:#06392e !important;
-      text-shadow:0 1px 1px rgba(255,255,255,.18);
-    }}
-    .carbon-lead {{
-      margin-top:1.05rem !important;
-      max-width:940px !important;
-      font-size:1.58rem !important;
-      line-height:1.28 !important;
-      font-weight:600 !important;
-      color:#455c61 !important;
-    }}
-    .carbon-slogan {{
-      position:absolute;
-      z-index:3;
-      right:3.2%;
-      top:7.5%;
-      text-align:right;
-      color:#0c2f2a;
-      font-size:1.22rem;
-      line-height:1.22;
-      font-weight:800;
-    }}
-    .carbon-slogan div {{
-      width:48px;height:4px;background:#07864d;margin:1rem 0 0 auto;
-    }}
-    .carbon-grid {{
-      position:absolute !important;
-      z-index:3;
-      left:4.1%;
-      right:4.1%;
-      bottom:16.5%;
-      display:grid !important;
-      grid-template-columns:repeat(4,1fr) !important;
-      gap:1rem !important;
-      margin:0 !important;
-    }}
-    .carbon-card {{
-      min-height:122px !important;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      padding:1rem !important;
-      border-radius:12px !important;
-      border:1px solid rgba(112,230,145,.15) !important;
-      background:linear-gradient(180deg,rgba(3,50,31,.91),rgba(5,58,35,.88)) !important;
-      box-shadow:0 8px 24px rgba(0,28,17,.22) !important;
-      backdrop-filter:blur(2px);
-    }}
-    .carbon-card-icon {{
-      color:#83f49b;
-      font-size:2.5rem;
-      line-height:1;
-      margin-bottom:.55rem;
-      font-weight:800;
-    }}
-    .carbon-card b {{
-      color:#f3fff5 !important;
-      font-size:1.1rem !important;
-      margin:0 !important;
-    }}
-    .carbon-footer-brand {{
-      position:absolute;
-      z-index:3;
-      left:4.1%;
-      bottom:4.2%;
-      color:#fff;
-      border-left:3px solid #3cce65;
-      padding-left:.75rem;
-      text-shadow:0 1px 4px rgba(0,0,0,.5);
-    }}
-    .carbon-footer-brand b {{font-size:1.05rem;letter-spacing:.02em;}}
-    .carbon-footer-brand span {{font-size:.83rem;}}
-
-    @media(max-width:900px) {{
-      section[data-testid="stSidebar"] {{width:300px !important;min-width:300px !important;}}
-      .carbon-welcome {{font-size:2.8rem !important;}}
-      .carbon-lead {{font-size:1.15rem !important;max-width:600px !important;}}
-      .carbon-grid {{grid-template-columns:repeat(2,1fr) !important;bottom:9%;}}
-      .carbon-card {{min-height:92px !important;}}
-      .carbon-footer-brand {{display:none;}}
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # ============================================================
 # EcoFlux Brasil — V37
@@ -476,46 +342,17 @@ st.markdown(
 # -----------------------------
 # Idioma
 # -----------------------------
-st.sidebar.markdown("""
-<div class="carbon-brand">
-  <div class="carbon-logo">♻</div>
-  <div><b>CARBONO EM AÇÃO</b><small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div>
-</div>""", unsafe_allow_html=True)
-
-LANGUAGE = st.sidebar.selectbox(
-    "Idioma / Language",
-    ["Português", "English"],
-    index=0,
-    key="language_v29",
-)
+LANGUAGE = st.session_state.get("language_v29", "Português")
 PT = LANGUAGE == "Português"
 
 def tr(pt, en):
     return pt if PT else en
 
-st.sidebar.caption(
-    tr(
-        "Interface bilíngue. Nomes de variáveis e unidades da fonte são preservados.",
-        "Bilingual interface. Source variable names and units are preserved.",
-    )
-)
 
 # -----------------------------
 # Tabelas sem menu nativo em inglês
 # -----------------------------
-TABLE_MODE = st.sidebar.radio(
-    tr("Tabelas", "Tables"),
-    [
-        tr("Controles próprios", "Custom controls"),
-        tr("Nativa do Streamlit", "Native Streamlit"),
-    ],
-    index=0,
-    key="table_mode_v29",
-    help=tr(
-        "Controles próprios evitam o menu interno do Streamlit em inglês.",
-        "Custom controls avoid Streamlit's native context menu.",
-    ),
-)
+TABLE_MODE = tr("Controles próprios", "Custom controls")
 CUSTOM_TABLES = TABLE_MODE == tr("Controles próprios", "Custom controls")
 
 _TABLE_COUNTER = 0
@@ -1217,15 +1054,40 @@ def load_processed_xlsx(file_bytes):
 
     return df, units, sheet
 
+st.markdown("""
+<style>
+section[data-testid="stSidebar"]{width:360px!important;min-width:360px!important;background:linear-gradient(180deg,#073a2d,#0c4031)!important}
+section[data-testid="stSidebar"]>div{padding:.8rem 1.15rem 1.1rem!important}
+.carbon-brand-v4{display:flex!important;align-items:center!important;gap:.75rem!important;padding:.05rem 0 .65rem!important;border:0!important}
+.carbon-brand-v4 b{font-size:1.25rem!important;color:white!important}.carbon-brand-v4 small{display:block;font-size:.7rem!important;color:#e0efe4!important;line-height:1.25}
+.carbon-leaf{font-size:2.65rem;color:#43d36f!important;line-height:1;transform:rotate(-18deg)}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"]{background:linear-gradient(135deg,#e8f7e2,#d8efd5)!important;border:0!important;border-radius:10px!important;padding:.45rem .55rem!important;margin:.25rem 0 .65rem!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] label{color:#123d29!important;font-weight:800!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{background:white!important;border:0!important;border-radius:8px!important}
+.carbon-upload-help{display:flex;gap:.65rem;align-items:flex-start;background:#e4f3df;border-radius:9px;padding:.72rem .8rem;margin:.1rem 0 .75rem;font-size:.78rem;line-height:1.35}
+.carbon-upload-help span{color:#173d29!important}.carbon-info-dot{display:flex!important;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:50%;background:#07523a;color:white!important;font-weight:900}
+.carbon-side-divider{height:1px;background:rgba(255,255,255,.16);margin:.35rem 0 .65rem}
+section[data-testid="stSidebar"] div[data-testid="stButton"]{margin:0!important}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button{justify-content:flex-start!important;border:0!important;box-shadow:none!important;min-height:35px!important;padding:.32rem .7rem!important;border-radius:7px!important;font-size:.9rem!important}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"]{background:transparent!important;color:white!important}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]{background:linear-gradient(90deg,#12864b,#239e59)!important;color:white!important;font-weight:700!important}
+section[data-testid="stSidebar"] .stSelectbox label{color:white!important;font-size:.8rem!important}
+section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{background:white!important;color:#173d29!important;border-radius:7px!important}
+.carbon-side-footer{display:flex;gap:.8rem;align-items:center;padding:.85rem .35rem .2rem;font-size:1rem;line-height:1.25}.carbon-side-footer div{color:#8df1a4!important}.carbon-footer-leaf{font-size:2.4rem;transform:rotate(-18deg)}
+</style>
+""", unsafe_allow_html=True)
+
 # ============================================================
 # Uploads — 1 min carregado sob demanda para evitar estouro de memória
 # ============================================================
 
-st.sidebar.subheader(tr("Fontes de dados", "Data sources"))
-st.sidebar.caption(tr(
-    "Modo econômico de memória: o arquivo de 1 min é aberto apenas quando uma análise de 1 min é selecionada.",
-    "Memory-saving mode: the 1-min file is opened only when a 1-min analysis is selected.",
-))
+st.sidebar.markdown("""
+<div class="carbon-brand carbon-brand-v4">
+  <div class="carbon-leaf">❧</div>
+  <div><b>CARBONO EM AÇÃO</b>
+  <small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div>
+</div>
+""", unsafe_allow_html=True)
 
 tower_files = st.sidebar.file_uploader(
     tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
@@ -1245,12 +1107,54 @@ processed_file = st.sidebar.file_uploader(
     type=["xlsx"],
     key="processed_xlsx_v34",
 )
-st.sidebar.markdown(
-    '<div style="background:#e5f3e1;color:#285f3b;padding:.65rem .75rem;border-radius:12px;'
-    'font-size:.78rem;margin:.35rem 0 .7rem">🌿 <b>Carregue os arquivos para começar</b><br>'
-    'Dados originais CR3000 e produtos processados.</div>',
-    unsafe_allow_html=True,
+st.sidebar.markdown("""
+<div class="carbon-upload-help">
+  <span class="carbon-info-dot">i</span>
+  <span>Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.</span>
+</div>
+<div class="carbon-side-divider"></div>
+""", unsafe_allow_html=True)
+
+# Menu visual principal da plataforma
+if "carbono_nav" not in st.session_state:
+    st.session_state["carbono_nav"] = "Início"
+
+for _icon, _label in [
+    ("⌂", "Início"),
+    ("▥", "Visualizar Dados"),
+    ("♜", "Estações"),
+    ("▧", "Mapa"),
+    ("▤", "Documentação"),
+    ("?", "Sobre o Projeto"),
+    ("⌁", "Contato"),
+]:
+    _active = st.session_state["carbono_nav"] == _label
+    if st.sidebar.button(
+        f"{_icon}   {_label}",
+        key=f"carbon_nav_{_label}",
+        use_container_width=True,
+        type="primary" if _active else "secondary",
+    ):
+        st.session_state["carbono_nav"] = _label
+        st.rerun()
+
+st.sidebar.markdown('<div class="carbon-side-divider"></div>', unsafe_allow_html=True)
+
+LANGUAGE = st.sidebar.selectbox(
+    "Idioma / Language",
+    ["Português", "English"],
+    index=0 if st.session_state.get("language_v29", "Português") == "Português" else 1,
+    key="language_sidebar_v4",
 )
+st.session_state["language_v29"] = LANGUAGE
+PT = LANGUAGE == "Português"
+
+st.sidebar.markdown("""
+<div class="carbon-side-footer">
+  <div class="carbon-footer-leaf">❧</div>
+  <div>Ciência hoje,<br>florestas amanhã.</div>
+</div>
+""", unsafe_allow_html=True)
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
     st.session_state["_ecoflux_parsed_toa5"] = {}
