@@ -979,15 +979,71 @@ def load_processed_xlsx(file_bytes):
 
     return df, units, sheet
 
+
+st.markdown("""
+<style>
+/* ===== CARBONO EM AÇÃO — INTEGRAÇÃO FINAL ===== */
+:root{--ca-side:20vw}
+
+/* Sidebar */
+section[data-testid="stSidebar"]{
+  width:var(--ca-side)!important;min-width:var(--ca-side)!important;max-width:var(--ca-side)!important;
+  background:linear-gradient(180deg,#003b2d 0%,#004735 58%,#00392c 100%)!important;
+}
+section[data-testid="stSidebar"]>div{padding:1rem 1.15rem!important}
+.ca-brand{margin-top:.15rem!important;margin-bottom:.8rem!important}
+.ca-brand-name{font-size:1.15rem!important}
+.ca-brand-sub{font-size:.66rem!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"]{margin-bottom:.7rem!important}
+
+/* Menu readable and compact */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button{
+  font-size:.82rem!important;min-height:34px!important;padding:.3rem .65rem!important
+}
+
+/* Home fills only the area to the right of the functional sidebar */
+.ca-home-fixed{
+  position:fixed!important;left:var(--ca-side)!important;top:0!important;right:0!important;bottom:0!important;
+  width:calc(100vw - var(--ca-side))!important;height:100vh!important;
+  background-size:100% 100%!important;background-position:center!important;background-repeat:no-repeat!important;
+  overflow:hidden!important
+}
+.ca-home-copy{
+  position:absolute;left:3.2%;top:20%;
+  width:72%;z-index:2;text-align:left
+}
+.ca-home-title{
+  color:#003b2d;font-size:clamp(2.5rem,4.2vw,5.2rem);line-height:.98;
+  font-weight:900;letter-spacing:-.045em;text-shadow:0 1px 1px rgba(255,255,255,.18)
+}
+.ca-home-subtitle{
+  color:#425e63;font-size:clamp(1rem,1.55vw,2rem);font-weight:500;
+  margin-top:1rem;white-space:nowrap
+}
+
+/* The scientific EcoFlux workspace remains a normal, readable application. */
+.main .block-container:not(:has(.ca-home-fixed)){
+  max-width:1500px!important;margin:1rem auto 2rem!important;padding:1.35rem 1.6rem 2rem!important;
+  background:#fff!important;border-radius:12px!important;box-shadow:0 10px 34px rgba(0,25,15,.18)!important
+}
+.main .block-container:not(:has(.ca-home-fixed)) .ecoflux-hero{color:#218838!important}
+
+@media(max-width:1100px){
+  :root{--ca-side:300px}
+  .ca-home-copy{left:4%;top:18%;width:88%}
+  .ca-home-subtitle{white-space:normal}
+}
+@media(max-width:700px){
+  :root{--ca-side:0px}
+  section[data-testid="stSidebar"]{width:300px!important;min-width:300px!important;max-width:300px!important}
+  .ca-home-fixed{left:0!important;width:100vw!important}
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ============================================================
 # Uploads — 1 min carregado sob demanda para evitar estouro de memória
 # ============================================================
-
-st.sidebar.subheader(tr("Fontes de dados", "Data sources"))
-st.sidebar.caption(tr(
-    "Modo econômico de memória: o arquivo de 1 min é aberto apenas quando uma análise de 1 min é selecionada.",
-    "Memory-saving mode: the 1-min file is opened only when a 1-min analysis is selected.",
-))
 
 st.sidebar.markdown("""<div class="ca-brand"><div class="ca-brand-icon">❧</div><div><div class="ca-brand-name">CARBONO EM AÇÃO</div><div class="ca-brand-sub">Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</div></div></div>""",unsafe_allow_html=True)
 
@@ -1023,7 +1079,17 @@ if st.session_state["carbono_nav"]=="Início":
     _hp=Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
     if _hp.exists():
         _b64=base64.b64encode(_hp.read_bytes()).decode("ascii")
-        st.markdown(f'<div class="ca-home-fixed" style="background-image:url(data:image/jpeg;base64,{_b64})"></div>',unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="ca-home-fixed" style="background-image:url(data:image/jpeg;base64,{_b64})">
+              <div class="ca-home-copy">
+                <div class="ca-home-title">Bem-vindo ao<br>Carbono em Ação</div>
+                <div class="ca-home-subtitle">Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia</div>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     else: st.error("Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.")
     st.stop()
 
