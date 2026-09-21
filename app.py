@@ -1,4 +1,5 @@
 import csv
+import base64
 import io
 from pathlib import Path
 
@@ -236,6 +237,15 @@ st.markdown(
 )
 
 
+
+# Fundo fotográfico oficial da página inicial.
+# No GitHub, mantenha carbono_em_acao_fundo.jpg na mesma pasta do app.py.
+_CARBONO_BG = Path(__file__).with_name("carbono_em_acao_fundo.jpg")
+if _CARBONO_BG.exists():
+    _CARBONO_BG_B64 = base64.b64encode(_CARBONO_BG.read_bytes()).decode("ascii")
+else:
+    _CARBONO_BG_B64 = ""
+
 # ============================================================
 # CARBONO EM AÇÃO — identidade visual
 # ============================================================
@@ -305,6 +315,155 @@ section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{
  .carbon-grid{grid-template-columns:repeat(2,1fr)}.carbon-tower{right:1%;opacity:.32}}
 </style>
 """,unsafe_allow_html=True)
+
+
+st.markdown(
+    f"""
+    <style>
+    /* CARBONO EM AÇÃO V2 — composição aprovada */
+    [data-testid="stAppViewContainer"] {{
+      background:#fff;
+    }}
+    [data-testid="stAppViewContainer"] > .main {{
+      background:#fff;
+    }}
+    .block-container {{
+      max-width:none !important;
+      padding:0 !important;
+    }}
+
+    section[data-testid="stSidebar"] {{
+      width:360px !important;
+      min-width:360px !important;
+      background:linear-gradient(180deg,#063a2e 0%,#0b3f31 58%,#103c30 100%) !important;
+    }}
+    section[data-testid="stSidebar"] > div {{
+      padding:.9rem 1.15rem 1.2rem !important;
+    }}
+    .carbon-brand {{
+      border-bottom:0 !important;
+      padding:.05rem 0 .55rem !important;
+    }}
+    .carbon-brand b {{font-size:1.25rem !important;}}
+    .carbon-brand small {{font-size:.73rem !important;}}
+
+    .carbon-home {{
+      position:relative;
+      width:100%;
+      min-height:100vh;
+      border-radius:0 !important;
+      box-shadow:none !important;
+      overflow:hidden;
+      padding:0 !important;
+      background-image:
+        linear-gradient(90deg,rgba(245,231,210,.12) 0%,rgba(255,255,255,0) 43%),
+        url("data:image/jpeg;base64,{_CARBONO_BG_B64}") !important;
+      background-size:cover !important;
+      background-position:center center !important;
+      background-repeat:no-repeat !important;
+    }}
+    .carbon-home:before {{display:none !important;}}
+    .carbon-tower {{display:none !important;}}
+
+    .carbon-content {{
+      position:absolute !important;
+      z-index:3;
+      left:4.2%;
+      top:25%;
+      max-width:900px !important;
+    }}
+    .carbon-welcome {{
+      margin:0 !important;
+      font-size:4.25rem !important;
+      line-height:1.02 !important;
+      font-weight:900 !important;
+      letter-spacing:-.045em !important;
+      color:#06392e !important;
+      text-shadow:0 1px 1px rgba(255,255,255,.18);
+    }}
+    .carbon-lead {{
+      margin-top:1.05rem !important;
+      max-width:940px !important;
+      font-size:1.58rem !important;
+      line-height:1.28 !important;
+      font-weight:600 !important;
+      color:#455c61 !important;
+    }}
+    .carbon-slogan {{
+      position:absolute;
+      z-index:3;
+      right:3.2%;
+      top:7.5%;
+      text-align:right;
+      color:#0c2f2a;
+      font-size:1.22rem;
+      line-height:1.22;
+      font-weight:800;
+    }}
+    .carbon-slogan div {{
+      width:48px;height:4px;background:#07864d;margin:1rem 0 0 auto;
+    }}
+    .carbon-grid {{
+      position:absolute !important;
+      z-index:3;
+      left:4.1%;
+      right:4.1%;
+      bottom:16.5%;
+      display:grid !important;
+      grid-template-columns:repeat(4,1fr) !important;
+      gap:1rem !important;
+      margin:0 !important;
+    }}
+    .carbon-card {{
+      min-height:122px !important;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:1rem !important;
+      border-radius:12px !important;
+      border:1px solid rgba(112,230,145,.15) !important;
+      background:linear-gradient(180deg,rgba(3,50,31,.91),rgba(5,58,35,.88)) !important;
+      box-shadow:0 8px 24px rgba(0,28,17,.22) !important;
+      backdrop-filter:blur(2px);
+    }}
+    .carbon-card-icon {{
+      color:#83f49b;
+      font-size:2.5rem;
+      line-height:1;
+      margin-bottom:.55rem;
+      font-weight:800;
+    }}
+    .carbon-card b {{
+      color:#f3fff5 !important;
+      font-size:1.1rem !important;
+      margin:0 !important;
+    }}
+    .carbon-footer-brand {{
+      position:absolute;
+      z-index:3;
+      left:4.1%;
+      bottom:4.2%;
+      color:#fff;
+      border-left:3px solid #3cce65;
+      padding-left:.75rem;
+      text-shadow:0 1px 4px rgba(0,0,0,.5);
+    }}
+    .carbon-footer-brand b {{font-size:1.05rem;letter-spacing:.02em;}}
+    .carbon-footer-brand span {{font-size:.83rem;}}
+
+    @media(max-width:900px) {{
+      section[data-testid="stSidebar"] {{width:300px !important;min-width:300px !important;}}
+      .carbon-welcome {{font-size:2.8rem !important;}}
+      .carbon-lead {{font-size:1.15rem !important;max-width:600px !important;}}
+      .carbon-grid {{grid-template-columns:repeat(2,1fr) !important;bottom:9%;}}
+      .carbon-card {{min-height:92px !important;}}
+      .carbon-footer-brand {{display:none;}}
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ============================================================
 # EcoFlux Brasil — V37
@@ -1228,21 +1387,18 @@ if not tower_file_map and processed is None:
 
     st.markdown("""
     <div class="carbon-home">
-      <div class="carbon-tower"></div>
       <div class="carbon-content">
         <div class="carbon-welcome">Bem-vindo ao<br>Carbono em Ação</div>
-        <div class="carbon-lead">Dados científicos para compreender os fluxos de carbono,
-        energia e água nos ecossistemas.</div>
-        <div class="carbon-quote">Dados da terra para um futuro melhor.</div>
-        <div class="carbon-divider"></div>
+        <div class="carbon-lead">Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia</div>
       </div>
+      <div class="carbon-slogan">Dados da terra<br>para um futuro melhor.<div></div></div>
       <div class="carbon-grid">
-        <div class="carbon-card"><b>🌿 Ecossistemas</b><span>Entenda os fluxos de carbono</span></div>
-        <div class="carbon-card"><b>☀️ Clima</b><span>Monitore variáveis ambientais</span></div>
-        <div class="carbon-card"><b>📊 Dados</b><span>Ciência aberta e confiável</span></div>
-        <div class="carbon-card"><b>👥 Pessoas</b><span>Conhecimento que gera impacto</span></div>
+        <div class="carbon-card"><div class="carbon-card-icon">♟</div><b>Ecossistemas</b></div>
+        <div class="carbon-card"><div class="carbon-card-icon">☁</div><b>Clima</b></div>
+        <div class="carbon-card"><div class="carbon-card-icon">▥</div><b>Dados</b></div>
+        <div class="carbon-card"><div class="carbon-card-icon">♣</div><b>Pessoas</b></div>
       </div>
-      <div class="carbon-footer">CIÊNCIA &nbsp; | &nbsp; CONSERVAÇÃO &nbsp; | &nbsp; FUTURO</div>
+      <div class="carbon-footer-brand"><b>CARBONO EM AÇÃO</b><br><span>Ciência | Conservação | Futuro</span></div>
     </div>
     """, unsafe_allow_html=True)
     st.stop()
