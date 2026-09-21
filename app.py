@@ -238,6 +238,13 @@ st.markdown(
 
 
 
+# Referência visual oficial aprovada
+_CARBONO_REF = Path(__file__).with_name("carbono_em_acao_referencia.png")
+if _CARBONO_REF.exists():
+    _CARBONO_REF_B64 = base64.b64encode(_CARBONO_REF.read_bytes()).decode("ascii")
+else:
+    _CARBONO_REF_B64 = ""
+
 # Fundo fotográfico oficial da página inicial.
 # No GitHub, mantenha carbono_em_acao_fundo_limpo.jpg na mesma pasta do app.py.
 _CARBONO_BG = Path(__file__).with_name("carbono_em_acao_fundo_limpo.jpg")
@@ -1306,6 +1313,98 @@ if not tower_file_map and processed is None:
     </div>
     """, unsafe_allow_html=True)
     st.stop()
+
+
+# ============================================================
+# CARBONO EM AÇÃO V5 — identidade contínua após o carregamento
+# ============================================================
+st.markdown(f"""
+<style>
+/* Área principal nunca volta ao branco puro */
+[data-testid="stAppViewContainer"] {{
+  background:
+    linear-gradient(rgba(5,55,36,.73),rgba(5,55,36,.80)),
+    url("data:image/jpeg;base64,{_CARBONO_BG_B64}") center/cover fixed !important;
+}}
+[data-testid="stAppViewContainer"] > .main {{
+  background:transparent !important;
+}}
+header[data-testid="stHeader"] {{
+  background:rgba(255,255,255,.94) !important;
+}}
+
+/* Páginas científicas: conteúdo legível sobre a identidade verde/floresta */
+.main .block-container {{
+  background:rgba(250,253,249,.95);
+  max-width:calc(100% - 2.2rem) !important;
+  margin:1.1rem auto 2rem !important;
+  padding:1.55rem 1.65rem 2.2rem !important;
+  border-radius:14px;
+  box-shadow:0 16px 45px rgba(0,34,20,.18);
+}}
+.main h1,.main h2,.main h3 {{color:#123e29}}
+.main [data-testid="stDataFrame"],
+.main [data-testid="stTable"] {{
+  background:rgba(255,255,255,.98);
+  border-radius:10px;
+}}
+
+/* HOME: referência aprovada ocupa a área principal, sem painel branco */
+.main .block-container:has(.carbon-home) {{
+  max-width:none !important;
+  width:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+}}
+.carbon-home {{
+  width:100% !important;
+  height:calc(100vh - 3.7rem) !important;
+  min-height:700px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  background:
+    url("data:image/png;base64,{_CARBONO_REF_B64}") center center/cover no-repeat !important;
+}}
+/* A referência já contém toda a composição visual. Evita qualquer duplicação. */
+.carbon-home > * {{display:none !important;}}
+
+/* Sidebar fica acima e com proporções próximas à referência */
+section[data-testid="stSidebar"] {{
+  width:360px !important;
+  min-width:360px !important;
+  background:linear-gradient(180deg,#07392d 0%,#0a4031 62%,#0d392d 100%) !important;
+}}
+section[data-testid="stSidebar"] > div {{
+  padding:.75rem 1rem 1rem !important;
+}}
+.carbon-brand-v4 b {{font-size:1.18rem !important}}
+.carbon-brand-v4 small {{font-size:.68rem !important}}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] {{
+  margin:.18rem 0 .48rem !important;
+}}
+.carbon-upload-help {{margin:.1rem 0 .55rem !important}}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button {{
+  min-height:31px !important;
+  padding:.24rem .65rem !important;
+  font-size:.86rem !important;
+}}
+.carbon-side-divider {{margin:.28rem 0 .48rem !important}}
+.carbon-side-footer {{padding:.55rem .3rem .1rem !important}}
+
+@media(max-width:900px) {{
+  section[data-testid="stSidebar"]{{width:300px!important;min-width:300px!important}}
+  .main .block-container{{max-width:calc(100% - 1rem)!important;margin:.5rem auto!important;padding:1rem!important}}
+  .main .block-container:has(.carbon-home){{max-width:none!important;margin:0!important;padding:0!important}}
+  .carbon-home{{background-position:center top!important;min-height:620px!important}}
+}}
+</style>
+""", unsafe_allow_html=True)
 
 # ============================================================
 # Navegação
