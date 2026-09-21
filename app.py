@@ -1223,13 +1223,11 @@ pages = {
     "request": tr("Solicitar Dados", "Request Data"),
 }
 
-page = st.sidebar.radio(tr("Navegação", "Navigation"), list(pages.values()))
-page_key = next(k for k, v in pages.items() if v == page)
+_inicio_label = tr("Início", "Home")
+_nav_options = [_inicio_label] + list(pages.values())
+page = st.sidebar.radio(tr("Navegação", "Navigation"), _nav_options)
 
-
-# HOME VISUAL — somente apresentação.
-# A navegação científica acima continua sendo a original do EcoFlux.
-if page_key == "overview":
+if page == _inicio_label:
     _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
     if _home_img.exists():
         _home64 = base64.b64encode(_home_img.read_bytes()).decode("ascii")
@@ -1238,24 +1236,17 @@ if page_key == "overview":
             <style>
             header[data-testid="stHeader"]{{background:transparent!important}}
             .main .block-container:has(.carbono-home-only){{
-                position:static!important;
-                margin:0!important;padding:0!important;
+                position:static!important;margin:0!important;padding:0!important;
                 max-width:none!important;width:0!important;height:0!important;
             }}
             .carbono-home-only{{
-                position:fixed;
-                left:21rem;
-                top:0;right:0;bottom:0;
-                width:calc(100vw - 21rem);
-                height:100vh;
+                position:fixed;left:21rem;top:0;right:0;bottom:0;
+                width:calc(100vw - 21rem);height:100vh;
                 background-image:url(data:image/jpeg;base64,{_home64});
-                background-size:100% 100%;
-                background-position:center;
-                background-repeat:no-repeat;
-                background-color:#063b2d;
-                z-index:0;
+                background-size:100% 100%;background-position:center;
+                background-repeat:no-repeat;background-color:#063b2d;z-index:0;
             }}
-            @media(max-width: 1200px){{
+            @media(max-width:1200px){{
                 .carbono-home-only{{left:18rem;width:calc(100vw - 18rem)}}
             }}
             </style>
@@ -1263,9 +1254,16 @@ if page_key == "overview":
             """,
             unsafe_allow_html=True,
         )
-        st.stop()
     else:
-        st.warning("A Home visual precisa do arquivo carbono_em_acao_home_aprovada.jpg na mesma pasta do app.py.")
+        st.warning("Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.")
+    st.stop()
+
+# Daqui para baixo, a lógica científica é exatamente a original:
+# Visão Geral continua sendo Visão Geral, não a imagem de abertura.
+page_key = next(k for k, v in pages.items() if v == page)
+
+
+
 
 # ============================================================
 # Visão Geral
