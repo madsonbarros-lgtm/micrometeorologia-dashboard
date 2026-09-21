@@ -9,7 +9,7 @@ import plotly.express as px
 import streamlit as st
 
 st.set_page_config(
-    page_title="EcoFlux Brasil",
+    page_title="Carbono em Ação",
     page_icon="🌿",
     layout="wide",
 )
@@ -235,6 +235,77 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+# ============================================================
+# CARBONO EM AÇÃO — identidade visual
+# ============================================================
+st.markdown("""
+<style>
+:root{--ca-dark:#123d26;--ca-green:#245f3a;--ca-soft:#e5f3e1;--ca-cream:#f4efe1}
+section[data-testid="stSidebar"]{
+ background:linear-gradient(180deg,#0d321f 0%,#123d26 62%,#194c30 100%)!important;
+ border-right:1px solid rgba(255,255,255,.08)}
+section[data-testid="stSidebar"]>div{padding-top:.85rem}
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3{color:#f5fbf6!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"]{
+ background:#e4f2df;border:1px solid rgba(255,255,255,.18);border-radius:14px;
+ padding:.5rem .6rem;margin-bottom:.45rem}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] *{color:#173c26!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{
+ background:rgba(255,255,255,.76);border:1px dashed rgba(32,92,54,.35);border-radius:10px}
+section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{
+ background:#fff;color:#173c26;border-radius:10px}
+.carbon-brand{display:flex;gap:.65rem;align-items:center;padding:.2rem 0 .8rem;
+ border-bottom:1px solid rgba(255,255,255,.14);margin-bottom:.35rem;color:white}
+.carbon-brand b{display:block;font-size:1.05rem;letter-spacing:.02em}
+.carbon-brand small{display:block;color:#d3e8d8;font-size:.66rem;line-height:1.25;margin-top:.12rem}
+.carbon-logo{width:42px;height:42px;min-width:42px;border-radius:50%;display:flex;
+ align-items:center;justify-content:center;background:#f1efd8;color:#17603a;font-size:1.35rem;font-weight:800}
+.block-container{max-width:1500px;padding-top:1.2rem;padding-bottom:2rem}
+.ecoflux-hero{color:#205b38!important}
+.ecoflux-success{border-radius:14px;background:linear-gradient(90deg,#e4f3df,#f1f8ee)!important}
+.ecoflux-summary-wrap,.ecoflux-action-card{border-radius:14px!important;
+ box-shadow:0 8px 24px rgba(28,70,45,.07)}
+.sidebar-status{background:#e4f3df!important;color:#285f3b!important}
+.sidebar-status *{color:#285f3b!important}
+.carbon-home{position:relative;min-height:735px;overflow:hidden;border-radius:22px;
+ padding:4.7rem 4.3rem 2.5rem;
+ background:
+ linear-gradient(90deg,rgba(245,240,225,.98) 0%,rgba(245,240,225,.91) 34%,rgba(245,240,225,.28) 62%,rgba(14,54,31,.08) 100%),
+ radial-gradient(circle at 78% 27%,rgba(255,194,92,.55),transparent 24%),
+ linear-gradient(155deg,#d7d5bc 0%,#8da17b 38%,#46694b 68%,#203d2c 100%);
+ box-shadow:0 18px 55px rgba(25,60,40,.14)}
+.carbon-home:before{content:"";position:absolute;inset:0;pointer-events:none;
+ background:radial-gradient(ellipse at 72% 80%,rgba(18,70,39,.50) 0 17%,transparent 18%),
+ radial-gradient(ellipse at 91% 76%,rgba(21,76,43,.48) 0 18%,transparent 19%),
+ radial-gradient(ellipse at 55% 84%,rgba(29,86,49,.38) 0 20%,transparent 21%)}
+.carbon-tower{position:absolute;right:12%;top:14%;width:155px;height:400px;opacity:.7;
+ background:linear-gradient(78deg,transparent 47%,#203b2a 48% 51%,transparent 52%),
+ linear-gradient(102deg,transparent 47%,#203b2a 48% 51%,transparent 52%);
+ clip-path:polygon(47% 0,53% 0,72% 100%,28% 100%)}
+.carbon-content{position:relative;z-index:2;max-width:650px}
+.carbon-welcome{font-size:3.55rem;line-height:1.04;font-weight:900;color:#183d29;
+ letter-spacing:-.045em;margin-bottom:.8rem}
+.carbon-lead{font-size:1.34rem;line-height:1.55;color:#294e39;max-width:620px}
+.carbon-quote{margin-top:2.1rem;font-size:1.18rem;color:#315d43;font-style:italic}
+.carbon-divider{width:360px;height:1px;background:rgba(36,92,57,.25);margin:2.3rem 0 1.2rem}
+.carbon-grid{position:relative;z-index:2;display:grid;grid-template-columns:repeat(4,1fr);
+ gap:.85rem;margin-top:3.1rem}
+.carbon-card{background:rgba(232,245,227,.92);border:1px solid rgba(48,105,67,.13);
+ border-radius:14px;padding:1rem;min-height:92px;box-shadow:0 8px 22px rgba(23,62,39,.08)}
+.carbon-card b{display:block;color:#285b3b;font-size:1.02rem;margin-bottom:.2rem}
+.carbon-card span{color:#587363;font-size:.84rem}
+.carbon-footer{position:relative;z-index:2;text-align:center;margin-top:1.5rem;
+ color:#42664f;font-size:.82rem;letter-spacing:.08em}
+@media(max-width:900px){.carbon-home{padding:3rem 1.4rem}.carbon-welcome{font-size:2.55rem}
+ .carbon-grid{grid-template-columns:repeat(2,1fr)}.carbon-tower{right:1%;opacity:.32}}
+</style>
+""",unsafe_allow_html=True)
+
 # ============================================================
 # EcoFlux Brasil — V37
 # Arquitetura:
@@ -246,7 +317,11 @@ st.markdown(
 # -----------------------------
 # Idioma
 # -----------------------------
-st.sidebar.title("EcoFlux Brasil")
+st.sidebar.markdown("""
+<div class="carbon-brand">
+  <div class="carbon-logo">♻</div>
+  <div><b>CARBONO EM AÇÃO</b><small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div>
+</div>""", unsafe_allow_html=True)
 
 LANGUAGE = st.sidebar.selectbox(
     "Idioma / Language",
@@ -1011,6 +1086,12 @@ processed_file = st.sidebar.file_uploader(
     type=["xlsx"],
     key="processed_xlsx_v34",
 )
+st.sidebar.markdown(
+    '<div style="background:#e5f3e1;color:#285f3b;padding:.65rem .75rem;border-radius:12px;'
+    'font-size:.78rem;margin:.35rem 0 .7rem">🌿 <b>Carregue os arquivos para começar</b><br>'
+    'Dados originais CR3000 e produtos processados.</div>',
+    unsafe_allow_html=True,
+)
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
     st.session_state["_ecoflux_parsed_toa5"] = {}
@@ -1137,23 +1218,33 @@ if processed_file is not None:
         ))
 
 if not tower_file_map and processed is None:
-    st.title("EcoFlux Brasil")
     if tower_files:
-        st.error(
-            tr(
-                "Os arquivos foram enviados, mas nenhuma resolução temporal pôde ser reconhecida. "
-                "Verifique se são arquivos Campbell TOA5 com uma coluna TIMESTAMP válida.",
-                "Files were uploaded, but no temporal resolution could be recognized. "
-                "Check that they are Campbell TOA5 files with a valid TIMESTAMP column.",
-            )
-        )
-    else:
-        st.info(
-            tr(
-                "Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.",
-                "Upload the CR3000 tower files and, optionally, the processed-products workbook.",
-            )
-        )
+        st.error(tr(
+            "Os arquivos foram enviados, mas nenhuma resolução temporal pôde ser reconhecida. "
+            "Verifique se são arquivos Campbell TOA5 com uma coluna TIMESTAMP válida.",
+            "Files were uploaded, but no temporal resolution could be recognized. "
+            "Check that they are Campbell TOA5 files with a valid TIMESTAMP column.",
+        ))
+
+    st.markdown("""
+    <div class="carbon-home">
+      <div class="carbon-tower"></div>
+      <div class="carbon-content">
+        <div class="carbon-welcome">Bem-vindo ao<br>Carbono em Ação</div>
+        <div class="carbon-lead">Dados científicos para compreender os fluxos de carbono,
+        energia e água nos ecossistemas.</div>
+        <div class="carbon-quote">Dados da terra para um futuro melhor.</div>
+        <div class="carbon-divider"></div>
+      </div>
+      <div class="carbon-grid">
+        <div class="carbon-card"><b>🌿 Ecossistemas</b><span>Entenda os fluxos de carbono</span></div>
+        <div class="carbon-card"><b>☀️ Clima</b><span>Monitore variáveis ambientais</span></div>
+        <div class="carbon-card"><b>📊 Dados</b><span>Ciência aberta e confiável</span></div>
+        <div class="carbon-card"><b>👥 Pessoas</b><span>Conhecimento que gera impacto</span></div>
+      </div>
+      <div class="carbon-footer">CIÊNCIA &nbsp; | &nbsp; CONSERVAÇÃO &nbsp; | &nbsp; FUTURO</div>
+    </div>
+    """, unsafe_allow_html=True)
     st.stop()
 
 # ============================================================
@@ -1180,7 +1271,7 @@ page_key = next(k for k, v in pages.items() if v == page)
 # ============================================================
 
 if page_key == "overview":
-    st.markdown('<div class="ecoflux-hero">EcoFlux Brasil</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ecoflux-hero">CARBONO EM AÇÃO</div>', unsafe_allow_html=True)
 
     recognized_count = len(tower_summaries)
     if recognized_count:
