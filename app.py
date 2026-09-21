@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide",
 )
 
-_HERO_PATH = Path(__file__).with_name("carbono_em_acao_inicio_final.png")
+_HERO_PATH = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
 _HERO_B64 = base64.b64encode(_HERO_PATH.read_bytes()).decode("ascii") if _HERO_PATH.exists() else ""
 
 
@@ -1196,6 +1196,102 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
+st.markdown("""
+<style>
+/* ===== HOME FINAL: ocupa 100% da área à direita da sidebar ===== */
+:root { --ca-sidebar: 348px; }
+
+html, body, .stApp, [data-testid="stAppViewContainer"] {
+    margin:0 !important;
+    padding:0 !important;
+    background:#063b2d !important;
+}
+header[data-testid="stHeader"] {
+    background:transparent !important;
+    height:0 !important;
+    min-height:0 !important;
+}
+[data-testid="stToolbar"] { z-index:1002 !important; }
+
+section[data-testid="stSidebar"] {
+    width:var(--ca-sidebar) !important;
+    min-width:var(--ca-sidebar) !important;
+    height:100vh !important;
+    z-index:1001 !important;
+    background:linear-gradient(180deg,#003d2e 0%,#004735 55%,#00392c 100%) !important;
+}
+
+/* Remove qualquer painel, moldura ou limite do Streamlit na HOME. */
+.main .block-container:has(.ca-home-fixed) {
+    margin:0 !important;
+    padding:0 !important;
+    max-width:none !important;
+    width:0 !important;
+    height:0 !important;
+    min-height:0 !important;
+    background:transparent !important;
+    border:0 !important;
+    box-shadow:none !important;
+}
+
+/* O fundo fica preso exatamente entre a sidebar e as bordas da janela. */
+.ca-home-fixed {
+    position:fixed !important;
+    left:var(--ca-sidebar) !important;
+    top:0 !important;
+    right:0 !important;
+    bottom:0 !important;
+    width:auto !important;
+    height:auto !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    background-repeat:no-repeat !important;
+    background-position:center center !important;
+    background-size:cover !important;
+    z-index:0 !important;
+}
+
+/* Sidebar aprovada: todos os controles permanecem verdes. */
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
+    background:#07553e !important;
+    border:1px solid rgba(75,235,139,.24) !important;
+}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+    background:#086047 !important;
+    border:1px solid rgba(92,241,151,.18) !important;
+}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] label,
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] p,
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] span {
+    color:#f5fff8 !important;
+}
+section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] > div {
+    background:#075d43 !important;
+    border:1px solid #0c9b61 !important;
+    color:white !important;
+}
+section[data-testid="stSidebar"] .stSelectbox span,
+section[data-testid="stSidebar"] .stSelectbox svg {
+    color:white !important;
+    fill:white !important;
+}
+
+/* Mobile/tablet: sidebar overlay do próprio Streamlit; fundo usa toda a janela. */
+@media (max-width: 900px) {
+    :root { --ca-sidebar: 0px; }
+    section[data-testid="stSidebar"] {
+        width:300px !important;
+        min-width:300px !important;
+    }
+    .ca-home-fixed { left:0 !important; }
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ============================================================
 # Uploads — 1 min carregado sob demanda para evitar estouro de memória
 # ============================================================
@@ -1390,12 +1486,11 @@ if processed_file is not None:
 if st.session_state.get("carbono_nav", "Início") == "Início":
     if _HERO_B64:
         st.markdown(
-            f'<div class="ca-home-wrap"><img class="ca-home-img" src="data:image/png;base64,{_HERO_B64}" '
-            'alt="Carbono em Ação"></div>',
+            f'<div class="ca-home-fixed" style="background-image:url(data:image/jpeg;base64,{_HERO_B64})"></div>',
             unsafe_allow_html=True,
         )
     else:
-        st.error("Arquivo carbono_em_acao_inicio.png não encontrado no repositório.")
+        st.error("Arquivo carbono_em_acao_home_aprovada.jpg não encontrado no repositório.")
     st.stop()
 
 if not tower_file_map and processed is None:
