@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide",
 )
 
-_HERO_PATH = Path(__file__).with_name("carbono_em_acao_inicio.png")
+_HERO_PATH = Path(__file__).with_name("carbono_em_acao_inicio_final.png")
 _HERO_B64 = base64.b64encode(_HERO_PATH.read_bytes()).decode("ascii") if _HERO_PATH.exists() else ""
 
 
@@ -1011,6 +1011,187 @@ section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{
  section[data-testid="stSidebar"]{width:300px!important;min-width:300px!important}
  .main .block-container{max-width:calc(100% - .8rem)!important;margin:.4rem auto!important;padding:.8rem!important}
  .ca-home-wrap{margin:-.8rem!important}.ca-home-img{min-height:520px}
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+st.markdown("""
+<style>
+/* ===== CARBONO EM AÇÃO — interface aprovada ===== */
+html, body, [data-testid="stAppViewContainer"] {
+    background:#063b2d !important;
+}
+header[data-testid="stHeader"] {
+    background:transparent !important;
+    height:2.2rem !important;
+}
+[data-testid="stAppViewContainer"] > .main {
+    background:#063b2d !important;
+}
+.main .block-container {
+    max-width:none !important;
+}
+
+/* SIDEBAR */
+section[data-testid="stSidebar"] {
+    width:348px !important;
+    min-width:348px !important;
+    background:linear-gradient(180deg,#003d2e 0%,#004735 55%,#00392c 100%) !important;
+    border-right:1px solid rgba(83,239,143,.16) !important;
+}
+section[data-testid="stSidebar"] > div {
+    padding:.8rem 1.25rem 1rem !important;
+}
+.ca-brand {margin-bottom:.8rem !important}
+.ca-brand-name {font-size:1.25rem !important}
+.ca-brand-sub {font-size:.70rem !important}
+.ca-leaf,.ca-footer-leaf {color:#50ef8a !important}
+
+/* Upload cards: GREEN, never white */
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
+    background:linear-gradient(180deg,#075b42 0%,#075039 100%) !important;
+    border:1px solid rgba(71,232,137,.25) !important;
+    border-radius:11px !important;
+    padding:.5rem .6rem .65rem !important;
+    box-shadow:none !important;
+}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] label,
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] p,
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] small,
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] span {
+    color:#f3fff7 !important;
+}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+    background:#096247 !important;
+    border:1px solid rgba(93,240,151,.20) !important;
+    border-radius:8px !important;
+}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {
+    background:#0a7652 !important;
+    color:white !important;
+    border:1px solid rgba(116,255,169,.28) !important;
+}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button:hover {
+    background:#0b875d !important;
+}
+
+/* info card */
+.ca-help {
+    background:#07533d !important;
+    border:1px solid rgba(78,226,137,.18) !important;
+}
+.ca-help * {color:#f2fff6 !important}
+
+/* nav */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"] {
+    color:#fff !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
+    background:linear-gradient(90deg,#079552,#0ca55c) !important;
+}
+
+/* Language selector: GREEN */
+section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] > div {
+    background:#075d43 !important;
+    border:1px solid #0c9b61 !important;
+    color:#f4fff7 !important;
+}
+section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] span,
+section[data-testid="stSidebar"] .stSelectbox svg {
+    color:#f4fff7 !important;
+    fill:#f4fff7 !important;
+}
+
+/* HOME: no black frame, no white margins */
+.main .block-container:has(.ca-home-wrap) {
+    padding:0 !important;
+    margin:0 !important;
+    width:100% !important;
+    max-width:none !important;
+    background:transparent !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+}
+.ca-home-wrap {
+    margin:0 !important;
+    padding:0 !important;
+    width:100% !important;
+    height:calc(100vh - 2.2rem) !important;
+    min-height:680px !important;
+    overflow:hidden !important;
+    background:#063b2d !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+}
+.ca-home-img {
+    display:block !important;
+    width:100% !important;
+    height:100% !important;
+    object-fit:cover !important;
+    object-position:center center !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    outline:0 !important;
+}
+
+/* Scientific pages retain readable light workspace */
+.main .block-container:not(:has(.ca-home-wrap)) {
+    max-width:calc(100% - 2rem) !important;
+    margin:1rem auto 2rem !important;
+    padding:1.45rem 1.6rem 2rem !important;
+    background:rgba(250,253,249,.97) !important;
+    border-radius:14px !important;
+    box-shadow:0 15px 42px rgba(0,25,15,.22) !important;
+}
+
+@media (max-width:900px) {
+    section[data-testid="stSidebar"] {
+        width:300px !important;
+        min-width:300px !important;
+    }
+    .ca-home-wrap {min-height:600px !important}
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+st.markdown("""
+<style>
+/* Ajuste final da HOME aprovada */
+.main .block-container:has(.ca-home-wrap){
+    padding:0!important;
+    margin:0!important;
+    max-width:none!important;
+    width:100%!important;
+    height:100vh!important;
+    background:#063b2d!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+}
+.ca-home-wrap{
+    width:100%!important;
+    height:100vh!important;
+    min-height:100vh!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:hidden!important;
+    background:#063b2d!important;
+    border:0!important;
+}
+.ca-home-img{
+    display:block!important;
+    width:100%!important;
+    height:100%!important;
+    object-fit:cover!important;
+    object-position:center center!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
 }
 </style>
 """, unsafe_allow_html=True)
