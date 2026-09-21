@@ -1,5 +1,4 @@
 import csv
-import base64
 import io
 from pathlib import Path
 
@@ -14,10 +13,6 @@ st.set_page_config(
     page_icon="🌿",
     layout="wide",
 )
-
-_HERO_PATH = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
-_HERO_B64 = base64.b64encode(_HERO_PATH.read_bytes()).decode("ascii") if _HERO_PATH.exists() else ""
-
 
 st.markdown(
     """
@@ -251,15 +246,43 @@ st.markdown(
 # -----------------------------
 # Idioma
 # -----------------------------
-LANGUAGE = st.session_state.get("carbono_language", "Português")
+st.sidebar.title("EcoFlux Brasil")
+
+LANGUAGE = st.sidebar.selectbox(
+    "Idioma / Language",
+    ["Português", "English"],
+    index=0,
+    key="language_v29",
+)
 PT = LANGUAGE == "Português"
 
 def tr(pt, en):
     return pt if PT else en
 
-# Tabelas científicas usam os controles próprios por padrão.
-TABLE_MODE = tr("Controles próprios", "Custom controls")
-CUSTOM_TABLES = True
+st.sidebar.caption(
+    tr(
+        "Interface bilíngue. Nomes de variáveis e unidades da fonte são preservados.",
+        "Bilingual interface. Source variable names and units are preserved.",
+    )
+)
+
+# -----------------------------
+# Tabelas sem menu nativo em inglês
+# -----------------------------
+TABLE_MODE = st.sidebar.radio(
+    tr("Tabelas", "Tables"),
+    [
+        tr("Controles próprios", "Custom controls"),
+        tr("Nativa do Streamlit", "Native Streamlit"),
+    ],
+    index=0,
+    key="table_mode_v29",
+    help=tr(
+        "Controles próprios evitam o menu interno do Streamlit em inglês.",
+        "Custom controls avoid Streamlit's native context menu.",
+    ),
+)
+CUSTOM_TABLES = TABLE_MODE == tr("Controles próprios", "Custom controls")
 
 _TABLE_COUNTER = 0
 
@@ -960,427 +983,52 @@ def load_processed_xlsx(file_bytes):
 
     return df, units, sheet
 
+
 st.markdown("""
 <style>
-/* CARBONO EM AÇÃO — interface final */
-[data-testid="stAppViewContainer"]{
- background:linear-gradient(180deg,#174a35 0%,#0b3e2d 100%)!important;
-}
-[data-testid="stAppViewContainer"]>.main{background:transparent!important}
-header[data-testid="stHeader"]{background:rgba(255,255,255,.96)!important}
 section[data-testid="stSidebar"]{
- width:360px!important;min-width:360px!important;
- background:linear-gradient(180deg,#07392d 0%,#0a4031 65%,#0d392d 100%)!important;
- border-right:0!important}
-section[data-testid="stSidebar"]>div{padding:.8rem 1.05rem 1rem!important}
-.ca-brand{display:flex;align-items:center;gap:.72rem;margin:0 0 .65rem;color:#fff}
-.ca-leaf{font-size:2.7rem;color:#5be17d;line-height:1;transform:rotate(-18deg)}
-.ca-brand-name{font-size:1.22rem;font-weight:900;letter-spacing:.02em}
-.ca-brand-sub{font-size:.69rem;line-height:1.25;color:#e2eee5;margin-top:.12rem}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"]{
- background:linear-gradient(135deg,#e8f7e2,#d8efd5)!important;border:0!important;border-radius:10px!important;
- padding:.45rem .55rem!important;margin:.2rem 0 .55rem!important}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] *{color:#173b27!important}
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{
- background:#fff!important;border:0!important;border-radius:8px!important;min-height:58px!important}
-.ca-help{display:flex;gap:.55rem;align-items:flex-start;background:#e4f3df;border-radius:9px;
- padding:.68rem .75rem;margin:.08rem 0 .6rem;font-size:.77rem;line-height:1.3}
-.ca-help *{color:#173d29!important}.ca-rule{height:1px;background:rgba(255,255,255,.16);margin:.3rem 0 .55rem}
-section[data-testid="stSidebar"] div[data-testid="stButton"]{margin:0!important}
-section[data-testid="stSidebar"] div[data-testid="stButton"] button{
- justify-content:flex-start!important;border:0!important;box-shadow:none!important;min-height:34px!important;
- padding:.28rem .68rem!important;border-radius:7px!important;font-size:.89rem!important}
-section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"]{
- background:transparent!important;color:#fff!important}
-section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]{
- background:linear-gradient(90deg,#11834a,#239d58)!important;color:#fff!important;font-weight:700!important}
-section[data-testid="stSidebar"] .stSelectbox label{color:#fff!important;font-size:.8rem!important}
-section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{
- background:#fff!important;color:#173d29!important;border-radius:7px!important}
-.ca-footer{display:flex;align-items:center;gap:.7rem;padding:.65rem .3rem .1rem;font-size:.98rem;line-height:1.2}
-.ca-footer *{color:#8df1a4!important}.ca-footer-leaf{font-size:2.3rem;transform:rotate(-18deg)}
-/* scientific pages: green shell + readable content panel */
-.main .block-container{
- max-width:calc(100% - 2rem)!important;margin:1rem auto 2rem!important;padding:1.45rem 1.6rem 2rem!important;
- background:rgba(250,253,249,.97)!important;border-radius:14px!important;
- box-shadow:0 15px 42px rgba(0,25,15,.22)!important}
-.main h1,.main h2,.main h3{color:#123e29}
-.ca-home-wrap{margin:-1.45rem -1.6rem -2rem!important;border-radius:14px!important;overflow:hidden!important}
-.ca-home-img{display:block;width:100%;height:auto;min-height:650px;object-fit:cover;object-position:center}
-@media(max-width:900px){
- section[data-testid="stSidebar"]{width:300px!important;min-width:300px!important}
- .main .block-container{max-width:calc(100% - .8rem)!important;margin:.4rem auto!important;padding:.8rem!important}
- .ca-home-wrap{margin:-.8rem!important}.ca-home-img{min-height:520px}
+    background:linear-gradient(180deg,#063d2e,#0a4935)!important;
+}
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3{
+    color:#f5fff8!important;
+}
+.ca-restored-brand{
+    padding:.35rem 0 .8rem;
+    color:white;
+}
+.ca-restored-brand b{
+    font-size:1.25rem;
+    letter-spacing:.02em;
+}
+.ca-restored-brand small{
+    display:block;
+    margin-top:.18rem;
+    color:#d9eee2;
+    line-height:1.25;
 }
 </style>
 """, unsafe_allow_html=True)
 
-
-st.markdown("""
-<style>
-/* ===== CARBONO EM AÇÃO — interface aprovada ===== */
-html, body, [data-testid="stAppViewContainer"] {
-    background:#063b2d !important;
-}
-header[data-testid="stHeader"] {
-    background:transparent !important;
-    height:2.2rem !important;
-}
-[data-testid="stAppViewContainer"] > .main {
-    background:#063b2d !important;
-}
-.main .block-container {
-    max-width:none !important;
-}
-
-/* SIDEBAR */
-section[data-testid="stSidebar"] {
-    width:348px !important;
-    min-width:348px !important;
-    background:linear-gradient(180deg,#003d2e 0%,#004735 55%,#00392c 100%) !important;
-    border-right:1px solid rgba(83,239,143,.16) !important;
-}
-section[data-testid="stSidebar"] > div {
-    padding:.8rem 1.25rem 1rem !important;
-}
-.ca-brand {margin-bottom:.8rem !important}
-.ca-brand-name {font-size:1.25rem !important}
-.ca-brand-sub {font-size:.70rem !important}
-.ca-leaf,.ca-footer-leaf {color:#50ef8a !important}
-
-/* Upload cards: GREEN, never white */
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
-    background:linear-gradient(180deg,#075b42 0%,#075039 100%) !important;
-    border:1px solid rgba(71,232,137,.25) !important;
-    border-radius:11px !important;
-    padding:.5rem .6rem .65rem !important;
-    box-shadow:none !important;
-}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] label,
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] p,
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] small,
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] span {
-    color:#f3fff7 !important;
-}
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
-    background:#096247 !important;
-    border:1px solid rgba(93,240,151,.20) !important;
-    border-radius:8px !important;
-}
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {
-    background:#0a7652 !important;
-    color:white !important;
-    border:1px solid rgba(116,255,169,.28) !important;
-}
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button:hover {
-    background:#0b875d !important;
-}
-
-/* info card */
-.ca-help {
-    background:#07533d !important;
-    border:1px solid rgba(78,226,137,.18) !important;
-}
-.ca-help * {color:#f2fff6 !important}
-
-/* nav */
-section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"] {
-    color:#fff !important;
-}
-section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
-    background:linear-gradient(90deg,#079552,#0ca55c) !important;
-}
-
-/* Language selector: GREEN */
-section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] > div {
-    background:#075d43 !important;
-    border:1px solid #0c9b61 !important;
-    color:#f4fff7 !important;
-}
-section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] span,
-section[data-testid="stSidebar"] .stSelectbox svg {
-    color:#f4fff7 !important;
-    fill:#f4fff7 !important;
-}
-
-/* HOME: no black frame, no white margins */
-.main .block-container:has(.ca-home-wrap) {
-    padding:0 !important;
-    margin:0 !important;
-    width:100% !important;
-    max-width:none !important;
-    background:transparent !important;
-    border-radius:0 !important;
-    box-shadow:none !important;
-}
-.ca-home-wrap {
-    margin:0 !important;
-    padding:0 !important;
-    width:100% !important;
-    height:calc(100vh - 2.2rem) !important;
-    min-height:680px !important;
-    overflow:hidden !important;
-    background:#063b2d !important;
-    border:0 !important;
-    border-radius:0 !important;
-    box-shadow:none !important;
-}
-.ca-home-img {
-    display:block !important;
-    width:100% !important;
-    height:100% !important;
-    object-fit:cover !important;
-    object-position:center center !important;
-    margin:0 !important;
-    padding:0 !important;
-    border:0 !important;
-    outline:0 !important;
-}
-
-/* Scientific pages retain readable light workspace */
-.main .block-container:not(:has(.ca-home-wrap)) {
-    max-width:calc(100% - 2rem) !important;
-    margin:1rem auto 2rem !important;
-    padding:1.45rem 1.6rem 2rem !important;
-    background:rgba(250,253,249,.97) !important;
-    border-radius:14px !important;
-    box-shadow:0 15px 42px rgba(0,25,15,.22) !important;
-}
-
-@media (max-width:900px) {
-    section[data-testid="stSidebar"] {
-        width:300px !important;
-        min-width:300px !important;
-    }
-    .ca-home-wrap {min-height:600px !important}
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-st.markdown("""
-<style>
-/* Ajuste final da HOME aprovada */
-.main .block-container:has(.ca-home-wrap){
-    padding:0!important;
-    margin:0!important;
-    max-width:none!important;
-    width:100%!important;
-    height:100vh!important;
-    background:#063b2d!important;
-    border-radius:0!important;
-    box-shadow:none!important;
-}
-.ca-home-wrap{
-    width:100%!important;
-    height:100vh!important;
-    min-height:100vh!important;
-    margin:0!important;
-    padding:0!important;
-    overflow:hidden!important;
-    background:#063b2d!important;
-    border:0!important;
-}
-.ca-home-img{
-    display:block!important;
-    width:100%!important;
-    height:100%!important;
-    object-fit:cover!important;
-    object-position:center center!important;
-    margin:0!important;
-    padding:0!important;
-    border:0!important;
-    border-radius:0!important;
-    box-shadow:none!important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-st.markdown("""
-<style>
-/* ===== HOME FINAL: ocupa 100% da área à direita da sidebar ===== */
-:root { --ca-sidebar: 348px; }
-
-html, body, .stApp, [data-testid="stAppViewContainer"] {
-    margin:0 !important;
-    padding:0 !important;
-    background:#063b2d !important;
-}
-header[data-testid="stHeader"] {
-    background:transparent !important;
-    height:0 !important;
-    min-height:0 !important;
-}
-[data-testid="stToolbar"] { z-index:1002 !important; }
-
-section[data-testid="stSidebar"] {
-    width:var(--ca-sidebar) !important;
-    min-width:var(--ca-sidebar) !important;
-    height:100vh !important;
-    z-index:1001 !important;
-    background:linear-gradient(180deg,#003d2e 0%,#004735 55%,#00392c 100%) !important;
-}
-
-/* Remove qualquer painel, moldura ou limite do Streamlit na HOME. */
-.main .block-container:has(.ca-home-fixed) {
-    margin:0 !important;
-    padding:0 !important;
-    max-width:none !important;
-    width:0 !important;
-    height:0 !important;
-    min-height:0 !important;
-    background:transparent !important;
-    border:0 !important;
-    box-shadow:none !important;
-}
-
-/* O fundo fica preso exatamente entre a sidebar e as bordas da janela. */
-.ca-home-fixed {
-    position:fixed !important;
-    left:var(--ca-sidebar) !important;
-    top:0 !important;
-    right:0 !important;
-    bottom:0 !important;
-    width:auto !important;
-    height:auto !important;
-    margin:0 !important;
-    padding:0 !important;
-    border:0 !important;
-    border-radius:0 !important;
-    box-shadow:none !important;
-    background-repeat:no-repeat !important;
-    background-position:center center !important;
-    background-size:cover !important;
-    z-index:0 !important;
-}
-
-/* Sidebar aprovada: todos os controles permanecem verdes. */
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
-    background:#07553e !important;
-    border:1px solid rgba(75,235,139,.24) !important;
-}
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
-    background:#086047 !important;
-    border:1px solid rgba(92,241,151,.18) !important;
-}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] label,
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] p,
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] span {
-    color:#f5fff8 !important;
-}
-section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"] > div {
-    background:#075d43 !important;
-    border:1px solid #0c9b61 !important;
-    color:white !important;
-}
-section[data-testid="stSidebar"] .stSelectbox span,
-section[data-testid="stSidebar"] .stSelectbox svg {
-    color:white !important;
-    fill:white !important;
-}
-
-/* Mobile/tablet: sidebar overlay do próprio Streamlit; fundo usa toda a janela. */
-@media (max-width: 900px) {
-    :root { --ca-sidebar: 0px; }
-    section[data-testid="stSidebar"] {
-        width:300px !important;
-        min-width:300px !important;
-    }
-    .ca-home-fixed { left:0 !important; }
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-st.markdown("""
-<style>
-/* ===== CORREÇÃO DEFINITIVA DE ESCALA DA INTERFACE ===== */
-/* Sidebar proporcional à tela, como na referência aprovada. */
-:root { --ca-sidebar-final: 20vw; }
-
-section[data-testid="stSidebar"] {
-    width:var(--ca-sidebar-final) !important;
-    min-width:var(--ca-sidebar-final) !important;
-    max-width:var(--ca-sidebar-final) !important;
-    height:100vh !important;
-    background:linear-gradient(180deg,#003d2e 0%,#004735 55%,#00392c 100%) !important;
-    z-index:1001 !important;
-}
-section[data-testid="stSidebar"] > div {
-    padding:.9rem 1.35rem 1rem !important;
-}
-
-/* A HOME usa exatamente toda a área restante da janela. */
-.main .block-container:has(.ca-home-fixed) {
-    position:static !important;
-    margin:0 !important;
-    padding:0 !important;
-    width:0 !important;
-    height:0 !important;
-    max-width:none !important;
-    min-height:0 !important;
-    background:transparent !important;
-    box-shadow:none !important;
-}
-.ca-home-fixed {
-    position:fixed !important;
-    left:var(--ca-sidebar-final) !important;
-    top:0 !important;
-    right:0 !important;
-    bottom:0 !important;
-    width:calc(100vw - var(--ca-sidebar-final)) !important;
-    height:100vh !important;
-    margin:0 !important;
-    padding:0 !important;
-    border:0 !important;
-    border-radius:0 !important;
-    box-shadow:none !important;
-
-    /* IMPORTANTE: mostra a composição INTEIRA.
-       cover estava cortando os cards, marca e slogan. */
-    background-size:100% 100% !important;
-    background-position:center center !important;
-    background-repeat:no-repeat !important;
-    background-color:#063b2d !important;
-}
-
-header[data-testid="stHeader"] {
-    height:0 !important;
-    min-height:0 !important;
-    background:transparent !important;
-}
-
-/* Mantém proporções utilizáveis em telas menores. */
-@media (max-width:1100px) {
-    :root { --ca-sidebar-final: 300px; }
-}
-@media (max-width:700px) {
-    :root { --ca-sidebar-final: 0px; }
-    section[data-testid="stSidebar"] {
-        width:300px !important;
-        min-width:300px !important;
-        max-width:300px !important;
-    }
-    .ca-home-fixed {
-        left:0 !important;
-        width:100vw !important;
-    }
-}
-</style>
+st.sidebar.markdown("""
+<div class="ca-restored-brand">
+  <b>🌿 CARBONO EM AÇÃO</b>
+  <small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small>
+</div>
 """, unsafe_allow_html=True)
 
 # ============================================================
 # Uploads — 1 min carregado sob demanda para evitar estouro de memória
 # ============================================================
 
-st.sidebar.markdown("""
-<div class="ca-brand">
-  <div class="ca-leaf">❧</div>
-  <div><div class="ca-brand-name">CARBONO EM AÇÃO</div>
-  <div class="ca-brand-sub">Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</div></div>
-</div>
-""", unsafe_allow_html=True)
+st.sidebar.subheader(tr("Fontes de dados", "Data sources"))
+st.sidebar.caption(tr(
+    "Modo econômico de memória: o arquivo de 1 min é aberto apenas quando uma análise de 1 min é selecionada.",
+    "Memory-saving mode: the 1-min file is opened only when a 1-min analysis is selected.",
+))
 
 tower_files = st.sidebar.file_uploader(
     tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
@@ -1400,42 +1048,6 @@ processed_file = st.sidebar.file_uploader(
     type=["xlsx"],
     key="processed_xlsx_v34",
 )
-
-st.sidebar.markdown("""
-<div class="ca-help"><b>ⓘ</b><span>Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.</span></div>
-<div class="ca-rule"></div>
-""", unsafe_allow_html=True)
-
-if "carbono_nav" not in st.session_state:
-    st.session_state["carbono_nav"] = "Início"
-
-for _ico, _label in [
-    ("⌂","Início"), ("▥","Visualizar Dados"), ("♜","Estações"),
-    ("▧","Mapa"), ("▤","Documentação"), ("?","Sobre o Projeto"), ("⌁","Contato")
-]:
-    if st.sidebar.button(
-        f"{_ico}   {_label}",
-        key=f"ca_nav_{_label}",
-        use_container_width=True,
-        type="primary" if st.session_state["carbono_nav"] == _label else "secondary",
-    ):
-        st.session_state["carbono_nav"] = _label
-        st.rerun()
-
-st.sidebar.markdown('<div class="ca-rule"></div>', unsafe_allow_html=True)
-_new_lang = st.sidebar.selectbox(
-    "Idioma / Language", ["Português","English"],
-    index=0 if st.session_state.get("carbono_language","Português")=="Português" else 1,
-    key="carbono_language_widget"
-)
-if _new_lang != st.session_state.get("carbono_language","Português"):
-    st.session_state["carbono_language"] = _new_lang
-    st.rerun()
-
-st.sidebar.markdown("""
-<div class="ca-footer"><span class="ca-footer-leaf">❧</span><span>Ciência hoje,<br>florestas amanhã.</span></div>
-""", unsafe_allow_html=True)
-
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
     st.session_state["_ecoflux_parsed_toa5"] = {}
@@ -1561,22 +1173,31 @@ if processed_file is not None:
             f"Processed XLSX error: {exc}",
         ))
 
-if st.session_state.get("carbono_nav", "Início") == "Início":
-    if _HERO_B64:
-        st.markdown(
-            f'<div class="ca-home-fixed" style="background-image:url(data:image/jpeg;base64,{_HERO_B64})"></div>',
-            unsafe_allow_html=True,
+if not tower_file_map and processed is None:
+    st.title("CARBONO EM AÇÃO")
+    if tower_files:
+        st.error(
+            tr(
+                "Os arquivos foram enviados, mas nenhuma resolução temporal pôde ser reconhecida. "
+                "Verifique se são arquivos Campbell TOA5 com uma coluna TIMESTAMP válida.",
+                "Files were uploaded, but no temporal resolution could be recognized. "
+                "Check that they are Campbell TOA5 files with a valid TIMESTAMP column.",
+            )
         )
     else:
-        st.error("Arquivo carbono_em_acao_home_aprovada.jpg não encontrado no repositório.")
+        st.info(
+            tr(
+                "Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.",
+                "Upload the CR3000 tower files and, optionally, the processed-products workbook.",
+            )
+        )
     st.stop()
 
-if not tower_file_map and processed is None:
-    st.info(tr(
-        "Carregue os arquivos CR3000 na barra lateral para acessar as análises.",
-        "Upload the CR3000 files in the sidebar to access the analyses."
-    ))
-    st.stop()
+st.sidebar.markdown(
+    "<div style='margin:.55rem 0 .2rem;color:#b9e7c8;font-size:.78rem'>"
+    "Análises científicas</div>",
+    unsafe_allow_html=True,
+)
 
 # ============================================================
 # Navegação
@@ -1594,34 +1215,8 @@ pages = {
     "request": tr("Solicitar Dados", "Request Data"),
 }
 
-_top_nav = st.session_state.get("carbono_nav", "Visualizar Dados")
-
-if _top_nav == "Visualizar Dados":
-    st.sidebar.markdown('<div class="ca-rule"></div>', unsafe_allow_html=True)
-    page = st.sidebar.radio(tr("Análises", "Analyses"), list(pages.values()), key="scientific_page")
-    page_key = next(k for k, v in pages.items() if v == page)
-elif _top_nav == "Estações":
-    st.title("Estações")
-    st.info("Área reservada para cadastro e visualização das estações de monitoramento.")
-    st.stop()
-elif _top_nav == "Mapa":
-    st.title("Mapa")
-    st.info("Área reservada para o mapa das estações e sítios de monitoramento.")
-    st.stop()
-elif _top_nav == "Documentação":
-    st.title("Documentação")
-    st.markdown("Documentação técnica da plataforma, dos dados CR3000 e dos produtos processados.")
-    st.stop()
-elif _top_nav == "Sobre o Projeto":
-    st.title("Sobre o Projeto")
-    st.markdown("**CARBONO EM AÇÃO — Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia**")
-    st.stop()
-elif _top_nav == "Contato":
-    st.title("Contato")
-    st.info("Área de contato do projeto. As informações institucionais podem ser adicionadas aqui.")
-    st.stop()
-else:
-    page_key = "overview"
+page = st.sidebar.radio(tr("Navegação", "Navigation"), list(pages.values()))
+page_key = next(k for k, v in pages.items() if v == page)
 
 # ============================================================
 # Visão Geral
