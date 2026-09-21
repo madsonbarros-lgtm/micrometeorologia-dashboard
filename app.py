@@ -15,6 +15,10 @@ st.set_page_config(
     layout="wide",
 )
 
+_HERO_PATH = Path(__file__).with_name("carbono_em_acao_inicio.png")
+_HERO_B64 = base64.b64encode(_HERO_PATH.read_bytes()).decode("ascii") if _HERO_PATH.exists() else ""
+
+
 st.markdown(
     """
     <style>
@@ -236,108 +240,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
-
-# Referência visual oficial aprovada
-_CARBONO_REF = Path(__file__).with_name("carbono_em_acao_referencia.png")
-if _CARBONO_REF.exists():
-    _CARBONO_REF_B64 = base64.b64encode(_CARBONO_REF.read_bytes()).decode("ascii")
-else:
-    _CARBONO_REF_B64 = ""
-
-# Fundo fotográfico oficial da página inicial.
-# No GitHub, mantenha carbono_em_acao_fundo_limpo.jpg na mesma pasta do app.py.
-_CARBONO_BG = Path(__file__).with_name("carbono_em_acao_fundo_limpo.jpg")
-if _CARBONO_BG.exists():
-    _CARBONO_BG_B64 = base64.b64encode(_CARBONO_BG.read_bytes()).decode("ascii")
-else:
-    _CARBONO_BG_B64 = ""
-
-
-
-# ============================================================
-# CARBONO EM AÇÃO V3 — camada visual única, sem duplicações
-# ============================================================
-st.markdown(f"""
-<style>
-:root{{--ca-dark:#073b2e;--ca-green:#16854b;--ca-pale:#e6f4df}}
-[data-testid="stAppViewContainer"],[data-testid="stAppViewContainer"]>.main{{background:#fff}}
-.block-container{{max-width:none!important;padding:0!important}}
-header[data-testid="stHeader"]{{background:rgba(255,255,255,.96)}}
-
-/* Sidebar */
-section[data-testid="stSidebar"]{{
- width:360px!important;min-width:360px!important;
- background:linear-gradient(180deg,#073a2d 0%,#0b4232 58%,#103d30 100%)!important;
- border-right:0!important}}
-section[data-testid="stSidebar"]>div{{padding:.8rem 1.15rem 1.2rem!important}}
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3{{color:#f4fff7!important}}
-.carbon-brand{{display:flex;align-items:center;gap:.7rem;padding:.05rem 0 .65rem!important;
- border:0!important;margin:0!important;color:white}}
-.carbon-brand b{{font-size:1.25rem!important;letter-spacing:.015em}}
-.carbon-brand small{{display:block;color:#d6eadb!important;font-size:.72rem!important;line-height:1.25}}
-.carbon-logo{{width:48px;height:48px;min-width:48px;border-radius:50%;display:flex;align-items:center;
- justify-content:center;background:#e9f4d9;color:#087142!important;font-size:1.45rem;font-weight:900}}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"]{{
- background:#e3f2dd!important;border:0!important;border-radius:11px!important;
- padding:.45rem .55rem!important;margin:.25rem 0 .55rem!important}}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] *{{color:#173b27!important}}
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{{
- background:#fff!important;border:0!important;border-radius:8px!important}}
-section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{{
- background:#fff!important;color:#173b27!important;border-radius:8px!important}}
-
-/* Home: one visual layer only */
-.carbon-home{{
- position:relative;width:100%;height:calc(100vh - 3.75rem);min-height:720px;overflow:hidden;
- background-image:url("data:image/jpeg;base64,{_CARBONO_BG_B64}")!important;
- background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important;
- border:0!important;border-radius:0!important;box-shadow:none!important;margin:0!important;padding:0!important}}
-.carbon-home:before{{
- content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
- background:linear-gradient(90deg,rgba(255,243,222,.20) 0%,rgba(255,255,255,0) 48%)}}
-/* Soft masks hide UI that was baked into the supplied reference screenshot. */
-.carbon-home:after{{
- content:"";position:absolute;z-index:2;left:2.5%;top:20%;width:61%;height:29%;
- background:linear-gradient(90deg,rgba(250,226,201,.91),rgba(250,226,201,.63) 62%,rgba(250,226,201,0));
- filter:blur(8px);border-radius:28px;pointer-events:none}}
-.carbon-content{{position:absolute!important;z-index:5;left:4.2%;top:22%;max-width:900px!important}}
-.carbon-welcome{{margin:0!important;font-size:4rem!important;line-height:1.02!important;font-weight:900!important;
- letter-spacing:-.045em!important;color:#06392e!important;text-shadow:none!important}}
-.carbon-lead{{margin-top:1rem!important;max-width:920px!important;font-size:1.48rem!important;line-height:1.3!important;
- font-weight:600!important;color:#4a5d61!important}}
-.carbon-slogan{{position:absolute;z-index:5;right:3%;top:6%;text-align:right;color:#0b302a;
- font-size:1.16rem;line-height:1.2;font-weight:800;background:rgba(255,234,211,.72);
- padding:.25rem .4rem;border-radius:6px}}
-.carbon-slogan div{{width:48px;height:4px;background:#07864d;margin:.85rem 0 0 auto}}
-.carbon-grid{{position:absolute!important;z-index:5;left:4%;right:4%;bottom:16%;display:grid!important;
- grid-template-columns:repeat(4,1fr)!important;gap:1rem!important;margin:0!important}}
-.carbon-card{{min-height:120px!important;display:flex;flex-direction:column;align-items:center;justify-content:center;
- padding:1rem!important;border-radius:11px!important;border:1px solid rgba(112,230,145,.14)!important;
- background:linear-gradient(180deg,rgba(3,51,31,.94),rgba(5,57,35,.92))!important;
- box-shadow:0 8px 24px rgba(0,28,17,.20)!important}}
-.carbon-card-icon{{color:#83f49b;font-size:2.35rem;line-height:1;margin-bottom:.55rem;font-weight:800}}
-.carbon-card b{{color:#f5fff6!important;font-size:1.08rem!important;margin:0!important}}
-.carbon-footer-brand{{position:absolute;z-index:5;left:4%;bottom:4%;color:#fff;border-left:3px solid #42d36b;
- padding-left:.75rem;text-shadow:0 1px 4px rgba(0,0,0,.55)}}
-.carbon-footer-brand b{{font-size:1.02rem}} .carbon-footer-brand span{{font-size:.82rem}}
-
-/* Hide legacy home elements if older CSS/classes survive. */
-.carbon-tower,.carbon-quote,.carbon-divider,.carbon-footer{{display:none!important}}
-
-@media(max-width:900px){{
- section[data-testid="stSidebar"]{{width:300px!important;min-width:300px!important}}
- .carbon-welcome{{font-size:2.65rem!important}} .carbon-lead{{font-size:1.05rem!important}}
- .carbon-grid{{grid-template-columns:repeat(2,1fr)!important;bottom:7%!important}}
- .carbon-card{{min-height:88px!important}} .carbon-footer-brand{{display:none}}
-}}
-</style>
-""",unsafe_allow_html=True)
-
 # ============================================================
 # EcoFlux Brasil — V37
 # Arquitetura:
@@ -349,18 +251,15 @@ section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{{
 # -----------------------------
 # Idioma
 # -----------------------------
-LANGUAGE = st.session_state.get("language_v29", "Português")
+LANGUAGE = st.session_state.get("carbono_language", "Português")
 PT = LANGUAGE == "Português"
 
 def tr(pt, en):
     return pt if PT else en
 
-
-# -----------------------------
-# Tabelas sem menu nativo em inglês
-# -----------------------------
+# Tabelas científicas usam os controles próprios por padrão.
 TABLE_MODE = tr("Controles próprios", "Custom controls")
-CUSTOM_TABLES = TABLE_MODE == tr("Controles próprios", "Custom controls")
+CUSTOM_TABLES = True
 
 _TABLE_COUNTER = 0
 
@@ -1063,24 +962,56 @@ def load_processed_xlsx(file_bytes):
 
 st.markdown("""
 <style>
-section[data-testid="stSidebar"]{width:360px!important;min-width:360px!important;background:linear-gradient(180deg,#073a2d,#0c4031)!important}
-section[data-testid="stSidebar"]>div{padding:.8rem 1.15rem 1.1rem!important}
-.carbon-brand-v4{display:flex!important;align-items:center!important;gap:.75rem!important;padding:.05rem 0 .65rem!important;border:0!important}
-.carbon-brand-v4 b{font-size:1.25rem!important;color:white!important}.carbon-brand-v4 small{display:block;font-size:.7rem!important;color:#e0efe4!important;line-height:1.25}
-.carbon-leaf{font-size:2.65rem;color:#43d36f!important;line-height:1;transform:rotate(-18deg)}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"]{background:linear-gradient(135deg,#e8f7e2,#d8efd5)!important;border:0!important;border-radius:10px!important;padding:.45rem .55rem!important;margin:.25rem 0 .65rem!important}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] label{color:#123d29!important;font-weight:800!important}
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{background:white!important;border:0!important;border-radius:8px!important}
-.carbon-upload-help{display:flex;gap:.65rem;align-items:flex-start;background:#e4f3df;border-radius:9px;padding:.72rem .8rem;margin:.1rem 0 .75rem;font-size:.78rem;line-height:1.35}
-.carbon-upload-help span{color:#173d29!important}.carbon-info-dot{display:flex!important;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:50%;background:#07523a;color:white!important;font-weight:900}
-.carbon-side-divider{height:1px;background:rgba(255,255,255,.16);margin:.35rem 0 .65rem}
+/* CARBONO EM AÇÃO — interface final */
+[data-testid="stAppViewContainer"]{
+ background:linear-gradient(180deg,#174a35 0%,#0b3e2d 100%)!important;
+}
+[data-testid="stAppViewContainer"]>.main{background:transparent!important}
+header[data-testid="stHeader"]{background:rgba(255,255,255,.96)!important}
+section[data-testid="stSidebar"]{
+ width:360px!important;min-width:360px!important;
+ background:linear-gradient(180deg,#07392d 0%,#0a4031 65%,#0d392d 100%)!important;
+ border-right:0!important}
+section[data-testid="stSidebar"]>div{padding:.8rem 1.05rem 1rem!important}
+.ca-brand{display:flex;align-items:center;gap:.72rem;margin:0 0 .65rem;color:#fff}
+.ca-leaf{font-size:2.7rem;color:#5be17d;line-height:1;transform:rotate(-18deg)}
+.ca-brand-name{font-size:1.22rem;font-weight:900;letter-spacing:.02em}
+.ca-brand-sub{font-size:.69rem;line-height:1.25;color:#e2eee5;margin-top:.12rem}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"]{
+ background:linear-gradient(135deg,#e8f7e2,#d8efd5)!important;border:0!important;border-radius:10px!important;
+ padding:.45rem .55rem!important;margin:.2rem 0 .55rem!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploader"] *{color:#173b27!important}
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]{
+ background:#fff!important;border:0!important;border-radius:8px!important;min-height:58px!important}
+.ca-help{display:flex;gap:.55rem;align-items:flex-start;background:#e4f3df;border-radius:9px;
+ padding:.68rem .75rem;margin:.08rem 0 .6rem;font-size:.77rem;line-height:1.3}
+.ca-help *{color:#173d29!important}.ca-rule{height:1px;background:rgba(255,255,255,.16);margin:.3rem 0 .55rem}
 section[data-testid="stSidebar"] div[data-testid="stButton"]{margin:0!important}
-section[data-testid="stSidebar"] div[data-testid="stButton"] button{justify-content:flex-start!important;border:0!important;box-shadow:none!important;min-height:35px!important;padding:.32rem .7rem!important;border-radius:7px!important;font-size:.9rem!important}
-section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"]{background:transparent!important;color:white!important}
-section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]{background:linear-gradient(90deg,#12864b,#239e59)!important;color:white!important;font-weight:700!important}
-section[data-testid="stSidebar"] .stSelectbox label{color:white!important;font-size:.8rem!important}
-section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{background:white!important;color:#173d29!important;border-radius:7px!important}
-.carbon-side-footer{display:flex;gap:.8rem;align-items:center;padding:.85rem .35rem .2rem;font-size:1rem;line-height:1.25}.carbon-side-footer div{color:#8df1a4!important}.carbon-footer-leaf{font-size:2.4rem;transform:rotate(-18deg)}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button{
+ justify-content:flex-start!important;border:0!important;box-shadow:none!important;min-height:34px!important;
+ padding:.28rem .68rem!important;border-radius:7px!important;font-size:.89rem!important}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"]{
+ background:transparent!important;color:#fff!important}
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"]{
+ background:linear-gradient(90deg,#11834a,#239d58)!important;color:#fff!important;font-weight:700!important}
+section[data-testid="stSidebar"] .stSelectbox label{color:#fff!important;font-size:.8rem!important}
+section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{
+ background:#fff!important;color:#173d29!important;border-radius:7px!important}
+.ca-footer{display:flex;align-items:center;gap:.7rem;padding:.65rem .3rem .1rem;font-size:.98rem;line-height:1.2}
+.ca-footer *{color:#8df1a4!important}.ca-footer-leaf{font-size:2.3rem;transform:rotate(-18deg)}
+/* scientific pages: green shell + readable content panel */
+.main .block-container{
+ max-width:calc(100% - 2rem)!important;margin:1rem auto 2rem!important;padding:1.45rem 1.6rem 2rem!important;
+ background:rgba(250,253,249,.97)!important;border-radius:14px!important;
+ box-shadow:0 15px 42px rgba(0,25,15,.22)!important}
+.main h1,.main h2,.main h3{color:#123e29}
+.ca-home-wrap{margin:-1.45rem -1.6rem -2rem!important;border-radius:14px!important;overflow:hidden!important}
+.ca-home-img{display:block;width:100%;height:auto;min-height:650px;object-fit:cover;object-position:center}
+@media(max-width:900px){
+ section[data-testid="stSidebar"]{width:300px!important;min-width:300px!important}
+ .main .block-container{max-width:calc(100% - .8rem)!important;margin:.4rem auto!important;padding:.8rem!important}
+ .ca-home-wrap{margin:-.8rem!important}.ca-home-img{min-height:520px}
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1089,10 +1020,10 @@ section[data-testid="stSidebar"] .stSelectbox div[data-baseweb="select"]>div{bac
 # ============================================================
 
 st.sidebar.markdown("""
-<div class="carbon-brand carbon-brand-v4">
-  <div class="carbon-leaf">❧</div>
-  <div><b>CARBONO EM AÇÃO</b>
-  <small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div>
+<div class="ca-brand">
+  <div class="ca-leaf">❧</div>
+  <div><div class="ca-brand-name">CARBONO EM AÇÃO</div>
+  <div class="ca-brand-sub">Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</div></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1114,54 +1045,42 @@ processed_file = st.sidebar.file_uploader(
     type=["xlsx"],
     key="processed_xlsx_v34",
 )
+
 st.sidebar.markdown("""
-<div class="carbon-upload-help">
-  <span class="carbon-info-dot">i</span>
-  <span>Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.</span>
-</div>
-<div class="carbon-side-divider"></div>
+<div class="ca-help"><b>ⓘ</b><span>Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.</span></div>
+<div class="ca-rule"></div>
 """, unsafe_allow_html=True)
 
-# Menu visual principal da plataforma
 if "carbono_nav" not in st.session_state:
     st.session_state["carbono_nav"] = "Início"
 
-for _icon, _label in [
-    ("⌂", "Início"),
-    ("▥", "Visualizar Dados"),
-    ("♜", "Estações"),
-    ("▧", "Mapa"),
-    ("▤", "Documentação"),
-    ("?", "Sobre o Projeto"),
-    ("⌁", "Contato"),
+for _ico, _label in [
+    ("⌂","Início"), ("▥","Visualizar Dados"), ("♜","Estações"),
+    ("▧","Mapa"), ("▤","Documentação"), ("?","Sobre o Projeto"), ("⌁","Contato")
 ]:
-    _active = st.session_state["carbono_nav"] == _label
     if st.sidebar.button(
-        f"{_icon}   {_label}",
-        key=f"carbon_nav_{_label}",
+        f"{_ico}   {_label}",
+        key=f"ca_nav_{_label}",
         use_container_width=True,
-        type="primary" if _active else "secondary",
+        type="primary" if st.session_state["carbono_nav"] == _label else "secondary",
     ):
         st.session_state["carbono_nav"] = _label
         st.rerun()
 
-st.sidebar.markdown('<div class="carbon-side-divider"></div>', unsafe_allow_html=True)
-
-LANGUAGE = st.sidebar.selectbox(
-    "Idioma / Language",
-    ["Português", "English"],
-    index=0 if st.session_state.get("language_v29", "Português") == "Português" else 1,
-    key="language_sidebar_v4",
+st.sidebar.markdown('<div class="ca-rule"></div>', unsafe_allow_html=True)
+_new_lang = st.sidebar.selectbox(
+    "Idioma / Language", ["Português","English"],
+    index=0 if st.session_state.get("carbono_language","Português")=="Português" else 1,
+    key="carbono_language_widget"
 )
-st.session_state["language_v29"] = LANGUAGE
-PT = LANGUAGE == "Português"
+if _new_lang != st.session_state.get("carbono_language","Português"):
+    st.session_state["carbono_language"] = _new_lang
+    st.rerun()
 
 st.sidebar.markdown("""
-<div class="carbon-side-footer">
-  <div class="carbon-footer-leaf">❧</div>
-  <div>Ciência hoje,<br>florestas amanhã.</div>
-</div>
+<div class="ca-footer"><span class="ca-footer-leaf">❧</span><span>Ciência hoje,<br>florestas amanhã.</span></div>
 """, unsafe_allow_html=True)
+
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
     st.session_state["_ecoflux_parsed_toa5"] = {}
@@ -1287,124 +1206,23 @@ if processed_file is not None:
             f"Processed XLSX error: {exc}",
         ))
 
-if not tower_file_map and processed is None:
-    if tower_files:
-        st.error(tr(
-            "Os arquivos foram enviados, mas nenhuma resolução temporal pôde ser reconhecida. "
-            "Verifique se são arquivos Campbell TOA5 com uma coluna TIMESTAMP válida.",
-            "Files were uploaded, but no temporal resolution could be recognized. "
-            "Check that they are Campbell TOA5 files with a valid TIMESTAMP column.",
-        ))
-
-    st.markdown("""
-    <div class="carbon-home">
-      <div class="carbon-content">
-        <div class="carbon-welcome">Bem-vindo ao<br>Carbono em Ação</div>
-        <div class="carbon-lead">Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia</div>
-      </div>
-      <div class="carbon-slogan">Dados da terra<br>para um futuro melhor.<div></div></div>
-      <div class="carbon-grid">
-        <div class="carbon-card"><div class="carbon-card-icon">♟</div><b>Ecossistemas</b></div>
-        <div class="carbon-card"><div class="carbon-card-icon">☁</div><b>Clima</b></div>
-        <div class="carbon-card"><div class="carbon-card-icon">▥</div><b>Dados</b></div>
-        <div class="carbon-card"><div class="carbon-card-icon">♣</div><b>Pessoas</b></div>
-      </div>
-      <div class="carbon-footer-brand"><b>CARBONO EM AÇÃO</b><br><span>Ciência | Conservação | Futuro</span></div>
-    </div>
-    """, unsafe_allow_html=True)
+if st.session_state.get("carbono_nav", "Início") == "Início":
+    if _HERO_B64:
+        st.markdown(
+            f'<div class="ca-home-wrap"><img class="ca-home-img" src="data:image/png;base64,{_HERO_B64}" '
+            'alt="Carbono em Ação"></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.error("Arquivo carbono_em_acao_inicio.png não encontrado no repositório.")
     st.stop()
 
-
-# ============================================================
-# CARBONO EM AÇÃO V5 — identidade contínua após o carregamento
-# ============================================================
-st.markdown(f"""
-<style>
-/* Área principal nunca volta ao branco puro */
-[data-testid="stAppViewContainer"] {{
-  background:
-    linear-gradient(rgba(5,55,36,.73),rgba(5,55,36,.80)),
-    url("data:image/jpeg;base64,{_CARBONO_BG_B64}") center/cover fixed !important;
-}}
-[data-testid="stAppViewContainer"] > .main {{
-  background:transparent !important;
-}}
-header[data-testid="stHeader"] {{
-  background:rgba(255,255,255,.94) !important;
-}}
-
-/* Páginas científicas: conteúdo legível sobre a identidade verde/floresta */
-.main .block-container {{
-  background:rgba(250,253,249,.95);
-  max-width:calc(100% - 2.2rem) !important;
-  margin:1.1rem auto 2rem !important;
-  padding:1.55rem 1.65rem 2.2rem !important;
-  border-radius:14px;
-  box-shadow:0 16px 45px rgba(0,34,20,.18);
-}}
-.main h1,.main h2,.main h3 {{color:#123e29}}
-.main [data-testid="stDataFrame"],
-.main [data-testid="stTable"] {{
-  background:rgba(255,255,255,.98);
-  border-radius:10px;
-}}
-
-/* HOME: referência aprovada ocupa a área principal, sem painel branco */
-.main .block-container:has(.carbon-home) {{
-  max-width:none !important;
-  width:100% !important;
-  margin:0 !important;
-  padding:0 !important;
-  border-radius:0 !important;
-  box-shadow:none !important;
-  background:transparent !important;
-}}
-.carbon-home {{
-  width:100% !important;
-  height:calc(100vh - 3.7rem) !important;
-  min-height:700px !important;
-  margin:0 !important;
-  padding:0 !important;
-  border:0 !important;
-  border-radius:0 !important;
-  box-shadow:none !important;
-  background:
-    url("data:image/png;base64,{_CARBONO_REF_B64}") center center/cover no-repeat !important;
-}}
-/* A referência já contém toda a composição visual. Evita qualquer duplicação. */
-.carbon-home > * {{display:none !important;}}
-
-/* Sidebar fica acima e com proporções próximas à referência */
-section[data-testid="stSidebar"] {{
-  width:360px !important;
-  min-width:360px !important;
-  background:linear-gradient(180deg,#07392d 0%,#0a4031 62%,#0d392d 100%) !important;
-}}
-section[data-testid="stSidebar"] > div {{
-  padding:.75rem 1rem 1rem !important;
-}}
-.carbon-brand-v4 b {{font-size:1.18rem !important}}
-.carbon-brand-v4 small {{font-size:.68rem !important}}
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] {{
-  margin:.18rem 0 .48rem !important;
-}}
-.carbon-upload-help {{margin:.1rem 0 .55rem !important}}
-section[data-testid="stSidebar"] div[data-testid="stButton"] button {{
-  min-height:31px !important;
-  padding:.24rem .65rem !important;
-  font-size:.86rem !important;
-}}
-.carbon-side-divider {{margin:.28rem 0 .48rem !important}}
-.carbon-side-footer {{padding:.55rem .3rem .1rem !important}}
-
-@media(max-width:900px) {{
-  section[data-testid="stSidebar"]{{width:300px!important;min-width:300px!important}}
-  .main .block-container{{max-width:calc(100% - 1rem)!important;margin:.5rem auto!important;padding:1rem!important}}
-  .main .block-container:has(.carbon-home){{max-width:none!important;margin:0!important;padding:0!important}}
-  .carbon-home{{background-position:center top!important;min-height:620px!important}}
-}}
-</style>
-""", unsafe_allow_html=True)
+if not tower_file_map and processed is None:
+    st.info(tr(
+        "Carregue os arquivos CR3000 na barra lateral para acessar as análises.",
+        "Upload the CR3000 files in the sidebar to access the analyses."
+    ))
+    st.stop()
 
 # ============================================================
 # Navegação
@@ -1422,8 +1240,34 @@ pages = {
     "request": tr("Solicitar Dados", "Request Data"),
 }
 
-page = st.sidebar.radio(tr("Navegação", "Navigation"), list(pages.values()))
-page_key = next(k for k, v in pages.items() if v == page)
+_top_nav = st.session_state.get("carbono_nav", "Visualizar Dados")
+
+if _top_nav == "Visualizar Dados":
+    st.sidebar.markdown('<div class="ca-rule"></div>', unsafe_allow_html=True)
+    page = st.sidebar.radio(tr("Análises", "Analyses"), list(pages.values()), key="scientific_page")
+    page_key = next(k for k, v in pages.items() if v == page)
+elif _top_nav == "Estações":
+    st.title("Estações")
+    st.info("Área reservada para cadastro e visualização das estações de monitoramento.")
+    st.stop()
+elif _top_nav == "Mapa":
+    st.title("Mapa")
+    st.info("Área reservada para o mapa das estações e sítios de monitoramento.")
+    st.stop()
+elif _top_nav == "Documentação":
+    st.title("Documentação")
+    st.markdown("Documentação técnica da plataforma, dos dados CR3000 e dos produtos processados.")
+    st.stop()
+elif _top_nav == "Sobre o Projeto":
+    st.title("Sobre o Projeto")
+    st.markdown("**CARBONO EM AÇÃO — Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia**")
+    st.stop()
+elif _top_nav == "Contato":
+    st.title("Contato")
+    st.info("Área de contato do projeto. As informações institucionais podem ser adicionadas aqui.")
+    st.stop()
+else:
+    page_key = "overview"
 
 # ============================================================
 # Visão Geral
