@@ -1208,21 +1208,21 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
 .ca-approved-header{
  position:fixed;z-index:10020;left:0;right:0;top:0;height:102px;
  display:flex;align-items:center;
- padding:0 34px;
+ padding:0 32px;box-sizing:border-box;
  background:linear-gradient(90deg,#07533f 0%,#006746 52%,#005239 100%);
  color:#fff;
  box-shadow:0 1px 0 rgba(255,255,255,.10);
  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
 }
 .ca-brand{
- width:390px;min-width:390px;display:flex;align-items:center;gap:15px;
+ width:400px;min-width:400px;display:flex;align-items:center;gap:15px;
  text-decoration:none;color:white!important;
 }
 .ca-brand-icon{font-size:42px;line-height:1;color:#42ef8d}
 .ca-brand-title{font-size:25px;font-weight:800;line-height:1.02;letter-spacing:-.3px}
 .ca-brand-sub{font-size:12px;line-height:1.25;margin-top:5px;color:#f0fff5}
 .ca-nav{
- flex:1;height:100%;display:flex;align-items:center;justify-content:space-between;
+ flex:1;height:100%;display:flex;align-items:center;justify-content:space-evenly;
  gap:7px;min-width:0;
 }
 .ca-item{height:100%;display:flex;align-items:center;position:relative}
@@ -1294,11 +1294,9 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
       <span class="ca-brand-sub">Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</span>
     </span>
   </a>
-
   <div class="ca-nav">
     <div class="ca-item"><a class="ca-link ca-home" href="?page=inicio"><span class="ca-icon">⌂</span>Início</a></div>
     <div class="ca-item"><a class="ca-link" href="?page=overview"><span class="ca-icon">▥</span>Visão Geral</a></div>
-
     <div class="ca-item">
       <span class="ca-trigger"><span class="ca-icon">▤</span>Dados <span class="ca-chevron">⌄</span></span>
       <div class="ca-drop">
@@ -1307,7 +1305,6 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
         <a href="#ca-files"><span class="di">☁</span>Carregar/gerenciar arquivos</a>
       </div>
     </div>
-
     <div class="ca-item">
       <span class="ca-trigger"><span class="ca-icon">⌁</span>Análises <span class="ca-chevron">⌄</span></span>
       <div class="ca-drop">
@@ -1316,14 +1313,12 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
         <a href="?page=carbon"><span class="di">◉</span>Balanço de Carbono</a>
       </div>
     </div>
-
     <div class="ca-item">
       <span class="ca-trigger"><span class="ca-icon">♢</span>Qualidade <span class="ca-chevron">⌄</span></span>
       <div class="ca-drop">
         <a href="?page=qc"><span class="di">✓</span>Qualidade dos Dados</a>
       </div>
     </div>
-
     <div class="ca-item">
       <span class="ca-trigger"><span class="ca-icon">ⓘ</span>Informações <span class="ca-chevron">⌄</span></span>
       <div class="ca-drop">
@@ -1331,9 +1326,7 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
         <a href="?page=request"><span class="di">✉</span>Solicitar Dados</a>
       </div>
     </div>
-
     <span class="ca-sep"></span>
-
     <div class="ca-item" id="ca-files">
       <span class="ca-trigger ca-file-trigger"><span class="ca-icon">☁</span>Arquivos</span>
       <div class="ca-drop ca-right-drop">
@@ -1341,7 +1334,6 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
         <div style="padding:0 16px 12px;color:#52655d;font-size:13px">Os controles reais de upload aparecem logo abaixo do cabeçalho ao abrir esta opção.</div>
       </div>
     </div>
-
     <div class="ca-item">
       <span class="ca-trigger"><span class="ca-icon">◎</span>Idioma <span class="ca-chevron">⌄</span></span>
       <div class="ca-drop ca-right-drop">
@@ -1349,7 +1341,6 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
         <a href="?page=inicio&lang=en">English</a>
       </div>
     </div>
-
     <div class="ca-item">
       <span class="ca-trigger"><span class="ca-icon">⚙</span>Preferências <span class="ca-chevron">⌄</span></span>
       <div class="ca-drop ca-right-drop">
