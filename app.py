@@ -1100,17 +1100,17 @@ header[data-testid="stHeader"]{height:0!important;min-height:0!important;backgro
 [data-testid="stMainBlockContainer"]>div{gap:0!important}
 .header-anchor{display:none!important}
 div[data-testid="stHorizontalBlock"]:has(.header-anchor){
- width:100%!important;min-height:102px!important;margin:0!important;padding:0 28px!important;
+ width:100%!important;height:101px!important;min-height:101px!important;margin:0!important;padding:0 34px!important;
  background:linear-gradient(90deg,#07533f,#006746 52%,#005239)!important;
  gap:8px!important;align-items:center!important
 }
 .ca-brand-inline{color:white;line-height:1.05;padding-right:10px}
-.ca-brand-inline b{font-size:25px;font-weight:800;white-space:nowrap}
-.ca-brand-inline small{display:block;font-size:11px;line-height:1.25;margin-top:7px;color:#effff4}
+.ca-brand-inline b{font-size:27px;font-weight:800;white-space:nowrap}
+.ca-brand-inline small{display:block;font-size:12px;line-height:1.25;margin-top:7px;color:#effff4}
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) button,
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stPopover"]>button{
  min-height:54px!important;border:0!important;border-radius:10px!important;
- background:transparent!important;color:#fff!important;font-size:15px!important;
+ background:transparent!important;color:#fff!important;font-size:16px!important;
  font-weight:650!important;white-space:nowrap!important;box-shadow:none!important;padding:.35rem .55rem!important
 }
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) button:hover,
@@ -1139,24 +1139,18 @@ div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
  background:#f5faf7!important;border-color:#9bc9ad!important
 }
 .ca-home-image{
- display:block!important;width:100vw!important;max-width:none!important;height:calc(100vh - 102px)!important;
- object-fit:cover!important;object-position:center!important;margin:0!important;padding:0!important
+ display:block!important;width:100vw!important;max-width:none!important;
+ height:calc(100vh - 101px)!important;
+ object-fit:fill!important;
+ margin:0!important;padding:0!important
 }
 div[data-testid="stElementContainer"]:has(.ca-home-image),
 div[data-testid="stMarkdownContainer"]:has(.ca-home-image){margin:0!important;padding:0!important}
-@media(max-width:1500px){
- .ca-brand-inline b{font-size:19px}.ca-brand-inline small{font-size:9px}
- div[data-testid="stHorizontalBlock"]:has(.header-anchor){padding:0 14px!important;gap:3px!important}
- div[data-testid="stHorizontalBlock"]:has(.header-anchor) button,
- div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stPopover"]>button{
-  font-size:12px!important;padding:.25rem .35rem!important
- }
-}
 </style>
 """, unsafe_allow_html=True)
 
 active=st.session_state["_ca_route"]
-hdr=st.columns([2.7,.85,1.05,.9,1.0,1.0,1.12,1.0,.9,1.12],gap="small")
+hdr=st.columns([3.05,.82,1.05,.92,1.02,1.02,1.18,1.03,.92,1.18],gap="small")
 with hdr[0]:
  st.markdown('<span class="header-anchor"></span><div class="ca-brand-inline"><b>❧ &nbsp;CARBONO EM AÇÃO</b><small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div>',unsafe_allow_html=True)
 with hdr[1]:
