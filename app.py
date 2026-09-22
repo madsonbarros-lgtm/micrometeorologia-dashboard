@@ -323,23 +323,6 @@ section[data-testid="stSidebar"] [data-testid="stExpander"]{
 # -----------------------------
 # Idioma
 # -----------------------------
-# O idioma pode ser alterado pelo menu superior (?lang=pt / ?lang=en).
-# A leitura ocorre ANTES de definir PT para que toda a interface seja
-# traduzida no mesmo rerun.
-_lang_q = st.query_params.get("lang", None)
-if isinstance(_lang_q, list):
-    _lang_q = _lang_q[0] if _lang_q else None
-if _lang_q in {"pt", "en"}:
-    _requested_language = "Português" if _lang_q == "pt" else "English"
-    if st.session_state.get("language_v29") != _requested_language:
-        st.session_state["language_v29"] = _requested_language
-
-_lang_q = st.query_params.get("lang", None)
-if isinstance(_lang_q, list):
-    _lang_q = _lang_q[0] if _lang_q else None
-if _lang_q in {"pt", "en"}:
-    st.session_state["language_v29"] = "English" if _lang_q == "en" else "Português"
-
 LANGUAGE = st.session_state.get("language_v29", "Português")
 PT = LANGUAGE == "Português"
 
@@ -1052,349 +1035,41 @@ def load_processed_xlsx(file_bytes):
     return df, units, sheet
 
 # ============================================================
-# Cabeçalho principal + uploads
+# Uploads — 1 min carregado sob demanda para evitar estouro de memória
 # ============================================================
 
-# Rotas são definidas antes da leitura dos arquivos para que a interface exista
-# mesmo sem upload.
-pages = {
-    "overview": tr("Visão Geral", "Overview"),
-    "tower": tr("Dados Originais da Torre", "Original Tower Data"),
-    "structure": tr("Estrutura Científica", "Scientific Structure"),
-    "compare": tr("Comparar Variáveis", "Compare Variables"),
-    "gapfill": tr("Preenchimento de Lacunas", "Gap Filling"),
-    "carbon": tr("Balanço de Carbono", "Carbon Balance"),
-    "qc": tr("Qualidade dos Dados", "Data Quality"),
-    "about": tr("Sobre os Dados", "About the Data"),
-    "request": tr("Solicitar Dados", "Request Data"),
-}
-_inicio_label = tr("Início", "Home")
-
-if "_ca_route" not in st.session_state:
-    st.session_state["_ca_route"] = "inicio"
-if "_ca_history" not in st.session_state:
-    st.session_state["_ca_history"] = []
-
-def _go(route):
-    current = st.session_state.get("_ca_route", "inicio")
-    if route != current:
-        st.session_state["_ca_history"].append(current)
-        st.session_state["_ca_route"] = route
-
-def _back():
-    hist = st.session_state.get("_ca_history", [])
-    if hist:
-        st.session_state["_ca_route"] = hist.pop()
-
-st.markdown("""
-<style>
-/* Carbono em Ação: layout sem sidebar permanente */
-section[data-testid="stSidebar"]{display:none!important}
-[data-testid="collapsedControl"]{display:none!important}
-header[data-testid="stHeader"]{background:transparent!important}
-.main .block-container{
-    max-width:none!important;
-    padding:5.25rem 1.5rem 2rem 1.5rem!important;
-}
-
-/* Marca fixa */
-.ca-top-brand{
-    position:fixed;left:1.35rem;top:.72rem;z-index:10002;
-    display:flex;align-items:center;gap:.65rem;color:#fff;
-    pointer-events:none;
-}
-.ca-top-brand .leaf{font-size:1.9rem;color:#45ef8c}
-.ca-top-brand b{display:block;font-size:1.08rem;letter-spacing:.02em}
-.ca-top-brand small{display:block;font-size:.64rem;line-height:1.18;color:#e8fff0}
-
-/* Toda a faixa superior */
-.ca-header-bg{
-    position:fixed;left:0;right:0;top:0;height:4.65rem;
-    background:#064b39;z-index:9997;
-    border-bottom:1px solid rgba(91,235,145,.22);
-    box-shadow:0 2px 10px rgba(0,0,0,.12);
-}
-
-/* Bloco Streamlit da navegação */
-div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor){
-    position:fixed!important;
-    left:21.5rem!important; right:22.5rem!important; top:.62rem!important;
-    z-index:10001!important;
-    background:transparent!important;
-    gap:.15rem!important;align-items:center!important;
-}
-.ca-main-nav-anchor{display:none!important}
-div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor) > div{
-    display:flex!important;align-items:center!important;min-width:0!important;
-}
-div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor) button{
-    background:transparent!important;color:#f5fff7!important;border:0!important;
-    box-shadow:none!important;border-radius:8px!important;min-height:2.65rem!important;
-    padding:.35rem .48rem!important;font-weight:650!important;white-space:nowrap!important;
-}
-div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor) button:hover{
-    background:#18a85d!important;color:#fff!important;
-}
-
-/* Controles da direita */
-div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){
-    position:fixed!important;right:1.15rem!important;top:.62rem!important;
-    width:21rem!important;z-index:10003!important;background:transparent!important;
-    gap:.25rem!important;align-items:center!important;
-}
-.ca-tools-anchor{display:none!important}
-div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor) button{
-    background:transparent!important;color:#f5fff7!important;
-    border:1px solid rgba(85,239,143,.28)!important;border-radius:8px!important;
-    min-height:2.65rem!important;box-shadow:none!important;white-space:nowrap!important;
-}
-div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor) button:hover{
-    background:#18a85d!important;color:#fff!important;
-}
-
-/* Dropdowns/painéis */
-div[data-testid="stPopoverBody"],
-div[data-testid="stPopoverBody"] > div,
-div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{
-    background:#064b39!important;color:#f5fff7!important;
-}
-div[data-testid="stPopoverBody"]{
-    border:1px solid rgba(100,240,150,.28)!important;border-radius:10px!important;
-    padding:.55rem!important;z-index:10010!important;
-    box-shadow:0 10px 28px rgba(0,0,0,.28)!important;
-}
-div[data-testid="stPopoverBody"] button{
-    color:#f5fff7!important;background:#075943!important;
-    border:1px solid rgba(255,255,255,.08)!important;
-}
-div[data-testid="stPopoverBody"] button p,
-div[data-testid="stPopoverBody"] button span,
-div[data-testid="stPopoverBody"] label,
-div[data-testid="stPopoverBody"] p{color:#f5fff7!important}
-div[data-testid="stPopoverBody"] button:hover{background:#18a85d!important}
-
-/* Upload dentro do painel Arquivos */
-div[data-testid="stPopoverBody"] [data-testid="stFileUploader"]{
-    background:#0a624a!important;border-radius:9px!important;padding:.45rem!important;
-}
-div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
-    background:#0b7154!important;border-color:rgba(112,245,161,.42)!important;
-}
-div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"] *{
-    color:#f5fff7!important;
-}
-
-/* Início usa toda a viewport abaixo do cabeçalho */
-@media(max-width:1500px){
-    .ca-top-brand small{display:none}
-    div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor){
-        left:14.5rem!important;right:20rem!important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){width:19rem!important}
-}
-</style>
-<div class="ca-header-bg"></div>
-<div class="ca-top-brand">
+st.sidebar.markdown("""
+<div class="ca-safe-brand">
   <span class="leaf">❧</span>
   <span><b>CARBONO EM AÇÃO</b>
   <small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></span>
 </div>
 """, unsafe_allow_html=True)
 
+tower_files = st.sidebar.file_uploader(
+    tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
+    type=["dat"],
+    accept_multiple_files=True,
+    key="tower_dat_v34",
+    help=tr(
+        "Carregue os arquivos TOA5 de 1 min, 30 min e diário. "
+        "O arquivo de 1 min é carregado somente quando necessário para economizar memória.",
+        "Upload TOA5 1-min, 30-min and daily files. "
+        "The 1-min file is loaded only when needed to save memory.",
+    ),
+)
 
-# Cabeçalho visual no padrão aprovado.
-# Os links usam query parameters: o hover é CSS puro e a rota continua sendo processada
-# pelo mesmo app Streamlit, sem abrir outra aplicação.
-_route_q = st.query_params.get("page", None)
-if isinstance(_route_q, list):
-    _route_q = _route_q[0] if _route_q else None
-_valid_routes = {"inicio", "files", *pages.keys()}
-if _route_q in _valid_routes:
-    st.session_state["_ca_route"] = _route_q
+processed_file = st.sidebar.file_uploader(
+    tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
+    type=["xlsx"],
+    key="processed_xlsx_v34",
+)
 
-def _nav_url(route):
-    return f"?page={route}"
+st.sidebar.markdown(
+    """<div class="ca-sidebar-info">ⓘ &nbsp; Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.</div>""",
+    unsafe_allow_html=True,
+)
 
-_header_html = r"""
-<style>
-/* Esconde os controles Streamlit que compunham o cabeçalho anterior */
-div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor),
-div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!important}
-
-/* Cabeçalho aprovado */
-.ca-approved-header{
- position:fixed;z-index:10020;left:0;right:0;top:0;height:102px;
- display:flex;align-items:center;
- padding:0 32px;box-sizing:border-box;
- background:linear-gradient(90deg,#07533f 0%,#006746 52%,#005239 100%);
- color:#fff;
- box-shadow:0 1px 0 rgba(255,255,255,.10);
- font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-}
-.ca-brand{
- width:400px;min-width:400px;display:flex;align-items:center;gap:15px;
- text-decoration:none;color:white!important;
-}
-.ca-brand-icon{font-size:42px;line-height:1;color:#42ef8d}
-.ca-brand-title{font-size:25px;font-weight:800;line-height:1.02;letter-spacing:-.3px}
-.ca-brand-sub{font-size:12px;line-height:1.25;margin-top:5px;color:#f0fff5}
-.ca-nav{
- flex:1;height:100%;display:flex;align-items:center;justify-content:space-evenly;
- gap:7px;min-width:0;
-}
-.ca-item{height:100%;display:flex;align-items:center;position:relative}
-.ca-link,.ca-trigger{
- display:flex;align-items:center;gap:9px;
- padding:14px 17px;border-radius:10px;
- color:#fff!important;text-decoration:none!important;
- font-size:16px;font-weight:650;white-space:nowrap;
- transition:background .15s ease;
-}
-.ca-link:hover,.ca-trigger:hover,.ca-item:hover>.ca-trigger{background:#18a85d}
-.ca-home{background:#18a85d}
-.ca-icon{font-size:20px}
-.ca-chevron{font-size:14px;margin-left:2px}
-
-/* Ponte invisível evita que o menu feche entre o item e o dropdown */
-.ca-drop{
- display:none;position:absolute;top:75px;left:0;min-width:270px;
- background:#fff;border-radius:8px;padding:8px 0;
- box-shadow:0 12px 30px rgba(0,0,0,.28);
- border:1px solid rgba(0,0,0,.08);z-index:10030;
-}
-.ca-drop:before{content:"";position:absolute;left:0;right:0;top:-14px;height:14px}
-.ca-item:hover>.ca-drop,.ca-drop:hover{display:block}
-.ca-drop a{
- display:flex;align-items:center;gap:12px;padding:13px 18px;
- color:#26352f!important;text-decoration:none!important;
- font-size:15px;font-weight:500;white-space:nowrap;
-}
-.ca-drop a:hover{background:#eaf8ef;color:#07533f!important}
-.ca-drop .di{font-size:19px;width:22px;text-align:center}
-.ca-sep{
- height:54px;width:1px;background:rgba(97,240,157,.60);
- margin:0 8px;
-}
-.ca-file-trigger{
- border:1px solid #23c978;border-radius:10px;padding:13px 17px;
-}
-.ca-file-trigger:hover{background:#18a85d}
-.ca-right-drop{left:auto;right:0}
-
-/* Compensa a barra fixa */
-.main .block-container{padding-top:7.15rem!important}
-.carbono-home-only{
- top:102px!important;height:calc(100vh - 102px)!important;
-}
-
-/* Em telas menores mantém tudo utilizável sem sobreposição */
-@media(max-width:1550px){
- .ca-approved-header{padding:0 18px}
- .ca-brand{width:320px;min-width:320px}
- .ca-brand-title{font-size:21px}
- .ca-brand-sub{font-size:10px}
- .ca-link,.ca-trigger{padding:12px 10px;font-size:14px;gap:6px}
- .ca-icon{font-size:17px}
-}
-@media(max-width:1250px){
- .ca-brand{width:250px;min-width:250px}
- .ca-brand-sub{display:none}
- .ca-link,.ca-trigger{font-size:12px;padding:10px 7px}
-}
-</style>
-
-<nav class="ca-approved-header">
-  <a class="ca-brand" href="?page=inicio">
-    <span class="ca-brand-icon">❧</span>
-    <span>
-      <span class="ca-brand-title">CARBONO EM AÇÃO</span>
-      <span class="ca-brand-sub">Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</span>
-    </span>
-  </a>
-  <div class="ca-nav">
-    <div class="ca-item"><a class="ca-link {"ca-home" if st.session_state.get("_ca_route","inicio") == "inicio" else ""}" href="?page=inicio"><span class="ca-icon">⌂</span>{"Início" if PT else "Home"}</a></div>
-    <div class="ca-item"><a class="ca-link" href="?page=overview"><span class="ca-icon">▥</span>Visão Geral</a></div>
-    <div class="ca-item">
-      <span class="ca-trigger"><span class="ca-icon">▤</span>Dados <span class="ca-chevron">⌄</span></span>
-      <div class="ca-drop">
-        <a href="?page=tower"><span class="di">▱</span>Dados Originais da Torre</a>
-        <a href="?page=structure"><span class="di">▧</span>Estrutura Científica</a>
-        <a href="?page=__CURRENT_ROUTE__&panel=files"><span class="di">☁</span>Carregar/gerenciar arquivos</a>
-      </div>
-    </div>
-    <div class="ca-item">
-      <span class="ca-trigger"><span class="ca-icon">⌁</span>Análises <span class="ca-chevron">⌄</span></span>
-      <div class="ca-drop">
-        <a href="?page=compare"><span class="di">↔</span>Comparar Variáveis</a>
-        <a href="?page=gapfill"><span class="di">⌁</span>Preenchimento de Lacunas</a>
-        <a href="?page=carbon"><span class="di">◉</span>Balanço de Carbono</a>
-      </div>
-    </div>
-    <div class="ca-item">
-      <span class="ca-trigger"><span class="ca-icon">♢</span>Qualidade <span class="ca-chevron">⌄</span></span>
-      <div class="ca-drop">
-        <a href="?page=qc"><span class="di">✓</span>Qualidade dos Dados</a>
-      </div>
-    </div>
-    <div class="ca-item">
-      <span class="ca-trigger"><span class="ca-icon">ⓘ</span>Informações <span class="ca-chevron">⌄</span></span>
-      <div class="ca-drop">
-        <a href="?page=about"><span class="di">ⓘ</span>Sobre os Dados</a>
-        <a href="?page=request"><span class="di">✉</span>Solicitar Dados</a>
-      </div>
-    </div>
-    <span class="ca-sep"></span>
-    <div class="ca-item">
-      <a class="ca-trigger ca-file-trigger" href="?page=__CURRENT_ROUTE__&panel=files"><span class="ca-icon">☁</span>Arquivos</a>
-      <div class="ca-drop ca-right-drop">
-        <div style="padding:12px 16px;color:#07533f;font-weight:700">Arquivos de dados</div>
-        <div style="padding:0 16px 12px;color:#52655d;font-size:13px">Os controles reais de upload aparecem logo abaixo do cabeçalho ao abrir esta opção.</div>
-      </div>
-    </div>
-    <div class="ca-item">
-      <span class="ca-trigger"><span class="ca-icon">◎</span>Idioma <span class="ca-chevron">⌄</span></span>
-      <div class="ca-drop ca-right-drop">
-        <a href="?page=__CURRENT_ROUTE__&lang=pt">Português</a>
-        <a href="?page=__CURRENT_ROUTE__&lang=en">English</a>
-      </div>
-    </div>
-    <div class="ca-item">
-      <span class="ca-trigger"><span class="ca-icon">⚙</span>Preferências <span class="ca-chevron">⌄</span></span>
-      <div class="ca-drop ca-right-drop">
-        <a href="#ca-controls">Controles próprios</a>
-        <a href="#ca-controls">Tabela nativa do Streamlit</a>
-      </div>
-    </div>
-  </div>
-</nav>
-"""
-_current_route_for_header = st.session_state.get("_ca_route", "inicio")
-_header_html = _header_html.replace("__CURRENT_ROUTE__", str(_current_route_for_header))
-st.markdown(_header_html, unsafe_allow_html=True)
-
-# Uploads reais: ficam em uma rota própria para não depender de HTML/âncoras.
-# A navegação por query mantém a sessão do Streamlit; os UploadedFile permanecem no widget.
-tower_files = st.session_state.get("tower_dat_v34", [])
-processed_file = st.session_state.get("processed_xlsx_v34", None)
-
-if st.query_params.get("page", "inicio") == "files":
-    st.subheader(tr("Arquivos de dados", "Data files"))
-    tower_files = st.file_uploader(
-        tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
-        type=["dat"], accept_multiple_files=True, key="tower_dat_v34",
-        help=tr(
-            "Carregue os arquivos TOA5 de 1 min, 30 min e diário.",
-            "Upload the 1-min, 30-min and daily TOA5 files."
-        ),
-    )
-    processed_file = st.file_uploader(
-        tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
-        type=["xlsx"], key="processed_xlsx_v34",
-    )
-    st.caption(tr(
-        "Os arquivos permanecem disponíveis enquanto esta sessão do Streamlit estiver ativa.",
-        "Files remain available while this Streamlit session is active."
-    ))
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
     st.session_state["_ecoflux_parsed_toa5"] = {}
@@ -1422,7 +1097,7 @@ for f in tower_files or []:
         res = summary["resolution"]
 
         if res == "Desconhecida":
-            st.warning(
+            st.sidebar.warning(
                 tr(
                     f"{f.name}: resolução temporal não reconhecida automaticamente.",
                     f"{f.name}: temporal resolution could not be recognized automatically.",
@@ -1431,7 +1106,7 @@ for f in tower_files or []:
             continue
 
         if res in tower_file_map:
-            st.warning(
+            st.sidebar.warning(
                 tr(
                     f"Há mais de um arquivo reconhecido como {res}. O último selecionado será usado.",
                     f"More than one file was recognized as {res}. The last selected file will be used.",
@@ -1447,7 +1122,7 @@ for f in tower_files or []:
             parsed_cache[key] = parse_toa5_stream(f)
 
     except Exception as exc:
-        st.error(f"{getattr(f, 'name', 'arquivo')}: {exc}")
+        st.sidebar.error(f"{getattr(f, 'name', 'arquivo')}: {exc}")
 
 
 # O reconhecimento temporal continua sendo executado normalmente.
@@ -1491,47 +1166,83 @@ if processed_file is not None:
         pdf, punits, psheet = load_processed_xlsx(_uploaded_bytes(processed_file))
         processed = {"df": pdf, "units": punits, "sheet": psheet}
     except Exception as exc:
-        st.error(tr(
+        st.sidebar.error(tr(
             f"Erro no XLSX processado: {exc}",
             f"Processed XLSX error: {exc}",
         ))
 
-# A interface e a navegação devem existir mesmo antes de qualquer upload.
-# Sem dados, as páginas científicas continuam acessíveis e exibem seus próprios
-# avisos de que a fonte correspondente ainda não foi carregada.
-_no_data_yet = not tower_file_map and processed is None
-_unrecognized_upload = bool(tower_files) and not tower_file_map
-
-# ============================================================
-# Rota ativa
-# ============================================================
-_no_data_yet = not tower_file_map and processed is None
-_unrecognized_upload = bool(tower_files) and not tower_file_map
-
-_route = st.query_params.get("page", st.session_state.get("_ca_route", "inicio"))
-if isinstance(_route, list):
-    _route = _route[0] if _route else "inicio"
-if _route not in {"inicio", "files", *pages.keys()}:
-    _route = "inicio"
-    st.session_state["_ca_route"] = "inicio"
-if _route == "inicio":
-    page = _inicio_label
-elif _route == "files":
-    page = tr("Arquivos", "Files")
-else:
-    page = pages[_route]
-
-if _route != "inicio" and _no_data_yet:
-    if _unrecognized_upload:
-        st.error(tr(
-            "Os arquivos foram enviados, mas nenhuma resolução temporal pôde ser reconhecida. Verifique se são arquivos Campbell TOA5 com uma coluna TIMESTAMP válida.",
-            "Files were uploaded, but no temporal resolution could be recognized. Check that they are Campbell TOA5 files with a valid TIMESTAMP column.",
-        ))
+if not tower_file_map and processed is None:
+    st.title("CARBONO EM AÇÃO")
+    if tower_files:
+        st.error(
+            tr(
+                "Os arquivos foram enviados, mas nenhuma resolução temporal pôde ser reconhecida. "
+                "Verifique se são arquivos Campbell TOA5 com uma coluna TIMESTAMP válida.",
+                "Files were uploaded, but no temporal resolution could be recognized. "
+                "Check that they are Campbell TOA5 files with a valid TIMESTAMP column.",
+            )
+        )
     else:
-        st.info(tr(
-            "A interface está disponível. Para executar as análises científicas, use Arquivos no cabeçalho para carregar os dados CR3000 e, quando necessário, a planilha processada.",
-            "The interface is available. To run scientific analyses, use Files in the header to upload CR3000 data and, when needed, the processed workbook.",
-        ))
+        st.info(
+            tr(
+                "Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.",
+                "Upload the CR3000 tower files and, optionally, the processed-products workbook.",
+            )
+        )
+    st.stop()
+
+# ============================================================
+# Navegação
+# ============================================================
+
+pages = {
+    "overview": tr("Visão Geral", "Overview"),
+    "tower": tr("Dados Originais da Torre", "Original Tower Data"),
+    "structure": tr("Estrutura Científica", "Scientific Structure"),
+    "compare": tr("Comparar Variáveis", "Compare Variables"),
+    "gapfill": tr("Preenchimento de Lacunas", "Gap Filling"),
+    "carbon": tr("Balanço de Carbono", "Carbon Balance"),
+    "qc": tr("Qualidade dos Dados", "Data Quality"),
+    "about": tr("Sobre os Dados", "About the Data"),
+    "request": tr("Solicitar Dados", "Request Data"),
+}
+
+_inicio_label = tr("Início", "Home")
+_nav_options = [_inicio_label] + list(pages.values())
+page = st.sidebar.radio(tr("Navegação", "Navigation"), _nav_options)
+
+st.sidebar.markdown('<div class="ca-side-divider"></div>', unsafe_allow_html=True)
+
+_language_widget = st.sidebar.selectbox(
+    "Idioma / Language",
+    ["Português", "English"],
+    index=0 if st.session_state.get("language_v29", "Português") == "Português" else 1,
+    key="language_bottom_widget",
+)
+if _language_widget != st.session_state.get("language_v29", "Português"):
+    st.session_state["language_v29"] = _language_widget
+    st.rerun()
+
+with st.sidebar.expander(tr("Preferências", "Preferences"), expanded=False):
+    _table_widget = st.radio(
+        tr("Tabelas", "Tables"),
+        [
+            tr("Controles próprios", "Custom controls"),
+            tr("Nativa do Streamlit", "Native Streamlit"),
+        ],
+        index=0 if CUSTOM_TABLES else 1,
+        key="table_bottom_widget",
+    )
+    if _table_widget != st.session_state.get(
+        "table_mode_v29", tr("Controles próprios", "Custom controls")
+    ):
+        st.session_state["table_mode_v29"] = _table_widget
+        st.rerun()
+
+st.sidebar.markdown(
+    """<div class="ca-side-footer">❧ &nbsp; <span>Ciência hoje,<br>florestas amanhã.</span></div>""",
+    unsafe_allow_html=True,
+)
 
 if page == _inicio_label:
     _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
@@ -1546,11 +1257,14 @@ if page == _inicio_label:
                 max-width:none!important;width:0!important;height:0!important;
             }}
             .carbono-home-only{{
-                position:fixed;left:0;top:4.65rem;right:0;bottom:0;
-                width:100vw;height:calc(100vh - 4.65rem);
+                position:fixed;left:21rem;top:0;right:0;bottom:0;
+                width:calc(100vw - 21rem);height:100vh;
                 background-image:url(data:image/jpeg;base64,{_home64});
                 background-size:100% 100%;background-position:center;
                 background-repeat:no-repeat;background-color:#063b2d;z-index:0;
+            }}
+            @media(max-width:1200px){{
+                .carbono-home-only{{left:18rem;width:calc(100vw - 18rem)}}
             }}
             </style>
             <div class="carbono-home-only"></div>
@@ -1560,27 +1274,6 @@ if page == _inicio_label:
     else:
         st.warning("Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.")
     st.stop()
-
-if _route == "files":
-    if tower_summaries:
-        st.success(tr(
-            f"{len(tower_summaries)} arquivo(s) CR3000 reconhecido(s).",
-            f"{len(tower_summaries)} CR3000 file(s) recognized."
-        ))
-    if processed is not None:
-        st.success(tr("Planilha processada carregada.", "Processed workbook loaded."))
-    st.stop()
-
-# Espaçamento das páginas científicas; não afeta a tela Início.
-st.markdown("""
-<style>
-.main .block-container{
-    padding-left:1.5rem!important;
-    padding-right:1.5rem!important;
-    padding-bottom:2rem!important;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # Daqui para baixo, a lógica científica é exatamente a original:
 # Visão Geral continua sendo Visão Geral, não a imagem de abertura.
