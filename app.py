@@ -1204,69 +1204,117 @@ def _back():
 
 st.markdown("""
 <style>
-section[data-testid="stSidebar"], [data-testid="collapsedControl"] {display:none!important;}
-header[data-testid="stHeader"] {background:#07533f!important;}
-[data-testid="stMainBlockContainer"], .main .block-container {
-    max-width:100%!important;width:100%!important;
-    padding:0 1.25rem 2rem 1.25rem!important;
+section[data-testid="stSidebar"],[data-testid="collapsedControl"]{display:none!important}
+header[data-testid="stHeader"]{height:0!important;min-height:0!important;background:transparent!important}
+[data-testid="stToolbar"]{display:none!important}
+[data-testid="stDecoration"]{display:none!important}
+[data-testid="stMainBlockContainer"],.main .block-container{
+ max-width:100%!important;width:100%!important;padding:0!important;margin:0!important
 }
-.ca-stable-brand {
-    margin:0 -1.25rem .35rem -1.25rem;
-    width:calc(100% + 2.5rem);box-sizing:border-box;
-    padding:.85rem 1.5rem .75rem 1.5rem;
-    background:linear-gradient(90deg,#07533f 0%,#006746 52%,#005239 100%);
-    color:white;
-    border-bottom:1px solid rgba(91,235,145,.22);
+.ca-stable-brand{
+ margin:0!important;width:100%!important;box-sizing:border-box;height:102px;
+ padding:18px 34px!important;background:linear-gradient(90deg,#07533f,#006746 52%,#005239);
+ color:#fff;border:0!important
 }
-.ca-stable-brand b {font-size:1.35rem;letter-spacing:.01em;}
-.ca-stable-brand small {display:block;font-size:.72rem;margin-top:.2rem;color:#eafff0;}
-/* Navegação permanece no fluxo normal da página: nada fica sobreposto. */
-div[data-testid="stHorizontalBlock"] button {
-    min-height:2.65rem;
+.ca-stable-brand b{font-size:27px!important;line-height:1!important;font-weight:800}
+.ca-stable-brand small{display:block;font-size:12px!important;line-height:1.25;margin-top:7px;color:#effff4}
+
+/* As duas linhas de widgets são posicionadas DENTRO da faixa verde, sem cobrir o conteúdo. */
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor){
+ position:absolute!important;top:18px!important;left:420px!important;right:510px!important;
+ z-index:20!important;gap:7px!important;align-items:center!important
 }
-div[data-testid="stPopoverBody"] {
-    z-index:99999!important;
+.nav-anchor,.tool-anchor{display:none!important}
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button,
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-testid="stPopover"]>button{
+ min-height:54px!important;border:0!important;border-radius:10px!important;
+ background:transparent!important;color:#fff!important;font-size:16px!important;font-weight:650!important;
+ white-space:nowrap!important;box-shadow:none!important
 }
-div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] {
-    min-width:340px;
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button:hover,
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"]{
+ background:#18a85d!important;color:#fff!important
 }
-.ca-home-wrap {
-    margin:0 -1.25rem 0 -1.25rem;
+div[data-testid="stHorizontalBlock"]:has(.tool-anchor){
+ position:absolute!important;top:18px!important;right:28px!important;width:470px!important;
+ z-index:21!important;gap:8px!important;align-items:center!important
 }
-.ca-home-wrap img {
-    display:block;
-    width:100%;
-    height:auto;
+div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button,
+div[data-testid="stHorizontalBlock"]:has(.tool-anchor) [data-testid="stPopover"]>button{
+ min-height:54px!important;border:0!important;border-radius:10px!important;
+ background:transparent!important;color:#fff!important;font-size:16px!important;font-weight:650!important;
+ white-space:nowrap!important;box-shadow:none!important
+}
+div[data-testid="stHorizontalBlock"]:has(.tool-anchor)>div:first-of-type button{
+ border:1px solid #23c978!important
+}
+div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button:hover{background:#18a85d!important}
+
+/* Dropdowns: brancos, como a referência. */
+div[data-testid="stPopoverBody"]{
+ background:#fff!important;color:#26352f!important;border-radius:9px!important;
+ border:1px solid rgba(0,0,0,.08)!important;box-shadow:0 12px 30px rgba(0,0,0,.25)!important;
+ min-width:270px!important;z-index:99999!important
+}
+div[data-testid="stPopoverBody"]>div,
+div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{background:#fff!important}
+div[data-testid="stPopoverBody"] button{
+ width:100%!important;justify-content:flex-start!important;background:#fff!important;
+ color:#26352f!important;border:0!important;border-radius:6px!important
+}
+div[data-testid="stPopoverBody"] button:hover{background:#eaf8ef!important;color:#07533f!important}
+div[data-testid="stPopoverBody"] label,div[data-testid="stPopoverBody"] p,
+div[data-testid="stPopoverBody"] span{color:#26352f!important}
+
+/* Upload continua real e clicável dentro do popover Arquivos. */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"]{min-width:430px!important}
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
+ background:#f5faf7!important;border-color:#9bc9ad!important
+}
+
+/* Início sem margens: imagem encosta no cabeçalho e ocupa a largura toda. */
+[data-testid="stImage"]{margin:0!important}
+[data-testid="stImage"] img{width:100vw!important;max-width:100vw!important;margin:0!important;display:block!important}
+
+@media(max-width:1550px){
+ .ca-stable-brand{padding-left:22px!important}
+ .ca-stable-brand b{font-size:22px!important}
+ .ca-stable-brand small{font-size:10px!important}
+ div[data-testid="stHorizontalBlock"]:has(.nav-anchor){left:330px!important;right:420px!important;gap:3px!important}
+ div[data-testid="stHorizontalBlock"]:has(.tool-anchor){right:12px!important;width:405px!important}
+ div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button,
+ div[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-testid="stPopover"]>button,
+ div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button,
+ div[data-testid="stHorizontalBlock"]:has(.tool-anchor) [data-testid="stPopover"]>button{font-size:13px!important;padding:.25rem .45rem!important}
 }
 </style>
 <div class="ca-stable-brand">
   <b>❧ &nbsp;CARBONO EM AÇÃO</b>
-  <small>Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia</small>
+  <small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small>
 </div>
 """, unsafe_allow_html=True)
 
 active=st.session_state["_ca_route"]
-n=st.columns([.16,.9,1.1,.9,1,1,1.12],gap="small")
+n=st.columns([.9,1.1,.9,1,1,1.12],gap="small")
 with n[0]:
  st.markdown('<i class="nav-anchor"></i>',unsafe_allow_html=True)
- if st.button("←",key="n_back",disabled=not st.session_state["_ca_history"]): _back();st.rerun()
-with n[1]:
+
  if st.button(tr("⌂ Início","⌂ Home"),key="n_home",use_container_width=True,type="primary" if active=="inicio" else "secondary"): _go("inicio");st.rerun()
-with n[2]:
+with n[1]:
  if st.button(tr("▥ Visão Geral","▥ Overview"),key="n_over",use_container_width=True,type="primary" if active=="overview" else "secondary"): _go("overview");st.rerun()
-with n[3]:
+with n[2]:
  with st.popover(tr("▤ Dados ▾","▤ Data ▾"),use_container_width=True):
   if st.button(pages["tower"],key="n_tower",use_container_width=True): _go("tower");st.rerun()
   if st.button(pages["structure"],key="n_struct",use_container_width=True): _go("structure");st.rerun()
-with n[4]:
+with n[3]:
  with st.popover(tr("⌁ Análises ▾","⌁ Analyses ▾"),use_container_width=True):
   if st.button(pages["compare"],key="n_comp",use_container_width=True): _go("compare");st.rerun()
   if st.button(pages["gapfill"],key="n_gap",use_container_width=True): _go("gapfill");st.rerun()
   if st.button(pages["carbon"],key="n_carbon",use_container_width=True): _go("carbon");st.rerun()
-with n[5]:
+with n[4]:
  with st.popover(tr("♢ Qualidade ▾","♢ Quality ▾"),use_container_width=True):
   if st.button(pages["qc"],key="n_qc",use_container_width=True): _go("qc");st.rerun()
-with n[6]:
+with n[5]:
  with st.popover(tr("ⓘ Informações ▾","ⓘ Information ▾"),use_container_width=True):
   if st.button(pages["about"],key="n_about",use_container_width=True): _go("about");st.rerun()
   if st.button(pages["request"],key="n_req",use_container_width=True): _go("request");st.rerun()
@@ -1420,8 +1468,12 @@ if _route != "inicio" and _no_data_yet:
 if page == _inicio_label:
     _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
     if _home_img.exists():
-        # Imagem no fluxo normal do Streamlit: não cria camada sobre os menus/botões.
-        st.image(str(_home_img), use_container_width=True)
+        _home64 = base64.b64encode(_home_img.read_bytes()).decode("ascii")
+        st.markdown(
+            f'<img src="data:image/jpeg;base64,{_home64}" '
+            'style="display:block;width:100%;height:calc(100vh - 102px);object-fit:cover;margin:0;padding:0;" />',
+            unsafe_allow_html=True,
+        )
     else:
         st.warning(tr(
             "Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.",
@@ -1429,15 +1481,14 @@ if page == _inicio_label:
         ))
     st.stop()
 
-# Espaçamento das páginas científicas; não afeta a tela Início.
+# Espaçamento somente do conteúdo científico.
 st.markdown("""
 <style>
-.main .block-container{
-    padding-left:1.5rem!important;
-    padding-right:1.5rem!important;
-    padding-bottom:2rem!important;
-}
+.ca-science-pad{height:1px}
+[data-testid="stMainBlockContainer"]{padding-left:1.5rem!important;padding-right:1.5rem!important;padding-bottom:2rem!important}
+.ca-stable-brand{margin-left:-1.5rem!important;margin-right:-1.5rem!important;width:calc(100% + 3rem)!important}
 </style>
+<div class="ca-science-pad"></div>
 """, unsafe_allow_html=True)
 
 # Daqui para baixo, a lógica científica é exatamente a original:
