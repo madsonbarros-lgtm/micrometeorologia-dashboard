@@ -349,6 +349,71 @@ div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"
     border-color:transparent!important;
     box-shadow:none!important;
 }
+
+/* ===== v16 — menus/painéis suaves + arquivos em coluna ===== */
+
+/* Todos os popovers/abas abertas: verde muito suave */
+div[data-baseweb="popover"],
+div[data-baseweb="popover"] > div,
+div[data-testid="stPopoverBody"],
+div[data-testid="stPopoverBody"] > div {
+    background: #F1FAF5 !important;
+}
+
+/* Caixa interna e áreas dos widgets dentro dos menus */
+div[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"],
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"],
+div[data-testid="stPopoverBody"] section[data-testid="stFileUploaderDropzone"] {
+    background: #F1FAF5 !important;
+}
+
+/* Bordas discretas para os painéis abertos */
+div[data-testid="stPopoverBody"] {
+    border: 1px solid rgba(19, 133, 91, .18) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 24px rgba(0, 70, 45, .14) !important;
+}
+
+/* Itens/botões internos: hover verde suave */
+div[data-testid="stPopoverBody"] button:hover,
+div[data-baseweb="popover"] button:hover {
+    background: #DFF4E8 !important;
+}
+
+/* ARQUIVOS: força os arquivos selecionados para uma lista vertical */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] ul,
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] ul[class],
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] [data-testid="stFileUploaderFileList"] {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 7px !important;
+    width: 100% !important;
+}
+
+/* Cada arquivo ocupa uma linha */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] li,
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] [data-testid="stFileUploaderFile"] {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    background: rgba(255,255,255,.72) !important;
+    border-radius: 7px !important;
+}
+
+/* Evita que os chips/arquivos fiquem lado a lado em versões novas do Streamlit */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] > div,
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] section + div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+}
+
+/* Campos/selects dentro de Idioma e Preferências seguem o mesmo tom */
+div[data-testid="stPopoverBody"] [data-baseweb="select"] > div,
+div[data-testid="stPopoverBody"] input {
+    background: rgba(255,255,255,.78) !important;
+}
 </style>
     """,
     unsafe_allow_html=True,
