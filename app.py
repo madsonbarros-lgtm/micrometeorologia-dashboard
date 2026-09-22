@@ -9,6 +9,37 @@ import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
 
+
+def _ca_file_size(n):
+    n = int(n or 0)
+    if n >= 1024**2:
+        return f"{n/(1024**2):.1f} MB"
+    if n >= 1024:
+        return f"{n/1024:.1f} KB"
+    return f"{n} B"
+
+def _ca_vertical_files(files):
+    if not files:
+        return
+    if not isinstance(files, (list, tuple)):
+        files = [files]
+    rows = []
+    for f in files:
+        name = getattr(f, "name", "arquivo")
+        size = getattr(f, "size", 0)
+        name = (str(name).replace("&","&amp;").replace("<","&lt;")
+                         .replace(">","&gt;").replace('"',"&quot;"))
+        rows.append(
+            '<div class="ca-upload-file">'
+            '<div class="ca-upload-icon">▣</div>'
+            '<div class="ca-upload-meta">'
+            f'<div class="ca-upload-name">{name}</div>'
+            f'<div class="ca-upload-size">{_ca_file_size(size)}</div>'
+            '</div></div>'
+        )
+    st.markdown('<div class="ca-upload-list">' + ''.join(rows) + '</div>',
+                unsafe_allow_html=True)
+
 st.set_page_config(
     page_title="Carbono em Ação",
     page_icon="🌿",
@@ -543,6 +574,20 @@ div[data-testid="stPopoverBody"] [data-testid="stFileUploaderFile"] > div > div{
 div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] button{
     background:#DFF2E7 !important;
 }
+
+/* ===== v19 — arquivos realmente em coluna ===== */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderFile"]{
+    display:none !important;
+}
+.ca-upload-list{display:flex;flex-direction:column;gap:7px;width:100%;margin:6px 0 10px}
+.ca-upload-file{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;
+padding:8px 10px;background:#DFF2E7;border:1px solid rgba(20,120,80,.12);
+border-radius:8px;color:#24342d}
+.ca-upload-icon{width:30px;height:30px;min-width:30px;border-radius:6px;display:flex;
+align-items:center;justify-content:center;background:#CBE9D8;font-size:17px}
+.ca-upload-meta{min-width:0;line-height:1.15}
+.ca-upload-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ca-upload-size{margin-top:3px;font-size:10px;opacity:.68}
 </style>
     """,
     unsafe_allow_html=True,
@@ -1495,7 +1540,9 @@ with hdr[6]:
 with hdr[7]:
  with st.popover(tr("Arquivos","Files"),use_container_width=True):
   tower_files=st.file_uploader(tr("Dados originais CR3000 (.dat)","Original CR3000 data (.dat)"),type=["dat"],accept_multiple_files=True,key="tower_dat_v34")
+  _ca_vertical_files(tower_files)
   processed_file=st.file_uploader(tr("Produtos processados (.xlsx) — opcional","Processed products (.xlsx) — optional"),type=["xlsx"],key="processed_xlsx_v34")
+  _ca_vertical_files(processed_file)
 with hdr[8]:
  with st.popover(tr("Idioma","Language"),use_container_width=True):
   if st.button("Português",key="l_pt",use_container_width=True):
