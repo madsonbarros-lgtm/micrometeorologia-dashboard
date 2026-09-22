@@ -1184,53 +1184,189 @@ div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"] *{
 </div>
 """, unsafe_allow_html=True)
 
-# Navegação principal: widgets Streamlit preservam a sessão e os uploads.
-nav_cols = st.columns([.18, .95, 1.05, 1, 1, 1, 1.12], gap="small")
-with nav_cols[0]:
-    st.markdown('<span class="ca-main-nav-anchor"></span>', unsafe_allow_html=True)
-    if st.button("←", key="ca_back", help=tr("Voltar à página anterior", "Back to previous page"),
-                 disabled=not bool(st.session_state["_ca_history"])):
-        _back(); st.rerun()
-with nav_cols[1]:
-    if st.button(tr("⌂  Início","⌂  Home"), key="ca_home", use_container_width=True):
-        _go("inicio"); st.rerun()
-with nav_cols[2]:
-    if st.button(tr("▥  Visão Geral","▥  Overview"), key="ca_overview", use_container_width=True):
-        _go("overview"); st.rerun()
-with nav_cols[3]:
-    with st.popover(tr("▤  Dados  ▾","▤  Data  ▾"), use_container_width=True):
-        if st.button(pages["tower"], key="ca_tower", use_container_width=True):
-            _go("tower"); st.rerun()
-        if st.button(pages["structure"], key="ca_structure", use_container_width=True):
-            _go("structure"); st.rerun()
-with nav_cols[4]:
-    with st.popover(tr("⌁  Análises  ▾","⌁  Analyses  ▾"), use_container_width=True):
-        if st.button(pages["compare"], key="ca_compare", use_container_width=True):
-            _go("compare"); st.rerun()
-        if st.button(pages["gapfill"], key="ca_gapfill", use_container_width=True):
-            _go("gapfill"); st.rerun()
-        if st.button(pages["carbon"], key="ca_carbon", use_container_width=True):
-            _go("carbon"); st.rerun()
-with nav_cols[5]:
-    with st.popover(tr("♢  Qualidade  ▾","♢  Quality  ▾"), use_container_width=True):
-        if st.button(pages["qc"], key="ca_qc", use_container_width=True):
-            _go("qc"); st.rerun()
-with nav_cols[6]:
-    with st.popover(tr("ⓘ  Informações  ▾","ⓘ  Information  ▾"), use_container_width=True):
-        if st.button(pages["about"], key="ca_about", use_container_width=True):
-            _go("about"); st.rerun()
-        if st.button(pages["request"], key="ca_request", use_container_width=True):
-            _go("request"); st.rerun()
 
-# Controles à direita do mesmo cabeçalho.
-tool_cols = st.columns([1.05, .85, 1], gap="small")
-with tool_cols[0]:
-    st.markdown('<span class="ca-tools-anchor"></span>', unsafe_allow_html=True)
-    with st.popover(tr("☁  Arquivos","☁  Files"), use_container_width=True):
-        st.caption(tr(
-            "Carregue ou substitua os arquivos sem sair da página atual.",
-            "Upload or replace files without leaving the current page."
-        ))
+# Cabeçalho visual no padrão aprovado.
+# Os links usam query parameters: o hover é CSS puro e a rota continua sendo processada
+# pelo mesmo app Streamlit, sem abrir outra aplicação.
+_route_q = st.query_params.get("page", None)
+if isinstance(_route_q, list):
+    _route_q = _route_q[0] if _route_q else None
+_valid_routes = {"inicio", *pages.keys()}
+if _route_q in _valid_routes:
+    st.session_state["_ca_route"] = _route_q
+
+def _nav_url(route):
+    return f"?page={route}"
+
+st.markdown(r"""
+<style>
+/* Esconde os controles Streamlit que compunham o cabeçalho anterior */
+div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor),
+div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!important}
+
+/* Cabeçalho aprovado */
+.ca-approved-header{
+ position:fixed;z-index:10020;left:0;right:0;top:0;height:102px;
+ display:flex;align-items:center;
+ padding:0 34px;
+ background:linear-gradient(90deg,#07533f 0%,#006746 52%,#005239 100%);
+ color:#fff;
+ box-shadow:0 1px 0 rgba(255,255,255,.10);
+ font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.ca-brand{
+ width:390px;min-width:390px;display:flex;align-items:center;gap:15px;
+ text-decoration:none;color:white!important;
+}
+.ca-brand-icon{font-size:42px;line-height:1;color:#42ef8d}
+.ca-brand-title{font-size:25px;font-weight:800;line-height:1.02;letter-spacing:-.3px}
+.ca-brand-sub{font-size:12px;line-height:1.25;margin-top:5px;color:#f0fff5}
+.ca-nav{
+ flex:1;height:100%;display:flex;align-items:center;justify-content:space-between;
+ gap:7px;min-width:0;
+}
+.ca-item{height:100%;display:flex;align-items:center;position:relative}
+.ca-link,.ca-trigger{
+ display:flex;align-items:center;gap:9px;
+ padding:14px 17px;border-radius:10px;
+ color:#fff!important;text-decoration:none!important;
+ font-size:16px;font-weight:650;white-space:nowrap;
+ transition:background .15s ease;
+}
+.ca-link:hover,.ca-trigger:hover,.ca-item:hover>.ca-trigger{background:#18a85d}
+.ca-home{background:#18a85d}
+.ca-icon{font-size:20px}
+.ca-chevron{font-size:14px;margin-left:2px}
+
+/* Ponte invisível evita que o menu feche entre o item e o dropdown */
+.ca-drop{
+ display:none;position:absolute;top:75px;left:0;min-width:270px;
+ background:#fff;border-radius:8px;padding:8px 0;
+ box-shadow:0 12px 30px rgba(0,0,0,.28);
+ border:1px solid rgba(0,0,0,.08);z-index:10030;
+}
+.ca-drop:before{content:"";position:absolute;left:0;right:0;top:-14px;height:14px}
+.ca-item:hover>.ca-drop,.ca-drop:hover{display:block}
+.ca-drop a{
+ display:flex;align-items:center;gap:12px;padding:13px 18px;
+ color:#26352f!important;text-decoration:none!important;
+ font-size:15px;font-weight:500;white-space:nowrap;
+}
+.ca-drop a:hover{background:#eaf8ef;color:#07533f!important}
+.ca-drop .di{font-size:19px;width:22px;text-align:center}
+.ca-sep{
+ height:54px;width:1px;background:rgba(97,240,157,.60);
+ margin:0 8px;
+}
+.ca-file-trigger{
+ border:1px solid #23c978;border-radius:10px;padding:13px 17px;
+}
+.ca-file-trigger:hover{background:#18a85d}
+.ca-right-drop{left:auto;right:0}
+
+/* Compensa a barra fixa */
+.main .block-container{padding-top:7.15rem!important}
+.carbono-home-only{
+ top:102px!important;height:calc(100vh - 102px)!important;
+}
+
+/* Em telas menores mantém tudo utilizável sem sobreposição */
+@media(max-width:1550px){
+ .ca-approved-header{padding:0 18px}
+ .ca-brand{width:320px;min-width:320px}
+ .ca-brand-title{font-size:21px}
+ .ca-brand-sub{font-size:10px}
+ .ca-link,.ca-trigger{padding:12px 10px;font-size:14px;gap:6px}
+ .ca-icon{font-size:17px}
+}
+@media(max-width:1250px){
+ .ca-brand{width:250px;min-width:250px}
+ .ca-brand-sub{display:none}
+ .ca-link,.ca-trigger{font-size:12px;padding:10px 7px}
+}
+</style>
+
+<nav class="ca-approved-header">
+  <a class="ca-brand" href="?page=inicio">
+    <span class="ca-brand-icon">❧</span>
+    <span>
+      <span class="ca-brand-title">CARBONO EM AÇÃO</span>
+      <span class="ca-brand-sub">Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</span>
+    </span>
+  </a>
+
+  <div class="ca-nav">
+    <div class="ca-item"><a class="ca-link ca-home" href="?page=inicio"><span class="ca-icon">⌂</span>Início</a></div>
+    <div class="ca-item"><a class="ca-link" href="?page=overview"><span class="ca-icon">▥</span>Visão Geral</a></div>
+
+    <div class="ca-item">
+      <span class="ca-trigger"><span class="ca-icon">▤</span>Dados <span class="ca-chevron">⌄</span></span>
+      <div class="ca-drop">
+        <a href="?page=tower"><span class="di">▱</span>Dados Originais da Torre</a>
+        <a href="?page=structure"><span class="di">▧</span>Estrutura Científica</a>
+        <a href="#ca-files"><span class="di">☁</span>Carregar/gerenciar arquivos</a>
+      </div>
+    </div>
+
+    <div class="ca-item">
+      <span class="ca-trigger"><span class="ca-icon">⌁</span>Análises <span class="ca-chevron">⌄</span></span>
+      <div class="ca-drop">
+        <a href="?page=compare"><span class="di">↔</span>Comparar Variáveis</a>
+        <a href="?page=gapfill"><span class="di">⌁</span>Preenchimento de Lacunas</a>
+        <a href="?page=carbon"><span class="di">◉</span>Balanço de Carbono</a>
+      </div>
+    </div>
+
+    <div class="ca-item">
+      <span class="ca-trigger"><span class="ca-icon">♢</span>Qualidade <span class="ca-chevron">⌄</span></span>
+      <div class="ca-drop">
+        <a href="?page=qc"><span class="di">✓</span>Qualidade dos Dados</a>
+      </div>
+    </div>
+
+    <div class="ca-item">
+      <span class="ca-trigger"><span class="ca-icon">ⓘ</span>Informações <span class="ca-chevron">⌄</span></span>
+      <div class="ca-drop">
+        <a href="?page=about"><span class="di">ⓘ</span>Sobre os Dados</a>
+        <a href="?page=request"><span class="di">✉</span>Solicitar Dados</a>
+      </div>
+    </div>
+
+    <span class="ca-sep"></span>
+
+    <div class="ca-item" id="ca-files">
+      <span class="ca-trigger ca-file-trigger"><span class="ca-icon">☁</span>Arquivos</span>
+      <div class="ca-drop ca-right-drop">
+        <div style="padding:12px 16px;color:#07533f;font-weight:700">Arquivos de dados</div>
+        <div style="padding:0 16px 12px;color:#52655d;font-size:13px">Os controles reais de upload aparecem logo abaixo do cabeçalho ao abrir esta opção.</div>
+      </div>
+    </div>
+
+    <div class="ca-item">
+      <span class="ca-trigger"><span class="ca-icon">◎</span>Idioma <span class="ca-chevron">⌄</span></span>
+      <div class="ca-drop ca-right-drop">
+        <a href="?page=inicio&lang=pt">Português</a>
+        <a href="?page=inicio&lang=en">English</a>
+      </div>
+    </div>
+
+    <div class="ca-item">
+      <span class="ca-trigger"><span class="ca-icon">⚙</span>Preferências <span class="ca-chevron">⌄</span></span>
+      <div class="ca-drop ca-right-drop">
+        <a href="#ca-controls">Controles próprios</a>
+        <a href="#ca-controls">Tabela nativa do Streamlit</a>
+      </div>
+    </div>
+  </div>
+</nav>
+""", unsafe_allow_html=True)
+
+# Uploads e preferências continuam sendo widgets Streamlit reais.
+# Ficam em um painel compacto logo abaixo do cabeçalho, sem alterar a lógica de leitura.
+with st.expander(tr("☁ Arquivos, idioma e preferências", "☁ Files, language and preferences"), expanded=False):
+    st.markdown('<span id="ca-controls"></span>', unsafe_allow_html=True)
+    _h1, _h2, _h3 = st.columns([1.35, 1.0, .8], gap="large")
+    with _h1:
         tower_files = st.file_uploader(
             tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
             type=["dat"], accept_multiple_files=True, key="tower_dat_v34",
@@ -1243,8 +1379,7 @@ with tool_cols[0]:
             tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
             type=["xlsx"], key="processed_xlsx_v34",
         )
-with tool_cols[1]:
-    with st.popover(tr("◎  Idioma","◎  Language"), use_container_width=True):
+    with _h2:
         _language_widget = st.selectbox(
             "Idioma / Language", ["Português", "English"],
             index=0 if st.session_state.get("language_v29", "Português") == "Português" else 1,
@@ -1253,8 +1388,7 @@ with tool_cols[1]:
         if _language_widget != st.session_state.get("language_v29", "Português"):
             st.session_state["language_v29"] = _language_widget
             st.rerun()
-with tool_cols[2]:
-    with st.popover(tr("⚙  Preferências","⚙  Preferences"), use_container_width=True):
+    with _h3:
         _table_widget = st.radio(
             tr("Tabelas", "Tables"),
             [tr("Controles próprios", "Custom controls"), tr("Nativa do Streamlit", "Native Streamlit")],
@@ -1379,7 +1513,9 @@ _unrecognized_upload = bool(tower_files) and not tower_file_map
 _no_data_yet = not tower_file_map and processed is None
 _unrecognized_upload = bool(tower_files) and not tower_file_map
 
-_route = st.session_state.get("_ca_route", "inicio")
+_route = st.query_params.get("page", st.session_state.get("_ca_route", "inicio"))
+if isinstance(_route, list):
+    _route = _route[0] if _route else "inicio"
 if _route not in {"inicio", *pages.keys()}:
     _route = "inicio"
     st.session_state["_ca_route"] = "inicio"
