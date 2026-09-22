@@ -1210,167 +1210,103 @@ pages = {
 _inicio_label = tr("Início", "Home")
 _nav_options = [_inicio_label] + list(pages.values())
 
-# Navegação horizontal no cabeçalho.
-# Usa somente query params; os page_key e toda a lógica científica abaixo permanecem iguais.
-_route = st.query_params.get("pagina", "inicio")
-if isinstance(_route, list):
-    _route = _route[0]
-_valid_routes = {"inicio", *pages.keys()}
-if _route not in _valid_routes:
-    _route = "inicio"
+# Navegação estável: usa widgets Streamlit, sem links HTML e sem recarregar o navegador.
+# Isso preserva a sessão e, portanto, os arquivos já enviados nos file_uploaders.
+if "_ca_route" not in st.session_state:
+    st.session_state["_ca_route"] = "inicio"
+if "_ca_history" not in st.session_state:
+    st.session_state["_ca_history"] = []
 
-page = _inicio_label if _route == "inicio" else pages[_route]
+def _go(route):
+    current = st.session_state.get("_ca_route", "inicio")
+    if route != current:
+        st.session_state["_ca_history"].append(current)
+        st.session_state["_ca_route"] = route
 
-def _menu_link(route, label):
-    active = " active" if _route == route else ""
-    return f'<a class="ca-menu-link{active}" href="?pagina={route}" target="_self">{label}</a>'
-
-def _drop_link(route, label):
-    active = " active" if _route == route else ""
-    return f'<a class="ca-drop-link{active}" href="?pagina={route}" target="_self">{label}</a>'
-
-_menu_html = f"""
-<div class="ca-topnav">
-  {_menu_link("inicio", tr("Início","Home"))}
-  {_menu_link("overview", tr("Visão Geral","Overview"))}
-
-  <div class="ca-menu-dropdown">
-    <span class="ca-menu-trigger">{tr("Dados","Data")} ▾</span>
-    <div class="ca-dropdown-content">
-      {_drop_link("tower", pages["tower"])}
-      {_drop_link("structure", pages["structure"])}
-    </div>
-  </div>
-
-  <div class="ca-menu-dropdown">
-    <span class="ca-menu-trigger">{tr("Análises","Analyses")} ▾</span>
-    <div class="ca-dropdown-content">
-      {_drop_link("compare", pages["compare"])}
-      {_drop_link("gapfill", pages["gapfill"])}
-      {_drop_link("carbon", pages["carbon"])}
-    </div>
-  </div>
-
-  <div class="ca-menu-dropdown">
-    <span class="ca-menu-trigger">{tr("Qualidade","Quality")} ▾</span>
-    <div class="ca-dropdown-content">
-      {_drop_link("qc", pages["qc"])}
-    </div>
-  </div>
-
-  <div class="ca-menu-dropdown">
-    <span class="ca-menu-trigger">{tr("Informações","Information")} ▾</span>
-    <div class="ca-dropdown-content">
-      {_drop_link("about", pages["about"])}
-      {_drop_link("request", pages["request"])}
-    </div>
-  </div>
-</div>
-"""
+def _back():
+    hist = st.session_state.get("_ca_history", [])
+    if hist:
+        st.session_state["_ca_route"] = hist.pop()
 
 st.markdown("""
 <style>
-.ca-topnav{
-    position:relative;
-    z-index:999999;
-    overflow:visible!important;
-    display:flex;
-    align-items:center;
-    gap:.2rem;
-    width:100%;
-    min-height:52px;
-    padding:.35rem .65rem;
-    margin:0 0 .7rem 0;
+/* Cabeçalho de navegação feito com widgets Streamlit: mantém a sessão viva. */
+div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor){
     background:#063f31;
     border:1px solid rgba(75,232,132,.18);
     border-radius:10px;
-    box-shadow:0 5px 18px rgba(0,0,0,.10);
-    font-family:inherit;
-}
-.ca-menu-link,.ca-menu-trigger{
-    display:block;
-    padding:.72rem .85rem;
-    color:#f4fff7!important;
-    text-decoration:none!important;
-    border-radius:7px;
-    white-space:nowrap;
-    font-weight:600;
-    font-size:.88rem;
-    line-height:1;
-    cursor:pointer;
-}
-.ca-menu-link:hover,.ca-menu-trigger:hover,
-.ca-menu-link.active{
-    background:#18a85d;
-    color:white!important;
-}
-.ca-menu-dropdown{
+    padding:.28rem .35rem;
+    gap:.28rem;
     position:relative;
-    display:inline-block;
+    z-index:9999;
 }
-.ca-dropdown-content{
-    display:none;
-    position:absolute;
-    left:0;
-    top:100%;
-    min-width:245px;
-    padding:.35rem;
-    background:#064b39;
-    border:1px solid rgba(100,240,150,.22);
-    border-radius:8px;
-    box-shadow:0 12px 30px rgba(0,0,0,.24);
-    z-index:99999;
-}
-.ca-menu-dropdown:hover .ca-dropdown-content,
-.ca-dropdown-content:hover{
-    display:block;
-}
-.ca-menu-dropdown::after{
-    content:"";
-    position:absolute;
-    left:0;
-    top:100%;
-    width:100%;
-    height:10px;
-}
-.ca-drop-link{
-    display:block;
-    padding:.68rem .78rem;
+.ca-nav-anchor{display:none}
+div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button{
+    background:transparent!important;
     color:#f5fff7!important;
-    text-decoration:none!important;
-    border-radius:6px;
-    white-space:nowrap;
-    font-size:.84rem;
+    border:0!important;
+    border-radius:7px!important;
+    min-height:2.35rem!important;
+    font-weight:600!important;
 }
-.ca-drop-link:hover,.ca-drop-link.active{
-    background:#18a85d;
-    color:white!important;
+div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button:hover{
+    background:#18a85d!important;
+    color:#fff!important;
 }
-@media(max-width:900px){
-    .ca-topnav{overflow-x:auto;justify-content:flex-start}
-    .ca-menu-link,.ca-menu-trigger{font-size:.78rem;padding:.62rem .65rem}
+div[data-testid="stPopoverBody"]{
+    background:#064b39!important;
+    border:1px solid rgba(100,240,150,.22)!important;
 }
-</style>
-""", unsafe_allow_html=True)
-st.markdown(_menu_html, unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* Permite que os submenus ultrapassem a altura do bloco HTML do Streamlit. */
-div[data-testid="stMarkdownContainer"]:has(.ca-topnav),
-div[data-testid="stMarkdownContainer"]:has(.ca-topnav) > div,
-div[data-testid="stMarkdown"]:has(.ca-topnav),
-div[data-testid="stElementContainer"]:has(.ca-topnav){
-    overflow:visible!important;
-    z-index:2147483000!important;
-}
-.ca-dropdown-content{
-    top:calc(100% + 6px)!important;
-    z-index:2147483646!important;
+div[data-testid="stPopoverBody"] button{
+    width:100%!important;
+    justify-content:flex-start!important;
 }
 </style>
 """, unsafe_allow_html=True)
 
+nav_cols = st.columns([.15, 1, 1.15, 1, 1, 1.2, 1.35], gap="small")
+with nav_cols[0]:
+    st.markdown('<span class="ca-nav-anchor"></span>', unsafe_allow_html=True)
+    if st.button("←", key="ca_back", help=tr("Voltar à página anterior", "Back to previous page"),
+                 disabled=not bool(st.session_state["_ca_history"])):
+        _back()
+        st.rerun()
+with nav_cols[1]:
+    if st.button(tr("Início","Home"), key="ca_home", use_container_width=True):
+        _go("inicio"); st.rerun()
+with nav_cols[2]:
+    if st.button(tr("Visão Geral","Overview"), key="ca_overview", use_container_width=True):
+        _go("overview"); st.rerun()
+with nav_cols[3]:
+    with st.popover(tr("Dados ▾","Data ▾"), use_container_width=True):
+        if st.button(pages["tower"], key="ca_tower", use_container_width=True):
+            _go("tower"); st.rerun()
+        if st.button(pages["structure"], key="ca_structure", use_container_width=True):
+            _go("structure"); st.rerun()
+with nav_cols[4]:
+    with st.popover(tr("Análises ▾","Analyses ▾"), use_container_width=True):
+        if st.button(pages["compare"], key="ca_compare", use_container_width=True):
+            _go("compare"); st.rerun()
+        if st.button(pages["gapfill"], key="ca_gapfill", use_container_width=True):
+            _go("gapfill"); st.rerun()
+        if st.button(pages["carbon"], key="ca_carbon", use_container_width=True):
+            _go("carbon"); st.rerun()
+with nav_cols[5]:
+    with st.popover(tr("Qualidade ▾","Quality ▾"), use_container_width=True):
+        if st.button(pages["qc"], key="ca_qc", use_container_width=True):
+            _go("qc"); st.rerun()
+with nav_cols[6]:
+    with st.popover(tr("Informações ▾","Information ▾"), use_container_width=True):
+        if st.button(pages["about"], key="ca_about", use_container_width=True):
+            _go("about"); st.rerun()
+        if st.button(pages["request"], key="ca_request", use_container_width=True):
+            _go("request"); st.rerun()
+
+_route = st.session_state.get("_ca_route", "inicio")
+if _route not in {"inicio", *pages.keys()}:
+    _route = "inicio"
+    st.session_state["_ca_route"] = "inicio"
+page = _inicio_label if _route == "inicio" else pages[_route]
 
 st.sidebar.markdown('<div class="ca-side-divider"></div>', unsafe_allow_html=True)
 
@@ -1417,21 +1353,14 @@ if page == _inicio_label:
                 position:static!important;margin:0!important;padding:0!important;
                 max-width:none!important;width:0!important;height:0!important;
             }}
-            .ca-topnav{{
-                position:fixed!important;left:21rem;top:0;right:0;
-                width:calc(100vw - 21rem);height:54px;border-radius:0!important;
-                z-index:2147483000!important;overflow:visible!important;
-                margin:0!important;padding-left:1.2rem!important;
-            }}
             .carbono-home-only{{
-                position:fixed;left:21rem;top:54px;right:0;bottom:0;
-                width:calc(100vw - 21rem);height:calc(100vh - 54px);
+                position:fixed;left:21rem;top:4.3rem;right:0;bottom:0;
+                width:calc(100vw - 21rem);height:calc(100vh - 4.3rem);
                 background-image:url(data:image/jpeg;base64,{_home64});
                 background-size:100% 100%;background-position:center;
                 background-repeat:no-repeat;background-color:#063b2d;z-index:0;
             }}
             @media(max-width:1200px){{
-                .ca-topnav{{left:18rem;width:calc(100vw - 18rem)}}
                 .carbono-home-only{{left:18rem;width:calc(100vw - 18rem)}}
             }}
             </style>
