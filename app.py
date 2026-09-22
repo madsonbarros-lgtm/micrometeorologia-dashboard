@@ -278,6 +278,40 @@ section[data-testid="stSidebar"] div[data-baseweb="select"]>div{
 </style>
 """, unsafe_allow_html=True)
 
+
+st.markdown("""
+<style>
+.ca-sidebar-info{
+    margin:.35rem 0 .7rem;
+    padding:.58rem .65rem;
+    border-radius:8px;
+    background:#07543e;
+    border:1px solid rgba(87,235,144,.20);
+    color:#effff4;
+    font-size:.68rem;
+    line-height:1.3;
+}
+.ca-side-divider{
+    height:1px;
+    background:rgba(255,255,255,.16);
+    margin:.65rem 0 .55rem;
+}
+.ca-side-footer{
+    display:flex;
+    align-items:center;
+    gap:.35rem;
+    color:#86ee9e;
+    font-size:.75rem;
+    line-height:1.2;
+    padding:.65rem .15rem .25rem;
+}
+section[data-testid="stSidebar"] [data-testid="stExpander"]{
+    background:transparent!important;
+    border-color:rgba(255,255,255,.12)!important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ============================================================
 # EcoFlux Brasil — V37
 # Arquitetura:
@@ -289,41 +323,15 @@ section[data-testid="stSidebar"] div[data-baseweb="select"]>div{
 # -----------------------------
 # Idioma
 # -----------------------------
-st.sidebar.title("EcoFlux Brasil")
-
-LANGUAGE = st.sidebar.selectbox(
-    "Idioma / Language",
-    ["Português", "English"],
-    index=0,
-    key="language_v29",
-)
+LANGUAGE = st.session_state.get("language_v29", "Português")
 PT = LANGUAGE == "Português"
 
 def tr(pt, en):
     return pt if PT else en
 
-st.sidebar.caption(
-    tr(
-        "Interface bilíngue. Nomes de variáveis e unidades da fonte são preservados.",
-        "Bilingual interface. Source variable names and units are preserved.",
-    )
-)
-
-# -----------------------------
-# Tabelas sem menu nativo em inglês
-# -----------------------------
-TABLE_MODE = st.sidebar.radio(
-    tr("Tabelas", "Tables"),
-    [
-        tr("Controles próprios", "Custom controls"),
-        tr("Nativa do Streamlit", "Native Streamlit"),
-    ],
-    index=0,
-    key="table_mode_v29",
-    help=tr(
-        "Controles próprios evitam o menu interno do Streamlit em inglês.",
-        "Custom controls avoid Streamlit's native context menu.",
-    ),
+TABLE_MODE = st.session_state.get(
+    "table_mode_v29",
+    tr("Controles próprios", "Custom controls"),
 )
 CUSTOM_TABLES = TABLE_MODE == tr("Controles próprios", "Custom controls")
 
@@ -1030,12 +1038,6 @@ def load_processed_xlsx(file_bytes):
 # Uploads — 1 min carregado sob demanda para evitar estouro de memória
 # ============================================================
 
-st.sidebar.subheader(tr("Fontes de dados", "Data sources"))
-st.sidebar.caption(tr(
-    "Modo econômico de memória: o arquivo de 1 min é aberto apenas quando uma análise de 1 min é selecionada.",
-    "Memory-saving mode: the 1-min file is opened only when a 1-min analysis is selected.",
-))
-
 st.sidebar.markdown("""
 <div class="ca-safe-brand">
   <span class="leaf">❧</span>
@@ -1062,6 +1064,12 @@ processed_file = st.sidebar.file_uploader(
     type=["xlsx"],
     key="processed_xlsx_v34",
 )
+
+st.sidebar.markdown(
+    """<div class="ca-sidebar-info">ⓘ &nbsp; Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.</div>""",
+    unsafe_allow_html=True,
+)
+
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
     st.session_state["_ecoflux_parsed_toa5"] = {}
@@ -1226,6 +1234,39 @@ pages = {
 _inicio_label = tr("Início", "Home")
 _nav_options = [_inicio_label] + list(pages.values())
 page = st.sidebar.radio(tr("Navegação", "Navigation"), _nav_options)
+
+st.sidebar.markdown('<div class="ca-side-divider"></div>', unsafe_allow_html=True)
+
+_language_widget = st.sidebar.selectbox(
+    "Idioma / Language",
+    ["Português", "English"],
+    index=0 if st.session_state.get("language_v29", "Português") == "Português" else 1,
+    key="language_bottom_widget",
+)
+if _language_widget != st.session_state.get("language_v29", "Português"):
+    st.session_state["language_v29"] = _language_widget
+    st.rerun()
+
+with st.sidebar.expander(tr("Preferências", "Preferences"), expanded=False):
+    _table_widget = st.radio(
+        tr("Tabelas", "Tables"),
+        [
+            tr("Controles próprios", "Custom controls"),
+            tr("Nativa do Streamlit", "Native Streamlit"),
+        ],
+        index=0 if CUSTOM_TABLES else 1,
+        key="table_bottom_widget",
+    )
+    if _table_widget != st.session_state.get(
+        "table_mode_v29", tr("Controles próprios", "Custom controls")
+    ):
+        st.session_state["table_mode_v29"] = _table_widget
+        st.rerun()
+
+st.sidebar.markdown(
+    """<div class="ca-side-footer">❧ &nbsp; <span>Ciência hoje,<br>florestas amanhã.</span></div>""",
+    unsafe_allow_html=True,
+)
 
 if page == _inicio_label:
     _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
