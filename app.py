@@ -1810,10 +1810,12 @@ st.markdown("""
 # Visão Geral continua sendo Visão Geral, não a imagem de abertura.
 page_key = next((k for k, v in pages.items() if v == page), None)
 
-# Rotas institucionais/especiais já foram renderizadas acima e não devem
-# entrar no roteamento das páginas científicas.
+# Rotas especiais (como Pessoas) não pertencem ao dicionário científico.
+# Não usar st.stop() aqui: ele bloqueia a navegação do cabeçalho.
+# A rota especial já foi renderizada e o bloco científico abaixo será
+# ignorado por meio de uma chave sentinela.
 if page_key is None:
-    st.stop()
+    page_key = "__special__"
 
 
 
