@@ -1216,8 +1216,8 @@ def _back():
 
 st.markdown("""
 <style>
-/* Cabeçalho Carbono em Ação.
-   Mantém widgets Streamlit para preservar sessão, uploads e callbacks. */
+/* Cabeçalho Carbono em Ação — V2.
+   Somente apresentação: rotas, uploads, session_state e análises permanecem intactos. */
 .main .block-container{
     max-width:none!important;
     padding-left:0!important;
@@ -1225,18 +1225,20 @@ st.markdown("""
     padding-top:0!important;
 }
 
+/* Barra alinhada à área principal, sem a caixa flutuante estreita. */
 div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor){
     background:#064b39!important;
     border:0!important;
     border-bottom:1px solid rgba(91,235,145,.22)!important;
     border-radius:0!important;
-    padding:.28rem .85rem!important;
-    gap:.35rem!important;
+    padding:.30rem 1.05rem!important;
+    gap:.18rem!important;
     position:relative!important;
     z-index:9999!important;
     width:100%!important;
+    max-width:none!important;
     margin:0!important;
-    min-height:3.15rem!important;
+    min-height:3.25rem!important;
     align-items:center!important;
 }
 .ca-nav-anchor{display:none!important}
@@ -1244,6 +1246,8 @@ div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor){
 div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) > div{
     display:flex!important;
     align-items:center!important;
+    justify-content:center!important;
+    min-width:0!important;
 }
 
 div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button{
@@ -1253,7 +1257,7 @@ div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button{
     box-shadow:none!important;
     border-radius:7px!important;
     min-height:2.35rem!important;
-    padding:.35rem .65rem!important;
+    padding:.35rem .55rem!important;
     font-weight:600!important;
     white-space:nowrap!important;
 }
@@ -1265,25 +1269,40 @@ div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button:focus{
     box-shadow:none!important;
 }
 
-div[data-testid="stPopoverBody"]{
+/* Menus suspensos: o problema branco era contraste.
+   Força fundo verde e texto branco em todos os níveis do popover. */
+div[data-testid="stPopoverBody"],
+div[data-testid="stPopoverBody"] > div,
+div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{
     background:#064b39!important;
-    border:1px solid rgba(100,240,150,.22)!important;
-    border-radius:8px!important;
+    color:#f5fff7!important;
+}
+div[data-testid="stPopoverBody"]{
+    border:1px solid rgba(100,240,150,.28)!important;
+    border-radius:9px!important;
+    padding:.35rem!important;
     z-index:10000!important;
+    box-shadow:0 8px 24px rgba(0,0,0,.22)!important;
 }
 div[data-testid="stPopoverBody"] button{
     width:100%!important;
     justify-content:flex-start!important;
+    background:#075943!important;
     color:#f5fff7!important;
+    border:1px solid rgba(255,255,255,.08)!important;
+    opacity:1!important;
+}
+div[data-testid="stPopoverBody"] button p,
+div[data-testid="stPopoverBody"] button span,
+div[data-testid="stPopoverBody"] button div{
+    color:#f5fff7!important;
+    opacity:1!important;
 }
 div[data-testid="stPopoverBody"] button:hover{
     background:#18a85d!important;
+    color:#fff!important;
 }
 
-/* Conteúdo das páginas científicas recupera margens confortáveis. */
-.main .block-container > div[data-testid="stVerticalBlock"]{
-    width:100%;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1389,8 +1408,8 @@ if page == _inicio_label:
                 max-width:none!important;width:0!important;height:0!important;
             }}
             .carbono-home-only{{
-                position:fixed;left:21rem;top:3.15rem;right:0;bottom:0;
-                width:calc(100vw - 21rem);height:calc(100vh - 3.15rem);
+                position:fixed;left:21rem;top:3.25rem;right:0;bottom:0;
+                width:calc(100vw - 21rem);height:calc(100vh - 3.25rem);
                 background-image:url(data:image/jpeg;base64,{_home64});
                 background-size:100% 100%;background-position:center;
                 background-repeat:no-repeat;background-color:#063b2d;z-index:0;
