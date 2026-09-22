@@ -1100,22 +1100,22 @@ header[data-testid="stHeader"]{height:0!important;min-height:0!important;backgro
 [data-testid="stMainBlockContainer"]>div{gap:0!important}
 .header-anchor{display:none!important}
 div[data-testid="stHorizontalBlock"]:has(.header-anchor){
- width:100%!important;height:101px!important;min-height:101px!important;margin:0!important;padding:0 34px!important;
- background:linear-gradient(90deg,#07533f,#006746 52%,#005239)!important;
+ width:100%!important;height:105px!important;min-height:105px!important;margin:0!important;padding:0 38px!important;
+ background:linear-gradient(90deg,#005a43 0%,#00684b 48%,#004c39 100%)!important;
  gap:8px!important;align-items:center!important
 }
 .ca-brand-inline{color:white;line-height:1.05;padding-right:10px}
-.ca-brand-inline b{font-size:27px;font-weight:800;white-space:nowrap}
-.ca-brand-inline small{display:block;font-size:12px;line-height:1.25;margin-top:7px;color:#effff4}
+.ca-brand-inline b{font-size:28px;font-weight:800;white-space:nowrap;letter-spacing:-.2px}
+.ca-brand-inline small{display:block;font-size:13px;line-height:1.25;margin-top:6px;color:#effff4}
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) button,
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stPopover"]>button{
- min-height:54px!important;border:0!important;border-radius:10px!important;
- background:transparent!important;color:#fff!important;font-size:16px!important;
+ min-height:56px!important;border:0!important;border-radius:10px!important;
+ background:transparent!important;color:#fff!important;font-size:16px!important;letter-spacing:-.1px!important;
  font-weight:650!important;white-space:nowrap!important;box-shadow:none!important;padding:.35rem .55rem!important
 }
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) button:hover,
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) button[kind="primary"]{
- background:#18a85d!important;color:#fff!important
+ background:#16ad63!important;color:#fff!important
 }
 div[data-testid="stHorizontalBlock"]:has(.header-anchor)>div:nth-last-child(3) button{
  border:1px solid #23c978!important
@@ -1140,7 +1140,7 @@ div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
 }
 .ca-home-image{
  display:block!important;width:100vw!important;max-width:none!important;
- height:calc(100vh - 101px)!important;
+ height:calc(100vh - 105px)!important;
  object-fit:fill!important;
  margin:0!important;padding:0!important
 }
@@ -1150,7 +1150,7 @@ div[data-testid="stMarkdownContainer"]:has(.ca-home-image){margin:0!important;pa
 """, unsafe_allow_html=True)
 
 active=st.session_state["_ca_route"]
-hdr=st.columns([3.05,.82,1.05,.92,1.02,1.02,1.18,1.03,.92,1.18],gap="small")
+hdr=st.columns([3.25,.82,1.06,.94,1.04,1.05,1.20,1.05,.92,1.18],gap="small")
 with hdr[0]:
  st.markdown('<span class="header-anchor"></span><div class="ca-brand-inline"><b>❧ &nbsp;CARBONO EM AÇÃO</b><small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div>',unsafe_allow_html=True)
 with hdr[1]:
