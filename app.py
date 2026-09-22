@@ -688,7 +688,7 @@ a.ca-people-hit-v23{
  z-index:2147483000!important;display:block!important;pointer-events:auto!important;
  cursor:pointer!important;background:transparent!important;border:0!important;text-decoration:none!important;
 }
-a.ca-people-hit-v23:hover{background:rgba(31,231,132,.08)!important;border-radius:8px!important}
+a.ca-people-hit-v23:hover{background:transparent!important;border-radius:0!important}
 
 /* v24 — hotspot Pessoas renderizado antes do st.stop() */
 a.ca-people-hit-v24{
@@ -707,10 +707,7 @@ a.ca-people-hit-v24{
     border:0!important;
     text-decoration:none!important;
 }
-a.ca-people-hit-v24:hover{
-    background:rgba(31,231,132,.10)!important;
-    border-radius:8px!important;
-}
+a.ca-people-hit-v24:hover{background:transparent!important;border-radius:0!important}
 </style>
     """,
     unsafe_allow_html=True,
