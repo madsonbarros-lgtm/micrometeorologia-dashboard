@@ -651,6 +651,28 @@ a.ca-people-hit-v23{
  cursor:pointer!important;background:transparent!important;border:0!important;text-decoration:none!important;
 }
 a.ca-people-hit-v23:hover{background:rgba(31,231,132,.08)!important;border-radius:8px!important}
+
+/* v24 — hotspot Pessoas renderizado antes do st.stop() */
+a.ca-people-hit-v24{
+    position:fixed!important;
+    left:36.15vw!important;
+    bottom:4.2vh!important;
+    width:7.9vw!important;
+    height:12.5vh!important;
+    min-width:108px!important;
+    min-height:72px!important;
+    z-index:2147483646!important;
+    display:block!important;
+    pointer-events:auto!important;
+    cursor:pointer!important;
+    background:transparent!important;
+    border:0!important;
+    text-decoration:none!important;
+}
+a.ca-people-hit-v24:hover{
+    background:rgba(31,231,132,.10)!important;
+    border-radius:8px!important;
+}
 </style>
     """,
     unsafe_allow_html=True,
@@ -1765,6 +1787,13 @@ elif page == _inicio_label:
             "Arquivo carbono_em_acao_home_aprovada.png não encontrado.",
             "File carbono_em_acao_home_aprovada.png not found."
         ))
+    # O cartão Pessoas faz parte da imagem; esta área transparente fica
+    # exatamente sobre ele e precisa ser criada ANTES do st.stop().
+    st.markdown(
+        '<a class="ca-people-hit-v24" href="?page=people" target="_self" '
+        'aria-label="Abrir página Pessoas" title="Pessoas"></a>',
+        unsafe_allow_html=True,
+    )
     st.stop()
 
 # Espaçamento somente do conteúdo científico.
@@ -2979,9 +3008,3 @@ _ca_qp_page = st.query_params.get("page", "inicio")
 if _ca_qp_page == "people":
     render_gpiba_people_page()
 
-# v23: área clicável sobre o cartão Pessoas existente na imagem inicial.
-if page == _inicio_label:
-    st.markdown(
-        '<a class="ca-people-hit-v23" href="?page=people" target="_self" aria-label="Pessoas" title="Pessoas"></a>',
-        unsafe_allow_html=True,
-    )
