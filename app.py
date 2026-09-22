@@ -1272,7 +1272,8 @@ st.markdown("""
 <style>
 .ca-topnav{
     position:relative;
-    z-index:9998;
+    z-index:999999;
+    overflow:visible!important;
     display:flex;
     align-items:center;
     gap:.2rem;
@@ -1320,8 +1321,17 @@ st.markdown("""
     box-shadow:0 12px 30px rgba(0,0,0,.24);
     z-index:99999;
 }
-.ca-menu-dropdown:hover .ca-dropdown-content{
+.ca-menu-dropdown:hover .ca-dropdown-content,
+.ca-dropdown-content:hover{
     display:block;
+}
+.ca-menu-dropdown::after{
+    content:"";
+    position:absolute;
+    left:0;
+    top:100%;
+    width:100%;
+    height:10px;
 }
 .ca-drop-link{
     display:block;
@@ -1343,6 +1353,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 st.markdown(_menu_html, unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* Permite que os submenus ultrapassem a altura do bloco HTML do Streamlit. */
+div[data-testid="stMarkdownContainer"]:has(.ca-topnav),
+div[data-testid="stMarkdownContainer"]:has(.ca-topnav) > div,
+div[data-testid="stMarkdown"]:has(.ca-topnav),
+div[data-testid="stElementContainer"]:has(.ca-topnav){
+    overflow:visible!important;
+    z-index:2147483000!important;
+}
+.ca-dropdown-content{
+    top:calc(100% + 6px)!important;
+    z-index:2147483646!important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 st.sidebar.markdown('<div class="ca-side-divider"></div>', unsafe_allow_html=True)
 
@@ -1392,6 +1420,7 @@ if page == _inicio_label:
             .ca-topnav{{
                 position:fixed!important;left:21rem;top:0;right:0;
                 width:calc(100vw - 21rem);height:54px;border-radius:0!important;
+                z-index:2147483000!important;overflow:visible!important;
                 margin:0!important;padding-left:1.2rem!important;
             }}
             .carbono-home-only{{
