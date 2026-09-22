@@ -1808,7 +1808,12 @@ st.markdown("""
 
 # Daqui para baixo, a lógica científica é exatamente a original:
 # Visão Geral continua sendo Visão Geral, não a imagem de abertura.
-page_key = next(k for k, v in pages.items() if v == page)
+page_key = next((k for k, v in pages.items() if v == page), None)
+
+# Rotas institucionais/especiais já foram renderizadas acima e não devem
+# entrar no roteamento das páginas científicas.
+if page_key is None:
+    st.stop()
 
 
 
