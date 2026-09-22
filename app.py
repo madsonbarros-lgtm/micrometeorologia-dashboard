@@ -414,6 +414,83 @@ div[data-testid="stPopoverBody"] [data-baseweb="select"] > div,
 div[data-testid="stPopoverBody"] input {
     background: rgba(255,255,255,.78) !important;
 }
+
+/* ===== v17 — correção visual dos popovers ===== */
+
+/* Fundo verde suave em TODO o conteúdo aberto dos menus */
+div[data-baseweb="popover"] > div,
+div[data-testid="stPopoverBody"],
+div[data-testid="stPopoverBody"] > div,
+div[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"],
+div[data-testid="stPopoverBody"] [data-testid="stElementContainer"]{
+    background:#EDF8F2 !important;
+}
+
+/* Botões/linhas abaixo de Dados, Análises, Qualidade, Informações,
+   Idioma e Preferências: não ficam mais brancos */
+div[data-testid="stPopoverBody"] button,
+div[data-testid="stPopoverBody"] button[kind="secondary"],
+div[data-testid="stPopoverBody"] button[kind="tertiary"]{
+    background:#E5F5EC !important;
+    border-color:rgba(18,145,91,.16) !important;
+    box-shadow:none !important;
+}
+div[data-testid="stPopoverBody"] button:hover{
+    background:#D5EEDF !important;
+}
+
+/* Área dos uploaders também verde suave */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"],
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] section,
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
+    background:#EDF8F2 !important;
+}
+
+/* STREAMLIT NOVO: o contêiner que possui vários arquivos vira coluna */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] div:has(> [data-testid="stFileUploaderFile"]){
+    display:flex !important;
+    flex-direction:column !important;
+    flex-wrap:nowrap !important;
+    align-items:stretch !important;
+    gap:6px !important;
+    width:100% !important;
+}
+
+/* Cada arquivo = uma linha inteira, um embaixo do outro */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderFile"]{
+    display:flex !important;
+    width:100% !important;
+    min-width:100% !important;
+    max-width:100% !important;
+    flex:0 0 auto !important;
+    margin:0 !important;
+    box-sizing:border-box !important;
+    background:#E5F5EC !important;
+    border-radius:7px !important;
+}
+
+/* Fallback para versões em que os arquivos são <li> */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] ul{
+    display:flex !important;
+    flex-direction:column !important;
+    flex-wrap:nowrap !important;
+    align-items:stretch !important;
+    gap:6px !important;
+    width:100% !important;
+}
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] li{
+    display:flex !important;
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    background:#E5F5EC !important;
+}
+
+/* Selects/campos dentro dos menus no mesmo padrão */
+div[data-testid="stPopoverBody"] [data-baseweb="select"] > div,
+div[data-testid="stPopoverBody"] input{
+    background:#E5F5EC !important;
+}
 </style>
     """,
     unsafe_allow_html=True,
