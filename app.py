@@ -231,7 +231,16 @@ st.markdown(
             font-size: 2.2rem;
         }
     }
-    </style>
+    
+.ca-brand-inline{display:flex;align-items:center;gap:14px!important}
+.ca-brand-logo{width:54px;height:54px;display:flex;align-items:center;justify-content:center;color:#43ef92;flex:0 0 54px}
+.ca-brand-logo svg{width:54px;height:54px;stroke-width:1.9}
+.ca-brand-copy{display:block}
+[data-testid="stButton"] button p,
+[data-testid="stPopover"] button p{display:flex!important;align-items:center!important;justify-content:center!important;gap:9px!important}
+.ca-nav-ico{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;vertical-align:middle}
+.ca-nav-ico svg{width:23px;height:23px;stroke-width:2.1}
+</style>
     """,
     unsafe_allow_html=True,
 )
@@ -1109,8 +1118,8 @@ div[data-testid="stHorizontalBlock"]:has(.header-anchor){
 .ca-brand-inline small{display:block;font-size:13px;line-height:1.25;margin-top:6px;color:#effff4}
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) button,
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stPopover"]>button{
- min-height:56px!important;border:0!important;border-radius:10px!important;
- background:transparent!important;color:#fff!important;font-size:16px!important;letter-spacing:-.1px!important;
+ min-height:58px!important;border:0!important;border-radius:10px!important;
+ background:transparent!important;color:#fff!important;font-size:17px!important;letter-spacing:-.1px!important;line-height:1!important;
  font-weight:650!important;white-space:nowrap!important;box-shadow:none!important;padding:.35rem .55rem!important
 }
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) button:hover,
@@ -1148,43 +1157,58 @@ div[data-testid="stElementContainer"]:has(.ca-home-image),
 div[data-testid="stMarkdownContainer"]:has(.ca-home-image){margin:0!important;padding:0!important}
 </style>
 """, unsafe_allow_html=True)
+st.markdown("""
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script>
+(function drawLucide(){
+  try { if (window.lucide) { window.lucide.createIcons(); } } catch(e) {}
+  setTimeout(drawLucide, 600);
+})();
+</script>
+""", unsafe_allow_html=True)
 
 active=st.session_state["_ca_route"]
 hdr=st.columns([3.25,.82,1.06,.94,1.04,1.05,1.20,1.05,.92,1.18],gap="small")
 with hdr[0]:
- st.markdown('<span class="header-anchor"></span><div class="ca-brand-inline"><b>❧ &nbsp;CARBONO EM AÇÃO</b><small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div>',unsafe_allow_html=True)
+ st.markdown('''<span class="header-anchor"></span><div class="ca-brand-inline">
+<div class="ca-brand-logo"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+<path d="M13 52V20M8 52h10M10 20h6M13 20l7-8M13 20l-7-8"/><path d="M7 30h12M8 39h10"/>
+<path d="M31 39c2-13 13-20 25-18-1 13-9 24-23 25-6 0-10-3-10-8 0-5 4-9 8-11"/>
+<path d="M28 47c7-8 15-13 26-19"/>
+</svg></div>
+<div class="ca-brand-copy"><b>CARBONO EM AÇÃO</b><small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div></div>''',unsafe_allow_html=True)
 with hdr[1]:
- if st.button(tr("⌂ Início","⌂ Home"),key="n_home",use_container_width=True,type="primary" if active=="inicio" else "secondary"): _go("inicio");st.rerun()
+ if st.button(tr("⌂  Início","⌂  Home"),key="n_home",use_container_width=True,type="primary" if active=="inicio" else "secondary"): _go("inicio");st.rerun()
 with hdr[2]:
- if st.button(tr("▥ Visão Geral","▥ Overview"),key="n_over",use_container_width=True,type="primary" if active=="overview" else "secondary"): _go("overview");st.rerun()
+ if st.button(tr("▥  Visão Geral","▥  Overview"),key="n_over",use_container_width=True,type="primary" if active=="overview" else "secondary"): _go("overview");st.rerun()
 with hdr[3]:
- with st.popover(tr("▤ Dados ▾","▤ Data ▾"),use_container_width=True):
+ with st.popover(tr("▱  Dados⌄","▱  Data⌄"),use_container_width=True):
   if st.button(pages["tower"],key="n_tower",use_container_width=True): _go("tower");st.rerun()
   if st.button(pages["structure"],key="n_struct",use_container_width=True): _go("structure");st.rerun()
 with hdr[4]:
- with st.popover(tr("⌁ Análises ▾","⌁ Analyses ▾"),use_container_width=True):
+ with st.popover(tr("⌁  Análises⌄","⌁  Analyses⌄"),use_container_width=True):
   if st.button(pages["compare"],key="n_comp",use_container_width=True): _go("compare");st.rerun()
   if st.button(pages["gapfill"],key="n_gap",use_container_width=True): _go("gapfill");st.rerun()
   if st.button(pages["carbon"],key="n_carbon",use_container_width=True): _go("carbon");st.rerun()
 with hdr[5]:
- with st.popover(tr("♢ Qualidade ▾","♢ Quality ▾"),use_container_width=True):
+ with st.popover(tr("♢  Qualidade⌄","♢  Quality⌄"),use_container_width=True):
   if st.button(pages["qc"],key="n_qc",use_container_width=True): _go("qc");st.rerun()
 with hdr[6]:
- with st.popover(tr("ⓘ Informações ▾","ⓘ Information ▾"),use_container_width=True):
+ with st.popover(tr("ⓘ  Informações⌄","ⓘ  Information⌄"),use_container_width=True):
   if st.button(pages["about"],key="n_about",use_container_width=True): _go("about");st.rerun()
   if st.button(pages["request"],key="n_req",use_container_width=True): _go("request");st.rerun()
 with hdr[7]:
- with st.popover(tr("☁ Arquivos","☁ Files"),use_container_width=True):
+ with st.popover(tr("☁  Arquivos","☁  Files"),use_container_width=True):
   tower_files=st.file_uploader(tr("Dados originais CR3000 (.dat)","Original CR3000 data (.dat)"),type=["dat"],accept_multiple_files=True,key="tower_dat_v34")
   processed_file=st.file_uploader(tr("Produtos processados (.xlsx) — opcional","Processed products (.xlsx) — optional"),type=["xlsx"],key="processed_xlsx_v34")
 with hdr[8]:
- with st.popover(tr("◎ Idioma","◎ Language"),use_container_width=True):
+ with st.popover(tr("◎  Idioma⌄","◎  Language⌄"),use_container_width=True):
   if st.button("Português",key="l_pt",use_container_width=True):
    st.session_state["language_v29"]="Português";st.rerun()
   if st.button("English",key="l_en",use_container_width=True):
    st.session_state["language_v29"]="English";st.rerun()
 with hdr[9]:
- with st.popover(tr("⚙ Preferências","⚙ Preferences"),use_container_width=True):
+ with st.popover(tr("⚙  Preferências⌄","⚙  Preferences⌄"),use_container_width=True):
   st.caption(tr("Opções da interface","Interface options"))
 
 tower_files=tower_files or []
