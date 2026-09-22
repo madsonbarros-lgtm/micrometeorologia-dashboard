@@ -233,13 +233,59 @@ st.markdown(
     }
     
 .ca-brand-inline{display:flex;align-items:center;gap:14px!important}
-.ca-brand-logo{width:54px;height:54px;display:flex;align-items:center;justify-content:center;color:#43ef92;flex:0 0 54px}
-.ca-brand-logo svg{width:54px;height:54px;stroke-width:1.9}
+.ca-brand-logo{width:68px;height:68px;display:flex;align-items:center;justify-content:center;color:#43ef92;flex:0 0 68px}
+.ca-brand-logo svg{width:68px;height:68px;stroke-width:1.9}
 .ca-brand-copy{display:block}
 [data-testid="stButton"] button p,
 [data-testid="stPopover"] button p{display:flex!important;align-items:center!important;justify-content:center!important;gap:9px!important}
 .ca-nav-ico{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;vertical-align:middle}
 .ca-nav-ico svg{width:23px;height:23px;stroke-width:2.1}
+
+/* ÍCONES DO CABEÇALHO — vetoriais, maiores e independentes da fonte */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(n+2) button p::before{
+ content:"";display:inline-block!important;width:25px!important;height:25px!important;
+ min-width:25px!important;margin-right:9px!important;background:#fff!important;
+ -webkit-mask-repeat:no-repeat!important;mask-repeat:no-repeat!important;
+ -webkit-mask-position:center!important;mask-position:center!important;
+ -webkit-mask-size:25px 25px!important;mask-size:25px 25px!important;
+ vertical-align:-6px!important;
+}
+/* casa */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(2) button p::before{
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 11 9-8 9 8'/%3E%3Cpath d='M5 10v10h14V10'/%3E%3Cpath d='M9 20v-6h6v6'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 11 9-8 9 8'/%3E%3Cpath d='M5 10v10h14V10'/%3E%3Cpath d='M9 20v-6h6v6'/%3E%3C/svg%3E")
+}
+/* gráfico */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(3) button p::before{
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='M7 16v-5M12 16V8M17 16V5'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='M7 16v-5M12 16V8M17 16V5'/%3E%3C/svg%3E")
+}
+/* banco de dados */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(4) button p::before{
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='8' ry='3'/%3E%3Cpath d='M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='8' ry='3'/%3E%3Cpath d='M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6'/%3E%3C/svg%3E")
+}
+/* análises */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(5) button p::before{
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 17 5-5 4 3 7-8'/%3E%3Ccircle cx='3' cy='17' r='1.5'/%3E%3Ccircle cx='8' cy='12' r='1.5'/%3E%3Ccircle cx='12' cy='15' r='1.5'/%3E%3Ccircle cx='19' cy='7' r='1.5'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 17 5-5 4 3 7-8'/%3E%3Ccircle cx='3' cy='17' r='1.5'/%3E%3Ccircle cx='8' cy='12' r='1.5'/%3E%3Ccircle cx='12' cy='15' r='1.5'/%3E%3Ccircle cx='19' cy='7' r='1.5'/%3E%3C/svg%3E")
+}
+/* escudo */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(6) button p::before{
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3 20 6v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z'/%3E%3Cpath d='M12 7v10M9 10h6'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3 20 6v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z'/%3E%3Cpath d='M12 7v10M9 10h6'/%3E%3C/svg%3E")
+}
+/* informação */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(7) button p::before{
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v6M12 7h.01'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v6M12 7h.01'/%3E%3C/svg%3E")
+}
+/* upload nuvem */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(8) button p::before{
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 16l-4-4-4 4M12 12v8'/%3E%3Cpath d='M20 17.5A4.5 4.5 0 0 0 18 9a7 7 0 0 0-13.5 2A4 4 0 0 0 5 19h3'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 16l-4-4-4 4M12 12v8'/%3E%3Cpath d='M20 17.5A4.5 4.5 0 0 0 18 9a7 7 0 0 0-13.5 2A4 4 0 0 0 5 19h3'/%3E%3C/svg%3E")
+}
+/* globo */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(9) button p::before{
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M3 12h18M12 3c3 3 4 6 4 9s-1 6-4 9c-3-3-4-6-4-9s1-6 4-9Z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M3 12h18M12 3c3 3 4 6 4 9s-1 6-4 9c-3-3-4-6-4-9s1-6 4-9Z'/%3E%3C/svg%3E")
+}
+/* engrenagem */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(10) button p::before{
+ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63 1.7 1.7 0 0 0 10 3.08V3h4v.09A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9 1.7 1.7 0 0 0 20.92 10H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63 1.7 1.7 0 0 0 10 3.08V3h4v.09A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9 1.7 1.7 0 0 0 20.92 10H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z'/%3E%3C/svg%3E")
+}
 </style>
     """,
     unsafe_allow_html=True,
@@ -1157,15 +1203,7 @@ div[data-testid="stElementContainer"]:has(.ca-home-image),
 div[data-testid="stMarkdownContainer"]:has(.ca-home-image){margin:0!important;padding:0!important}
 </style>
 """, unsafe_allow_html=True)
-st.markdown("""
-<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-<script>
-(function drawLucide(){
-  try { if (window.lucide) { window.lucide.createIcons(); } } catch(e) {}
-  setTimeout(drawLucide, 600);
-})();
-</script>
-""", unsafe_allow_html=True)
+
 
 active=st.session_state["_ca_route"]
 hdr=st.columns([3.25,.82,1.06,.94,1.04,1.05,1.20,1.05,.92,1.18],gap="small")
@@ -1178,37 +1216,37 @@ with hdr[0]:
 </svg></div>
 <div class="ca-brand-copy"><b>CARBONO EM AÇÃO</b><small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div></div>''',unsafe_allow_html=True)
 with hdr[1]:
- if st.button(tr("⌂  Início","⌂  Home"),key="n_home",use_container_width=True,type="primary" if active=="inicio" else "secondary"): _go("inicio");st.rerun()
+ if st.button(tr("Início","Home"),key="n_home",use_container_width=True,type="primary" if active=="inicio" else "secondary"): _go("inicio");st.rerun()
 with hdr[2]:
- if st.button(tr("▥  Visão Geral","▥  Overview"),key="n_over",use_container_width=True,type="primary" if active=="overview" else "secondary"): _go("overview");st.rerun()
+ if st.button(tr("Visão Geral","Overview"),key="n_over",use_container_width=True,type="primary" if active=="overview" else "secondary"): _go("overview");st.rerun()
 with hdr[3]:
- with st.popover(tr("▱  Dados⌄","▱  Data⌄"),use_container_width=True):
+ with st.popover(tr("Dados ⌄","Data ⌄"),use_container_width=True):
   if st.button(pages["tower"],key="n_tower",use_container_width=True): _go("tower");st.rerun()
   if st.button(pages["structure"],key="n_struct",use_container_width=True): _go("structure");st.rerun()
 with hdr[4]:
- with st.popover(tr("⌁  Análises⌄","⌁  Analyses⌄"),use_container_width=True):
+ with st.popover(tr("Análises ⌄","Analyses ⌄"),use_container_width=True):
   if st.button(pages["compare"],key="n_comp",use_container_width=True): _go("compare");st.rerun()
   if st.button(pages["gapfill"],key="n_gap",use_container_width=True): _go("gapfill");st.rerun()
   if st.button(pages["carbon"],key="n_carbon",use_container_width=True): _go("carbon");st.rerun()
 with hdr[5]:
- with st.popover(tr("♢  Qualidade⌄","♢  Quality⌄"),use_container_width=True):
+ with st.popover(tr("Qualidade ⌄","Quality ⌄"),use_container_width=True):
   if st.button(pages["qc"],key="n_qc",use_container_width=True): _go("qc");st.rerun()
 with hdr[6]:
- with st.popover(tr("ⓘ  Informações⌄","ⓘ  Information⌄"),use_container_width=True):
+ with st.popover(tr("Informações ⌄","Information ⌄"),use_container_width=True):
   if st.button(pages["about"],key="n_about",use_container_width=True): _go("about");st.rerun()
   if st.button(pages["request"],key="n_req",use_container_width=True): _go("request");st.rerun()
 with hdr[7]:
- with st.popover(tr("☁  Arquivos","☁  Files"),use_container_width=True):
+ with st.popover(tr("Arquivos","Files"),use_container_width=True):
   tower_files=st.file_uploader(tr("Dados originais CR3000 (.dat)","Original CR3000 data (.dat)"),type=["dat"],accept_multiple_files=True,key="tower_dat_v34")
   processed_file=st.file_uploader(tr("Produtos processados (.xlsx) — opcional","Processed products (.xlsx) — optional"),type=["xlsx"],key="processed_xlsx_v34")
 with hdr[8]:
- with st.popover(tr("◎  Idioma⌄","◎  Language⌄"),use_container_width=True):
+ with st.popover(tr("Idioma ⌄","Language ⌄"),use_container_width=True):
   if st.button("Português",key="l_pt",use_container_width=True):
    st.session_state["language_v29"]="Português";st.rerun()
   if st.button("English",key="l_en",use_container_width=True):
    st.session_state["language_v29"]="English";st.rerun()
 with hdr[9]:
- with st.popover(tr("⚙  Preferências⌄","⚙  Preferences⌄"),use_container_width=True):
+ with st.popover(tr("Preferências ⌄","Preferences ⌄"),use_container_width=True):
   st.caption(tr("Opções da interface","Interface options"))
 
 tower_files=tower_files or []
