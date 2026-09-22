@@ -1465,8 +1465,8 @@ if page_key == "overview":
             '</div>'
             '<div class="ecoflux-success-sub">' +
             tr(
-                "Navegue pelas análises usando a barra lateral à esquerda ou pelas opções abaixo.",
-                "Navigate analyses using the left sidebar or the options below.",
+                "Navegue pelas análises usando o menu superior ou pelas opções abaixo.",
+                "Navigate analyses using the top menu or the options below.",
             ) +
             '</div></div>',
             unsafe_allow_html=True,
@@ -1505,6 +1505,26 @@ if page_key == "overview":
                 "<td><span class='ok-status'>● OK</span></td>"
                 "</tr>"
             )
+
+    # Inclui também a planilha processada no resumo de arquivos carregados.
+    if processed is not None and processed_file is not None:
+        _pdf = processed["df"]
+        _pstart = _pdf["TIMESTAMP"].min() if "TIMESTAMP" in _pdf.columns and not _pdf.empty else None
+        _pend = _pdf["TIMESTAMP"].max() if "TIMESTAMP" in _pdf.columns and not _pdf.empty else None
+        _pperiod = "—"
+        if pd.notna(_pstart) and pd.notna(_pend):
+            _pperiod = f"{_pstart:%d/%m/%Y %H:%M} → {_pend:%d/%m/%Y %H:%M}"
+        _pname = getattr(processed_file, "name", "XLSX")
+        summary_rows.append(
+            "<tr>"
+            f"<td><span class='resolution-pill'>{tr('Processado XLSX','Processed XLSX')}</span></td>"
+            f"<td>{_pname}</td>"
+            f"<td>{len(_pdf):,}</td>"
+            f"<td>{_pperiod}</td>"
+            "<td>—</td>"
+            "<td><span class='ok-status'>● OK</span></td>"
+            "</tr>"
+        )
 
     summary_html = (
         "<div class='ecoflux-summary-wrap'>"
