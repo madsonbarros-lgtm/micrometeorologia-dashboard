@@ -1638,6 +1638,26 @@ div[data-testid="stMarkdownContainer"]:has(.ca-home-image){margin:0!important;pa
 """, unsafe_allow_html=True)
 
 
+
+# Correção visual v25:
+# se qualquer menu suspenso estiver aberto, o destaque da página simples
+# (ex.: Visão Geral) é apagado. O menu aberto mantém o verde pelo hover/expanded.
+st.markdown(r"""
+<style>
+div[data-testid="stHorizontalBlock"]:has(.header-anchor):has([data-testid="stPopover"] button[aria-expanded="true"])
+button[kind="primary"]{
+    background:transparent!important;
+    border-color:transparent!important;
+    box-shadow:none!important;
+}
+div[data-testid="stHorizontalBlock"]:has(.header-anchor)
+[data-testid="stPopover"] button[aria-expanded="true"]{
+    background:#16ad63!important;
+    color:#fff!important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 active=st.session_state["_ca_route"]
 hdr=st.columns([3.25,.82,1.06,.94,1.04,1.05,1.20,1.05,.92,1.18],gap="small")
 with hdr[0]:
