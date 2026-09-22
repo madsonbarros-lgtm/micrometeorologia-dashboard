@@ -1116,18 +1116,6 @@ for f in tower_files or []:
         tower_file_map[res] = f
         tower_summaries[res] = summary
 
-        interval_txt = (
-            f"{summary['interval_seconds']:.0f} s"
-            if summary.get("interval_seconds") is not None
-            else "—"
-        )
-        st.sidebar.success(
-            tr(
-                f"✓ {res} reconhecido automaticamente ({interval_txt})",
-                f"✓ {res} automatically recognized ({interval_txt})",
-            )
-        )
-
         # 30 min e diário são pequenos e úteis em várias páginas.
         # O arquivo de 1 min fica sob demanda.
         if res != "1 min" and key not in parsed_cache:
@@ -1137,21 +1125,9 @@ for f in tower_files or []:
         st.sidebar.error(f"{getattr(f, 'name', 'arquivo')}: {exc}")
 
 
-if tower_summaries:
-    st.sidebar.markdown(
-        '<div class="sidebar-status"><strong>✓ ' +
-        tr(
-            f"{len(tower_summaries)} arquivo(s) CR3000 reconhecido(s)",
-            f"{len(tower_summaries)} CR3000 file(s) recognized",
-        ) +
-        '</strong><br>' +
-        tr(
-            "Classificação automática pela resolução temporal.",
-            "Automatic classification by temporal resolution.",
-        ) +
-        '</div>',
-        unsafe_allow_html=True,
-    )
+# O reconhecimento temporal continua sendo executado normalmente.
+# Os avisos de sucesso foram retirados apenas da interface lateral para
+# manter a navegação sempre visível, sem alterar a lógica científica.
 
 # Remove referências de arquivos que não estão mais selecionados.
 for old_key in list(parsed_cache.keys()):
