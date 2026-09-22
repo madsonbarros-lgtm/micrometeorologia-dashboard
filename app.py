@@ -491,6 +491,58 @@ div[data-testid="stPopoverBody"] [data-baseweb="select"] > div,
 div[data-testid="stPopoverBody"] input{
     background:#E5F5EC !important;
 }
+
+/* ===== v18 — uploader realmente vertical + cartões verde suave ===== */
+
+/* Fundo geral do painel Arquivos */
+div[data-testid="stPopoverBody"]{
+    background:#EAF7F0 !important;
+}
+
+/* O uploader inteiro e todas as suas camadas deixam de ser brancos */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"],
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] > div,
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] section,
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] section > div{
+    background:#EAF7F0 !important;
+}
+
+/* O Streamlit atual usa elementos de arquivo irmãos dentro de um flex.
+   :has() identifica diretamente o pai real dos cartões. */
+div[data-testid="stPopoverBody"] div:has(> [data-testid="stFileUploaderFile"]){
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) !important;
+    grid-auto-flow:row !important;
+    width:100% !important;
+    max-width:100% !important;
+    gap:7px !important;
+}
+
+/* Cada arquivo obrigatoriamente ocupa uma linha */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderFile"]{
+    grid-column:1 / -1 !important;
+    display:flex !important;
+    width:100% !important;
+    min-width:0 !important;
+    max-width:none !important;
+    flex-basis:100% !important;
+    box-sizing:border-box !important;
+    margin:0 !important;
+    background:#DFF2E7 !important;
+    border:1px solid rgba(24,130,86,.10) !important;
+    border-radius:8px !important;
+}
+
+/* Remove branco também das camadas internas do cartão */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderFile"] > div,
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderFile"] > div > div{
+    background:transparent !important;
+}
+
+/* Área/botão de adicionar arquivo acompanha o verde suave */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] button{
+    background:#DFF2E7 !important;
+}
 </style>
     """,
     unsafe_allow_html=True,
