@@ -1210,83 +1210,42 @@ header[data-testid="stHeader"]{height:0!important;min-height:0!important;backgro
 [data-testid="stMainBlockContainer"],.main .block-container{
  max-width:100%!important;width:100%!important;padding:0!important;margin:0!important
 }
-.ca-stable-brand{
- height:100px!important;margin:0!important;width:100%!important;box-sizing:border-box;
- padding:19px 34px!important;background:linear-gradient(90deg,#07533f,#006746 52%,#005239);
- color:#fff;border:0!important
+/* Um único cabeçalho funcional. Nada absoluto/fixed: evita sobreposição. */
+.ca-real-header{
+ width:100%;box-sizing:border-box;padding:12px 24px 8px;
+ background:linear-gradient(90deg,#07533f,#006746 52%,#005239);color:white
 }
-.ca-stable-brand b{font-size:26px!important;line-height:1!important;font-weight:800}
-.ca-stable-brand small{display:block;font-size:12px!important;line-height:1.25;margin-top:6px;color:#effff4}
-
-/* Ambas as linhas nativas são movidas visualmente para dentro do mesmo cabeçalho.
-   O espaço que ocupavam no fluxo é removido por margin-bottom negativo. */
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor){
- position:relative!important;z-index:20!important;
- margin-top:-82px!important;margin-left:410px!important;margin-right:500px!important;
- margin-bottom:28px!important;padding:0!important;background:transparent!important;
- gap:6px!important;align-items:center!important
-}
+.ca-real-header b{font-size:25px}.ca-real-header small{display:block;font-size:11px;margin-top:4px}
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor),
 div[data-testid="stHorizontalBlock"]:has(.tool-anchor){
- position:relative!important;z-index:21!important;
- width:470px!important;margin-top:-82px!important;margin-left:auto!important;margin-right:25px!important;
- margin-bottom:28px!important;padding:0!important;background:transparent!important;
- gap:7px!important;align-items:center!important
+ position:static!important;margin:0!important;padding:4px 22px!important;
+ background:#075b43!important;gap:7px!important;align-items:center!important
 }
 .nav-anchor,.tool-anchor{display:none!important}
 div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button,
 div[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-testid="stPopover"]>button,
 div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button,
 div[data-testid="stHorizontalBlock"]:has(.tool-anchor) [data-testid="stPopover"]>button{
- min-height:54px!important;border:0!important;border-radius:10px!important;
- background:transparent!important;color:#fff!important;font-size:15px!important;font-weight:650!important;
- white-space:nowrap!important;box-shadow:none!important
+ min-height:42px!important;border:0!important;border-radius:9px!important;background:transparent!important;
+ color:white!important;font-size:14px!important;font-weight:650!important;white-space:nowrap!important;box-shadow:none!important
 }
 div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button:hover,
 div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"],
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button:hover{background:#18a85d!important;color:#fff!important}
+div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button:hover{background:#18a85d!important;color:white!important}
 div[data-testid="stHorizontalBlock"]:has(.tool-anchor)>div:first-of-type button{border:1px solid #23c978!important}
-
-/* Popovers */
-div[data-testid="stPopoverBody"]{
- background:#fff!important;color:#26352f!important;border-radius:9px!important;
- border:1px solid rgba(0,0,0,.08)!important;box-shadow:0 12px 30px rgba(0,0,0,.25)!important;
- min-width:270px!important;z-index:99999!important
-}
-div[data-testid="stPopoverBody"]>div,
-div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{background:#fff!important}
-div[data-testid="stPopoverBody"] button{
- width:100%!important;justify-content:flex-start!important;background:#fff!important;
- color:#26352f!important;border:0!important;border-radius:6px!important
-}
+div[data-testid="stPopoverBody"]{background:white!important;color:#26352f!important;border-radius:9px!important;
+ border:1px solid rgba(0,0,0,.08)!important;box-shadow:0 12px 30px rgba(0,0,0,.25)!important;min-width:270px!important}
+div[data-testid="stPopoverBody"]>div,div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{background:white!important}
+div[data-testid="stPopoverBody"] button{width:100%!important;justify-content:flex-start!important;background:white!important;
+ color:#26352f!important;border:0!important}
 div[data-testid="stPopoverBody"] button:hover{background:#eaf8ef!important;color:#07533f!important}
-div[data-testid="stPopoverBody"] label,div[data-testid="stPopoverBody"] p,
-div[data-testid="stPopoverBody"] span{color:#26352f!important}
+div[data-testid="stPopoverBody"] label,div[data-testid="stPopoverBody"] p,div[data-testid="stPopoverBody"] span{color:#26352f!important}
 div[data-testid="stPopoverBody"] [data-testid="stFileUploader"]{min-width:430px!important}
-div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{background:#f5faf7!important;border-color:#9bc9ad!important}
-
-/* Sem faixa branca antes da imagem */
-.ca-home-image{
- display:block!important;width:100%!important;height:calc(100vh - 100px)!important;
- object-fit:cover!important;object-position:center!important;margin:0!important;padding:0!important
-}
+.ca-home-image{display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important}
 div[data-testid="stElementContainer"]:has(.ca-home-image){margin:0!important;padding:0!important}
-
-@media(max-width:1550px){
- div[data-testid="stHorizontalBlock"]:has(.nav-anchor){margin-left:315px!important;margin-right:405px!important}
- div[data-testid="stHorizontalBlock"]:has(.tool-anchor){width:390px!important;margin-right:12px!important}
- div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button,
- div[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-testid="stPopover"]>button,
- div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button,
- div[data-testid="stHorizontalBlock"]:has(.tool-anchor) [data-testid="stPopover"]>button{
-  font-size:12px!important;padding:.25rem .4rem!important
- }
- .ca-stable-brand b{font-size:22px!important}.ca-stable-brand small{font-size:10px!important}
-}
 </style>
-<div class="ca-stable-brand">
-  <b>❧ &nbsp;CARBONO EM AÇÃO</b>
-  <small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small>
-</div>
+<div class="ca-real-header"><b>❧ &nbsp;CARBONO EM AÇÃO</b>
+<small>Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia</small></div>
 """, unsafe_allow_html=True)
 
 active=st.session_state["_ca_route"]
@@ -1480,7 +1439,7 @@ st.markdown("""
 <style>
 .ca-science-pad{height:1px}
 [data-testid="stMainBlockContainer"]{padding-left:1.5rem!important;padding-right:1.5rem!important;padding-bottom:2rem!important}
-.ca-stable-brand{width:100%!important}
+
 </style>
 <div class="ca-science-pad"></div>
 """, unsafe_allow_html=True)
