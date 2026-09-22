@@ -1206,51 +1206,44 @@ st.markdown("""
 <style>
 section[data-testid="stSidebar"],[data-testid="collapsedControl"]{display:none!important}
 header[data-testid="stHeader"]{height:0!important;min-height:0!important;background:transparent!important}
-[data-testid="stToolbar"]{display:none!important}
-[data-testid="stDecoration"]{display:none!important}
+[data-testid="stToolbar"],[data-testid="stDecoration"]{display:none!important}
 [data-testid="stMainBlockContainer"],.main .block-container{
  max-width:100%!important;width:100%!important;padding:0!important;margin:0!important
 }
 .ca-stable-brand{
- margin:0!important;width:100%!important;box-sizing:border-box;height:102px;
- padding:18px 34px!important;background:linear-gradient(90deg,#07533f,#006746 52%,#005239);
+ margin:0!important;width:100%!important;box-sizing:border-box;
+ padding:14px 28px 10px!important;background:linear-gradient(90deg,#07533f,#006746 52%,#005239);
  color:#fff;border:0!important
 }
-.ca-stable-brand b{font-size:27px!important;line-height:1!important;font-weight:800}
-.ca-stable-brand small{display:block;font-size:12px!important;line-height:1.25;margin-top:7px;color:#effff4}
+.ca-stable-brand b{font-size:25px!important;line-height:1!important;font-weight:800}
+.ca-stable-brand small{display:block;font-size:11px!important;line-height:1.25;margin-top:6px;color:#effff4}
 
-/* As duas linhas de widgets são posicionadas DENTRO da faixa verde, sem cobrir o conteúdo. */
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor){
- position:absolute!important;top:18px!important;left:420px!important;right:510px!important;
- z-index:20!important;gap:7px!important;align-items:center!important
+/* Barra de navegação no fluxo normal: impossível sobrepor ou desaparecer. */
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor),
+div[data-testid="stHorizontalBlock"]:has(.tool-anchor){
+ position:static!important;inset:auto!important;width:auto!important;
+ margin:0!important;padding:5px 22px!important;background:#075b43!important;
+ z-index:auto!important;gap:7px!important;align-items:center!important
 }
 .nav-anchor,.tool-anchor{display:none!important}
 div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button,
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-testid="stPopover"]>button{
- min-height:54px!important;border:0!important;border-radius:10px!important;
- background:transparent!important;color:#fff!important;font-size:16px!important;font-weight:650!important;
- white-space:nowrap!important;box-shadow:none!important
-}
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button:hover,
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"]{
- background:#18a85d!important;color:#fff!important
-}
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor){
- position:absolute!important;top:18px!important;right:28px!important;width:470px!important;
- z-index:21!important;gap:8px!important;align-items:center!important
-}
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-testid="stPopover"]>button,
 div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button,
 div[data-testid="stHorizontalBlock"]:has(.tool-anchor) [data-testid="stPopover"]>button{
- min-height:54px!important;border:0!important;border-radius:10px!important;
- background:transparent!important;color:#fff!important;font-size:16px!important;font-weight:650!important;
- white-space:nowrap!important;box-shadow:none!important
+ min-height:44px!important;border:0!important;border-radius:9px!important;
+ background:transparent!important;color:#fff!important;font-size:15px!important;
+ font-weight:650!important;white-space:nowrap!important;box-shadow:none!important
+}
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button:hover,
+div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"],
+div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button:hover{
+ background:#18a85d!important;color:#fff!important
 }
 div[data-testid="stHorizontalBlock"]:has(.tool-anchor)>div:first-of-type button{
  border:1px solid #23c978!important
 }
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button:hover{background:#18a85d!important}
 
-/* Dropdowns: brancos, como a referência. */
+/* Dropdowns claros iguais ao alvo. */
 div[data-testid="stPopoverBody"]{
  background:#fff!important;color:#26352f!important;border-radius:9px!important;
  border:1px solid rgba(0,0,0,.08)!important;box-shadow:0 12px 30px rgba(0,0,0,.25)!important;
@@ -1265,27 +1258,19 @@ div[data-testid="stPopoverBody"] button{
 div[data-testid="stPopoverBody"] button:hover{background:#eaf8ef!important;color:#07533f!important}
 div[data-testid="stPopoverBody"] label,div[data-testid="stPopoverBody"] p,
 div[data-testid="stPopoverBody"] span{color:#26352f!important}
-
-/* Upload continua real e clicável dentro do popover Arquivos. */
 div[data-testid="stPopoverBody"] [data-testid="stFileUploader"]{min-width:430px!important}
 div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
  background:#f5faf7!important;border-color:#9bc9ad!important
 }
 
-/* Início sem margens: imagem encosta no cabeçalho e ocupa a largura toda. */
-[data-testid="stImage"]{margin:0!important}
-[data-testid="stImage"] img{width:100vw!important;max-width:100vw!important;margin:0!important;display:block!important}
-
-@media(max-width:1550px){
- .ca-stable-brand{padding-left:22px!important}
- .ca-stable-brand b{font-size:22px!important}
- .ca-stable-brand small{font-size:10px!important}
- div[data-testid="stHorizontalBlock"]:has(.nav-anchor){left:330px!important;right:420px!important;gap:3px!important}
- div[data-testid="stHorizontalBlock"]:has(.tool-anchor){right:12px!important;width:405px!important}
- div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button,
- div[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-testid="stPopover"]>button,
- div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button,
- div[data-testid="stHorizontalBlock"]:has(.tool-anchor) [data-testid="stPopover"]>button{font-size:13px!important;padding:.25rem .45rem!important}
+/* Home sem a faixa branca observada na captura. */
+.ca-home-image{
+ display:block!important;width:100%!important;height:calc(100vh - 158px)!important;
+ object-fit:cover!important;object-position:center!important;margin:0!important;padding:0!important
+}
+div[data-testid="stElementContainer"]:has(.ca-home-image){margin:0!important;padding:0!important}
+@media(min-width:1500px){
+ .ca-stable-brand{padding-left:34px!important}
 }
 </style>
 <div class="ca-stable-brand">
@@ -1470,8 +1455,7 @@ if page == _inicio_label:
     if _home_img.exists():
         _home64 = base64.b64encode(_home_img.read_bytes()).decode("ascii")
         st.markdown(
-            f'<img src="data:image/jpeg;base64,{_home64}" '
-            'style="display:block;width:100%;height:calc(100vh - 102px);object-fit:cover;margin:0;padding:0;" />',
+            f'<img class="ca-home-image" src="data:image/jpeg;base64,{_home64}" />',
             unsafe_allow_html=True,
         )
     else:
@@ -1486,7 +1470,7 @@ st.markdown("""
 <style>
 .ca-science-pad{height:1px}
 [data-testid="stMainBlockContainer"]{padding-left:1.5rem!important;padding-right:1.5rem!important;padding-bottom:2rem!important}
-.ca-stable-brand{margin-left:-1.5rem!important;margin-right:-1.5rem!important;width:calc(100% + 3rem)!important}
+.ca-stable-brand{width:100%!important}
 </style>
 <div class="ca-science-pad"></div>
 """, unsafe_allow_html=True)
