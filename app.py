@@ -323,6 +323,17 @@ section[data-testid="stSidebar"] [data-testid="stExpander"]{
 # -----------------------------
 # Idioma
 # -----------------------------
+# O idioma pode ser alterado pelo menu superior (?lang=pt / ?lang=en).
+# A leitura ocorre ANTES de definir PT para que toda a interface seja
+# traduzida no mesmo rerun.
+_lang_q = st.query_params.get("lang", None)
+if isinstance(_lang_q, list):
+    _lang_q = _lang_q[0] if _lang_q else None
+if _lang_q in {"pt", "en"}:
+    _requested_language = "Português" if _lang_q == "pt" else "English"
+    if st.session_state.get("language_v29") != _requested_language:
+        st.session_state["language_v29"] = _requested_language
+
 LANGUAGE = st.session_state.get("language_v29", "Português")
 PT = LANGUAGE == "Português"
 
@@ -1198,7 +1209,7 @@ if _route_q in _valid_routes:
 def _nav_url(route):
     return f"?page={route}"
 
-st.markdown(r"""
+_header_html = r"""
 <style>
 /* Esconde os controles Streamlit que compunham o cabeçalho anterior */
 div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor),
@@ -1302,7 +1313,7 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
       <div class="ca-drop">
         <a href="?page=tower"><span class="di">▱</span>Dados Originais da Torre</a>
         <a href="?page=structure"><span class="di">▧</span>Estrutura Científica</a>
-        <a href="#ca-files"><span class="di">☁</span>Carregar/gerenciar arquivos</a>
+        <a href="?page=__CURRENT_ROUTE__&panel=files"><span class="di">☁</span>Carregar/gerenciar arquivos</a>
       </div>
     </div>
     <div class="ca-item">
@@ -1328,7 +1339,7 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
     </div>
     <span class="ca-sep"></span>
     <div class="ca-item" id="ca-files">
-      <span class="ca-trigger ca-file-trigger"><span class="ca-icon">☁</span>Arquivos</span>
+      <a class="ca-trigger ca-file-trigger" href="?page=__CURRENT_ROUTE__&panel=files"><span class="ca-icon">☁</span>Arquivos</a>
       <div class="ca-drop ca-right-drop">
         <div style="padding:12px 16px;color:#07533f;font-weight:700">Arquivos de dados</div>
         <div style="padding:0 16px 12px;color:#52655d;font-size:13px">Os controles reais de upload aparecem logo abaixo do cabeçalho ao abrir esta opção.</div>
@@ -1337,8 +1348,8 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
     <div class="ca-item">
       <span class="ca-trigger"><span class="ca-icon">◎</span>Idioma <span class="ca-chevron">⌄</span></span>
       <div class="ca-drop ca-right-drop">
-        <a href="?page=inicio&lang=pt">Português</a>
-        <a href="?page=inicio&lang=en">English</a>
+        <a href="?page=__CURRENT_ROUTE__&lang=pt">Português</a>
+        <a href="?page=__CURRENT_ROUTE__&lang=en">English</a>
       </div>
     </div>
     <div class="ca-item">
@@ -1350,11 +1361,22 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
     </div>
   </div>
 </nav>
-""", unsafe_allow_html=True)
+"""
+_current_route_for_header = st.session_state.get("_ca_route", "inicio")
+_header_html = _header_html.replace("__CURRENT_ROUTE__", str(_current_route_for_header))
+st.markdown(_header_html, unsafe_allow_html=True)
 
 # Uploads e preferências continuam sendo widgets Streamlit reais.
 # Ficam em um painel compacto logo abaixo do cabeçalho, sem alterar a lógica de leitura.
-with st.expander(tr("☁ Arquivos, idioma e preferências", "☁ Files, language and preferences"), expanded=False):
+_panel_q = st.query_params.get("panel", None)
+if isinstance(_panel_q, list):
+    _panel_q = _panel_q[0] if _panel_q else None
+_open_files_panel = _panel_q == "files"
+
+with st.expander(
+    tr("☁ Arquivos, idioma e preferências", "☁ Files, language and preferences"),
+    expanded=_open_files_panel,
+):
     st.markdown('<span id="ca-controls"></span>', unsafe_allow_html=True)
     _h1, _h2, _h3 = st.columns([1.35, 1.0, .8], gap="large")
     with _h1:
