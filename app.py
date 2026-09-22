@@ -1171,25 +1171,11 @@ if processed_file is not None:
             f"Processed XLSX error: {exc}",
         ))
 
-if not tower_file_map and processed is None:
-    st.title("CARBONO EM AÇÃO")
-    if tower_files:
-        st.error(
-            tr(
-                "Os arquivos foram enviados, mas nenhuma resolução temporal pôde ser reconhecida. "
-                "Verifique se são arquivos Campbell TOA5 com uma coluna TIMESTAMP válida.",
-                "Files were uploaded, but no temporal resolution could be recognized. "
-                "Check that they are Campbell TOA5 files with a valid TIMESTAMP column.",
-            )
-        )
-    else:
-        st.info(
-            tr(
-                "Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.",
-                "Upload the CR3000 tower files and, optionally, the processed-products workbook.",
-            )
-        )
-    st.stop()
+# A interface e a navegação devem existir mesmo antes de qualquer upload.
+# Sem dados, as páginas científicas continuam acessíveis e exibem seus próprios
+# avisos de que a fonte correspondente ainda não foi carregada.
+_no_data_yet = not tower_file_map and processed is None
+_unrecognized_upload = bool(tower_files) and not tower_file_map
 
 # ============================================================
 # Navegação
@@ -1307,6 +1293,18 @@ if _route not in {"inicio", *pages.keys()}:
     _route = "inicio"
     st.session_state["_ca_route"] = "inicio"
 page = _inicio_label if _route == "inicio" else pages[_route]
+
+if _route != "inicio" and _no_data_yet:
+    if _unrecognized_upload:
+        st.error(tr(
+            "Os arquivos foram enviados, mas nenhuma resolução temporal pôde ser reconhecida. Verifique se são arquivos Campbell TOA5 com uma coluna TIMESTAMP válida.",
+            "Files were uploaded, but no temporal resolution could be recognized. Check that they are Campbell TOA5 files with a valid TIMESTAMP column.",
+        ))
+    else:
+        st.info(tr(
+            "A interface está disponível. Para executar as análises científicas, carregue os arquivos CR3000 e, quando necessário, a planilha de produtos processados.",
+            "The interface is available. To run the scientific analyses, upload the CR3000 files and, when needed, the processed-products workbook.",
+        ))
 
 st.sidebar.markdown('<div class="ca-side-divider"></div>', unsafe_allow_html=True)
 
