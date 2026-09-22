@@ -642,6 +642,15 @@ background:#d0eedc;color:#08714d;font-weight:750;font-size:16px}
 .gpiba-note{margin-top:18px;padding:10px 12px;border-radius:8px;background:#f1f8f4;color:#60736a;font-size:12px}
 @media(max-width:850px){.gpiba-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.gpiba-page{padding:18px 14px}.gpiba-hero{flex-direction:column;align-items:flex-start}.gpiba-grid{grid-template-columns:1fr}.gpiba-logo{width:145px}}
+
+/* ===== v23 — clique real no cartão Pessoas ===== */
+a.ca-people-hit-v23{
+ position:fixed!important;left:36.2vw!important;bottom:3.2vh!important;
+ width:7.8vw!important;height:13.2vh!important;min-width:105px!important;min-height:70px!important;
+ z-index:2147483000!important;display:block!important;pointer-events:auto!important;
+ cursor:pointer!important;background:transparent!important;border:0!important;text-decoration:none!important;
+}
+a.ca-people-hit-v23:hover{background:rgba(31,231,132,.08)!important;border-radius:8px!important}
 </style>
     """,
     unsafe_allow_html=True,
@@ -1735,7 +1744,16 @@ if _route != "inicio" and _no_data_yet:
             "The interface is available. To run scientific analyses, use Files in the header to upload CR3000 data and, when needed, the processed workbook.",
         ))
 
-if page == _inicio_label:
+_ca_people_qp_v23 = st.query_params.get("page", "")
+if isinstance(_ca_people_qp_v23, list):
+    _ca_people_qp_v23 = _ca_people_qp_v23[0] if _ca_people_qp_v23 else ""
+if _ca_people_qp_v23 == "people":
+    page = "people"
+
+if page == "people":
+    render_gpiba_people_page()
+elif page == _inicio_label:
+
     _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.png")
     if _home_img.exists():
         st.markdown(
@@ -2960,3 +2978,10 @@ elif page_key == "request":
 _ca_qp_page = st.query_params.get("page", "inicio")
 if _ca_qp_page == "people":
     render_gpiba_people_page()
+
+# v23: área clicável sobre o cartão Pessoas existente na imagem inicial.
+if page == _inicio_label:
+    st.markdown(
+        '<a class="ca-people-hit-v23" href="?page=people" target="_self" aria-label="Pessoas" title="Pessoas"></a>',
+        unsafe_allow_html=True,
+    )
