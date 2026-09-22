@@ -334,6 +334,12 @@ if _lang_q in {"pt", "en"}:
     if st.session_state.get("language_v29") != _requested_language:
         st.session_state["language_v29"] = _requested_language
 
+_lang_q = st.query_params.get("lang", None)
+if isinstance(_lang_q, list):
+    _lang_q = _lang_q[0] if _lang_q else None
+if _lang_q in {"pt", "en"}:
+    st.session_state["language_v29"] = "English" if _lang_q == "en" else "Português"
+
 LANGUAGE = st.session_state.get("language_v29", "Português")
 PT = LANGUAGE == "Português"
 
@@ -1202,7 +1208,7 @@ div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"] *{
 _route_q = st.query_params.get("page", None)
 if isinstance(_route_q, list):
     _route_q = _route_q[0] if _route_q else None
-_valid_routes = {"inicio", *pages.keys()}
+_valid_routes = {"inicio", "files", *pages.keys()}
 if _route_q in _valid_routes:
     st.session_state["_ca_route"] = _route_q
 
@@ -1306,7 +1312,7 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
     </span>
   </a>
   <div class="ca-nav">
-    <div class="ca-item"><a class="ca-link ca-home" href="?page=inicio"><span class="ca-icon">⌂</span>Início</a></div>
+    <div class="ca-item"><a class="ca-link {"ca-home" if st.session_state.get("_ca_route","inicio") == "inicio" else ""}" href="?page=inicio"><span class="ca-icon">⌂</span>{"Início" if PT else "Home"}</a></div>
     <div class="ca-item"><a class="ca-link" href="?page=overview"><span class="ca-icon">▥</span>Visão Geral</a></div>
     <div class="ca-item">
       <span class="ca-trigger"><span class="ca-icon">▤</span>Dados <span class="ca-chevron">⌄</span></span>
@@ -1338,7 +1344,7 @@ div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){display:none!importan
       </div>
     </div>
     <span class="ca-sep"></span>
-    <div class="ca-item" id="ca-files">
+    <div class="ca-item">
       <a class="ca-trigger ca-file-trigger" href="?page=__CURRENT_ROUTE__&panel=files"><span class="ca-icon">☁</span>Arquivos</a>
       <div class="ca-drop ca-right-drop">
         <div style="padding:12px 16px;color:#07533f;font-weight:700">Arquivos de dados</div>
@@ -1366,53 +1372,29 @@ _current_route_for_header = st.session_state.get("_ca_route", "inicio")
 _header_html = _header_html.replace("__CURRENT_ROUTE__", str(_current_route_for_header))
 st.markdown(_header_html, unsafe_allow_html=True)
 
-# Uploads e preferências continuam sendo widgets Streamlit reais.
-# Ficam em um painel compacto logo abaixo do cabeçalho, sem alterar a lógica de leitura.
-_panel_q = st.query_params.get("panel", None)
-if isinstance(_panel_q, list):
-    _panel_q = _panel_q[0] if _panel_q else None
-_open_files_panel = _panel_q == "files"
+# Uploads reais: ficam em uma rota própria para não depender de HTML/âncoras.
+# A navegação por query mantém a sessão do Streamlit; os UploadedFile permanecem no widget.
+tower_files = st.session_state.get("tower_dat_v34", [])
+processed_file = st.session_state.get("processed_xlsx_v34", None)
 
-with st.expander(
-    tr("☁ Arquivos, idioma e preferências", "☁ Files, language and preferences"),
-    expanded=_open_files_panel,
-):
-    st.markdown('<span id="ca-controls"></span>', unsafe_allow_html=True)
-    _h1, _h2, _h3 = st.columns([1.35, 1.0, .8], gap="large")
-    with _h1:
-        tower_files = st.file_uploader(
-            tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
-            type=["dat"], accept_multiple_files=True, key="tower_dat_v34",
-            help=tr(
-                "Carregue os arquivos TOA5 de 1 min, 30 min e diário. O arquivo de 1 min é carregado somente quando necessário.",
-                "Upload TOA5 1-min, 30-min and daily files. The 1-min file is loaded only when needed."
-            ),
-        )
-        processed_file = st.file_uploader(
-            tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
-            type=["xlsx"], key="processed_xlsx_v34",
-        )
-    with _h2:
-        _language_widget = st.selectbox(
-            "Idioma / Language", ["Português", "English"],
-            index=0 if st.session_state.get("language_v29", "Português") == "Português" else 1,
-            key="language_header_widget",
-        )
-        if _language_widget != st.session_state.get("language_v29", "Português"):
-            st.session_state["language_v29"] = _language_widget
-            st.rerun()
-    with _h3:
-        _table_widget = st.radio(
-            tr("Tabelas", "Tables"),
-            [tr("Controles próprios", "Custom controls"), tr("Nativa do Streamlit", "Native Streamlit")],
-            index=0 if CUSTOM_TABLES else 1,
-            key="table_header_widget",
-        )
-        if _table_widget != st.session_state.get(
-            "table_mode_v29", tr("Controles próprios", "Custom controls")
-        ):
-            st.session_state["table_mode_v29"] = _table_widget
-            st.rerun()
+if st.query_params.get("page", "inicio") == "files":
+    st.subheader(tr("Arquivos de dados", "Data files"))
+    tower_files = st.file_uploader(
+        tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
+        type=["dat"], accept_multiple_files=True, key="tower_dat_v34",
+        help=tr(
+            "Carregue os arquivos TOA5 de 1 min, 30 min e diário.",
+            "Upload the 1-min, 30-min and daily TOA5 files."
+        ),
+    )
+    processed_file = st.file_uploader(
+        tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
+        type=["xlsx"], key="processed_xlsx_v34",
+    )
+    st.caption(tr(
+        "Os arquivos permanecem disponíveis enquanto esta sessão do Streamlit estiver ativa.",
+        "Files remain available while this Streamlit session is active."
+    ))
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
     st.session_state["_ecoflux_parsed_toa5"] = {}
@@ -1529,10 +1511,15 @@ _unrecognized_upload = bool(tower_files) and not tower_file_map
 _route = st.query_params.get("page", st.session_state.get("_ca_route", "inicio"))
 if isinstance(_route, list):
     _route = _route[0] if _route else "inicio"
-if _route not in {"inicio", *pages.keys()}:
+if _route not in {"inicio", "files", *pages.keys()}:
     _route = "inicio"
     st.session_state["_ca_route"] = "inicio"
-page = _inicio_label if _route == "inicio" else pages[_route]
+if _route == "inicio":
+    page = _inicio_label
+elif _route == "files":
+    page = tr("Arquivos", "Files")
+else:
+    page = pages[_route]
 
 if _route != "inicio" and _no_data_yet:
     if _unrecognized_upload:
@@ -1572,6 +1559,16 @@ if page == _inicio_label:
         )
     else:
         st.warning("Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.")
+    st.stop()
+
+if _route == "files":
+    if tower_summaries:
+        st.success(tr(
+            f"{len(tower_summaries)} arquivo(s) CR3000 reconhecido(s).",
+            f"{len(tower_summaries)} CR3000 file(s) recognized."
+        ))
+    if processed is not None:
+        st.success(tr("Planilha processada carregada.", "Processed workbook loaded."))
     st.stop()
 
 # Espaçamento das páginas científicas; não afeta a tela Início.
