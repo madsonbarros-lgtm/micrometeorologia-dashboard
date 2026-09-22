@@ -1206,12 +1206,13 @@ st.markdown("""
 <style>
 section[data-testid="stSidebar"], [data-testid="collapsedControl"] {display:none!important;}
 header[data-testid="stHeader"] {background:#07533f!important;}
-.main .block-container {
-    max-width:none!important;
+[data-testid="stMainBlockContainer"], .main .block-container {
+    max-width:100%!important;width:100%!important;
     padding:0 1.25rem 2rem 1.25rem!important;
 }
 .ca-stable-brand {
     margin:0 -1.25rem .35rem -1.25rem;
+    width:calc(100% + 2.5rem);box-sizing:border-box;
     padding:.85rem 1.5rem .75rem 1.5rem;
     background:linear-gradient(90deg,#07533f 0%,#006746 52%,#005239 100%);
     color:white;
@@ -1454,13 +1455,15 @@ if page_key == "overview":
     st.markdown('<div class="ecoflux-hero">CARBONO EM AÇÃO</div>', unsafe_allow_html=True)
 
     recognized_count = len(tower_summaries)
-    if recognized_count:
+    processed_count = 1 if processed_file is not None else 0
+    total_loaded = recognized_count + processed_count
+    if total_loaded:
         st.markdown(
             '<div class="ecoflux-success">'
             '<div class="ecoflux-success-line">✅ ' +
             tr(
-                f"{recognized_count} arquivos CR3000 carregados e reconhecidos automaticamente!",
-                f"{recognized_count} CR3000 files loaded and automatically recognized!",
+                f"{total_loaded} arquivo(s) carregado(s): {recognized_count} CR3000" + (" + 1 XLSX processado" if processed_count else ""),
+                f"{total_loaded} file(s) loaded: {recognized_count} CR3000" + (" + 1 processed XLSX" if processed_count else ""),
             ) +
             '</div>'
             '<div class="ecoflux-success-sub">' +
@@ -1506,24 +1509,26 @@ if page_key == "overview":
                 "</tr>"
             )
 
-    # Inclui também a planilha processada no resumo de arquivos carregados.
-    if processed is not None and processed_file is not None:
-        _pdf = processed["df"]
-        _pstart = _pdf["TIMESTAMP"].min() if "TIMESTAMP" in _pdf.columns and not _pdf.empty else None
-        _pend = _pdf["TIMESTAMP"].max() if "TIMESTAMP" in _pdf.columns and not _pdf.empty else None
-        _pperiod = "—"
-        if pd.notna(_pstart) and pd.notna(_pend):
-            _pperiod = f"{_pstart:%d/%m/%Y %H:%M} → {_pend:%d/%m/%Y %H:%M}"
+    # O XLSX aparece no resumo sempre que foi selecionado.
+    if processed_file is not None:
         _pname = getattr(processed_file, "name", "XLSX")
+        if processed is not None:
+            _pdf = processed["df"]
+            _pstart = _pdf["TIMESTAMP"].min() if "TIMESTAMP" in _pdf.columns and not _pdf.empty else None
+            _pend = _pdf["TIMESTAMP"].max() if "TIMESTAMP" in _pdf.columns and not _pdf.empty else None
+            _pperiod = "—"
+            if pd.notna(_pstart) and pd.notna(_pend):
+                _pperiod = f"{_pstart:%d/%m/%Y %H:%M} → {_pend:%d/%m/%Y %H:%M}"
+            _precords = f"{len(_pdf):,}"
+            _pstatus = "<span class='ok-status'>● OK</span>"
+        else:
+            _pperiod, _precords = "—", "—"
+            _pstatus = "<span style='color:#b7791f;font-weight:700'>● XLSX selecionado</span>"
         summary_rows.append(
             "<tr>"
             f"<td><span class='resolution-pill'>{tr('Processado XLSX','Processed XLSX')}</span></td>"
-            f"<td>{_pname}</td>"
-            f"<td>{len(_pdf):,}</td>"
-            f"<td>{_pperiod}</td>"
-            "<td>—</td>"
-            "<td><span class='ok-status'>● OK</span></td>"
-            "</tr>"
+            f"<td>{_pname}</td><td>{_precords}</td><td>{_pperiod}</td><td>—</td>"
+            f"<td>{_pstatus}</td></tr>"
         )
 
     summary_html = (
@@ -1541,6 +1546,17 @@ if page_key == "overview":
         "</tbody></table></div>"
     )
     st.markdown(summary_html, unsafe_allow_html=True)
+    if processed_file is not None:
+        if processed is not None:
+            st.success(tr(
+                f"XLSX reconhecido: {processed_file.name} — {len(processed['df']):,} registros.",
+                f"XLSX recognized: {processed_file.name} — {len(processed['df']):,} records."
+            ))
+        else:
+            st.warning(tr(
+                f"XLSX selecionado: {processed_file.name}. A leitura processada precisa ser verificada.",
+                f"XLSX selected: {processed_file.name}. Processed-data reading needs verification."
+            ))
 
     st.markdown(
         '<div class="ecoflux-info">ℹ️ ' +
