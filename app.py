@@ -1072,120 +1072,7 @@ def _back():
     if hist:
         st.session_state["_ca_route"] = hist.pop()
 
-st.markdown("""
-<style>
-/* Carbono em Ação: layout sem sidebar permanente */
-section[data-testid="stSidebar"]{display:none!important}
-[data-testid="collapsedControl"]{display:none!important}
-header[data-testid="stHeader"]{background:transparent!important}
-.main .block-container{
-    max-width:none!important;
-    padding:5.25rem 1.5rem 2rem 1.5rem!important;
-}
 
-/* Marca fixa */
-.ca-top-brand{
-    position:fixed;left:1.35rem;top:.72rem;z-index:10002;
-    display:flex;align-items:center;gap:.65rem;color:#fff;
-    pointer-events:none;
-}
-.ca-top-brand .leaf{font-size:1.9rem;color:#45ef8c}
-.ca-top-brand b{display:block;font-size:1.08rem;letter-spacing:.02em}
-.ca-top-brand small{display:block;font-size:.64rem;line-height:1.18;color:#e8fff0}
-
-/* Toda a faixa superior */
-.ca-header-bg{
-    position:fixed;left:0;right:0;top:0;height:4.65rem;
-    background:#064b39;z-index:9997;
-    border-bottom:1px solid rgba(91,235,145,.22);
-    box-shadow:0 2px 10px rgba(0,0,0,.12);
-}
-
-/* Bloco Streamlit da navegação */
-div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor){
-    position:fixed!important;
-    left:21.5rem!important; right:22.5rem!important; top:.62rem!important;
-    z-index:10001!important;
-    background:transparent!important;
-    gap:.15rem!important;align-items:center!important;
-}
-.ca-main-nav-anchor{display:none!important}
-div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor) > div{
-    display:flex!important;align-items:center!important;min-width:0!important;
-}
-div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor) button{
-    background:transparent!important;color:#f5fff7!important;border:0!important;
-    box-shadow:none!important;border-radius:8px!important;min-height:2.65rem!important;
-    padding:.35rem .48rem!important;font-weight:650!important;white-space:nowrap!important;
-}
-div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor) button:hover{
-    background:#18a85d!important;color:#fff!important;
-}
-
-/* Controles da direita */
-div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){
-    position:fixed!important;right:1.15rem!important;top:.62rem!important;
-    width:21rem!important;z-index:10003!important;background:transparent!important;
-    gap:.25rem!important;align-items:center!important;
-}
-.ca-tools-anchor{display:none!important}
-div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor) button{
-    background:transparent!important;color:#f5fff7!important;
-    border:1px solid rgba(85,239,143,.28)!important;border-radius:8px!important;
-    min-height:2.65rem!important;box-shadow:none!important;white-space:nowrap!important;
-}
-div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor) button:hover{
-    background:#18a85d!important;color:#fff!important;
-}
-
-/* Dropdowns/painéis */
-div[data-testid="stPopoverBody"],
-div[data-testid="stPopoverBody"] > div,
-div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{
-    background:#064b39!important;color:#f5fff7!important;
-}
-div[data-testid="stPopoverBody"]{
-    border:1px solid rgba(100,240,150,.28)!important;border-radius:10px!important;
-    padding:.55rem!important;z-index:10010!important;
-    box-shadow:0 10px 28px rgba(0,0,0,.28)!important;
-}
-div[data-testid="stPopoverBody"] button{
-    color:#f5fff7!important;background:#075943!important;
-    border:1px solid rgba(255,255,255,.08)!important;
-}
-div[data-testid="stPopoverBody"] button p,
-div[data-testid="stPopoverBody"] button span,
-div[data-testid="stPopoverBody"] label,
-div[data-testid="stPopoverBody"] p{color:#f5fff7!important}
-div[data-testid="stPopoverBody"] button:hover{background:#18a85d!important}
-
-/* Upload dentro do painel Arquivos */
-div[data-testid="stPopoverBody"] [data-testid="stFileUploader"]{
-    background:#0a624a!important;border-radius:9px!important;padding:.45rem!important;
-}
-div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
-    background:#0b7154!important;border-color:rgba(112,245,161,.42)!important;
-}
-div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"] *{
-    color:#f5fff7!important;
-}
-
-/* Início usa toda a viewport abaixo do cabeçalho */
-@media(max-width:1500px){
-    .ca-top-brand small{display:none}
-    div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor){
-        left:14.5rem!important;right:20rem!important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){width:19rem!important}
-}
-</style>
-<div class="ca-header-bg"></div>
-<div class="ca-top-brand">
-  <span class="leaf">❧</span>
-  <span><b>CARBONO EM AÇÃO</b>
-  <small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></span>
-</div>
-""", unsafe_allow_html=True)
 
 
 # Cabeçalho/navegação nativos do Streamlit: mesma sessão, sem href/query params.
@@ -1210,82 +1097,99 @@ header[data-testid="stHeader"]{height:0!important;min-height:0!important;backgro
 [data-testid="stMainBlockContainer"],.main .block-container{
  max-width:100%!important;width:100%!important;padding:0!important;margin:0!important
 }
-/* Um único cabeçalho funcional. Nada absoluto/fixed: evita sobreposição. */
-.ca-real-header{
- width:100%;box-sizing:border-box;padding:12px 24px 8px;
- background:linear-gradient(90deg,#07533f,#006746 52%,#005239);color:white
+[data-testid="stMainBlockContainer"]>div{gap:0!important}
+.header-anchor{display:none!important}
+div[data-testid="stHorizontalBlock"]:has(.header-anchor){
+ width:100%!important;min-height:102px!important;margin:0!important;padding:0 28px!important;
+ background:linear-gradient(90deg,#07533f,#006746 52%,#005239)!important;
+ gap:8px!important;align-items:center!important
 }
-.ca-real-header b{font-size:25px}.ca-real-header small{display:block;font-size:11px;margin-top:4px}
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor),
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor){
- position:static!important;margin:0!important;padding:4px 22px!important;
- background:#075b43!important;gap:7px!important;align-items:center!important
+.ca-brand-inline{color:white;line-height:1.05;padding-right:10px}
+.ca-brand-inline b{font-size:25px;font-weight:800;white-space:nowrap}
+.ca-brand-inline small{display:block;font-size:11px;line-height:1.25;margin-top:7px;color:#effff4}
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) button,
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stPopover"]>button{
+ min-height:54px!important;border:0!important;border-radius:10px!important;
+ background:transparent!important;color:#fff!important;font-size:15px!important;
+ font-weight:650!important;white-space:nowrap!important;box-shadow:none!important;padding:.35rem .55rem!important
 }
-.nav-anchor,.tool-anchor{display:none!important}
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button,
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) [data-testid="stPopover"]>button,
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button,
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor) [data-testid="stPopover"]>button{
- min-height:42px!important;border:0!important;border-radius:9px!important;background:transparent!important;
- color:white!important;font-size:14px!important;font-weight:650!important;white-space:nowrap!important;box-shadow:none!important
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) button:hover,
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) button[kind="primary"]{
+ background:#18a85d!important;color:#fff!important
 }
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button:hover,
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"],
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button:hover{background:#18a85d!important;color:white!important}
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor)>div:first-of-type button{border:1px solid #23c978!important}
-div[data-testid="stPopoverBody"]{background:white!important;color:#26352f!important;border-radius:9px!important;
- border:1px solid rgba(0,0,0,.08)!important;box-shadow:0 12px 30px rgba(0,0,0,.25)!important;min-width:270px!important}
-div[data-testid="stPopoverBody"]>div,div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{background:white!important}
-div[data-testid="stPopoverBody"] button{width:100%!important;justify-content:flex-start!important;background:white!important;
- color:#26352f!important;border:0!important}
+div[data-testid="stHorizontalBlock"]:has(.header-anchor)>div:nth-last-child(3) button{
+ border:1px solid #23c978!important
+}
+div[data-testid="stPopoverBody"]{
+ background:#fff!important;color:#26352f!important;border-radius:9px!important;
+ border:1px solid rgba(0,0,0,.08)!important;box-shadow:0 12px 30px rgba(0,0,0,.25)!important;
+ min-width:275px!important;z-index:99999!important
+}
+div[data-testid="stPopoverBody"]>div,
+div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{background:#fff!important}
+div[data-testid="stPopoverBody"] button{
+ width:100%!important;justify-content:flex-start!important;background:#fff!important;
+ color:#26352f!important;border:0!important;border-radius:6px!important
+}
 div[data-testid="stPopoverBody"] button:hover{background:#eaf8ef!important;color:#07533f!important}
-div[data-testid="stPopoverBody"] label,div[data-testid="stPopoverBody"] p,div[data-testid="stPopoverBody"] span{color:#26352f!important}
+div[data-testid="stPopoverBody"] label,div[data-testid="stPopoverBody"] p,
+div[data-testid="stPopoverBody"] span{color:#26352f!important}
 div[data-testid="stPopoverBody"] [data-testid="stFileUploader"]{min-width:430px!important}
-.ca-home-image{display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important}
-div[data-testid="stElementContainer"]:has(.ca-home-image){margin:0!important;padding:0!important}
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
+ background:#f5faf7!important;border-color:#9bc9ad!important
+}
+.ca-home-image{
+ display:block!important;width:100vw!important;max-width:none!important;height:calc(100vh - 102px)!important;
+ object-fit:cover!important;object-position:center!important;margin:0!important;padding:0!important
+}
+div[data-testid="stElementContainer"]:has(.ca-home-image),
+div[data-testid="stMarkdownContainer"]:has(.ca-home-image){margin:0!important;padding:0!important}
+@media(max-width:1500px){
+ .ca-brand-inline b{font-size:19px}.ca-brand-inline small{font-size:9px}
+ div[data-testid="stHorizontalBlock"]:has(.header-anchor){padding:0 14px!important;gap:3px!important}
+ div[data-testid="stHorizontalBlock"]:has(.header-anchor) button,
+ div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stPopover"]>button{
+  font-size:12px!important;padding:.25rem .35rem!important
+ }
+}
 </style>
-<div class="ca-real-header"><b>❧ &nbsp;CARBONO EM AÇÃO</b>
-<small>Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia</small></div>
 """, unsafe_allow_html=True)
 
 active=st.session_state["_ca_route"]
-n=st.columns([.9,1.1,.9,1,1,1.12],gap="small")
-with n[0]:
- st.markdown('<i class="nav-anchor"></i>',unsafe_allow_html=True)
-
+hdr=st.columns([2.7,.85,1.05,.9,1.0,1.0,1.12,1.0,.9,1.12],gap="small")
+with hdr[0]:
+ st.markdown('<span class="header-anchor"></span><div class="ca-brand-inline"><b>❧ &nbsp;CARBONO EM AÇÃO</b><small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div>',unsafe_allow_html=True)
+with hdr[1]:
  if st.button(tr("⌂ Início","⌂ Home"),key="n_home",use_container_width=True,type="primary" if active=="inicio" else "secondary"): _go("inicio");st.rerun()
-with n[1]:
+with hdr[2]:
  if st.button(tr("▥ Visão Geral","▥ Overview"),key="n_over",use_container_width=True,type="primary" if active=="overview" else "secondary"): _go("overview");st.rerun()
-with n[2]:
+with hdr[3]:
  with st.popover(tr("▤ Dados ▾","▤ Data ▾"),use_container_width=True):
   if st.button(pages["tower"],key="n_tower",use_container_width=True): _go("tower");st.rerun()
   if st.button(pages["structure"],key="n_struct",use_container_width=True): _go("structure");st.rerun()
-with n[3]:
+with hdr[4]:
  with st.popover(tr("⌁ Análises ▾","⌁ Analyses ▾"),use_container_width=True):
   if st.button(pages["compare"],key="n_comp",use_container_width=True): _go("compare");st.rerun()
   if st.button(pages["gapfill"],key="n_gap",use_container_width=True): _go("gapfill");st.rerun()
   if st.button(pages["carbon"],key="n_carbon",use_container_width=True): _go("carbon");st.rerun()
-with n[4]:
+with hdr[5]:
  with st.popover(tr("♢ Qualidade ▾","♢ Quality ▾"),use_container_width=True):
   if st.button(pages["qc"],key="n_qc",use_container_width=True): _go("qc");st.rerun()
-with n[5]:
+with hdr[6]:
  with st.popover(tr("ⓘ Informações ▾","ⓘ Information ▾"),use_container_width=True):
   if st.button(pages["about"],key="n_about",use_container_width=True): _go("about");st.rerun()
   if st.button(pages["request"],key="n_req",use_container_width=True): _go("request");st.rerun()
-
-tools=st.columns([1.1,.9,1.1],gap="small")
-with tools[0]:
- st.markdown('<i class="tool-anchor"></i>',unsafe_allow_html=True)
+with hdr[7]:
  with st.popover(tr("☁ Arquivos","☁ Files"),use_container_width=True):
   tower_files=st.file_uploader(tr("Dados originais CR3000 (.dat)","Original CR3000 data (.dat)"),type=["dat"],accept_multiple_files=True,key="tower_dat_v34")
   processed_file=st.file_uploader(tr("Produtos processados (.xlsx) — opcional","Processed products (.xlsx) — optional"),type=["xlsx"],key="processed_xlsx_v34")
-with tools[1]:
+with hdr[8]:
  with st.popover(tr("◎ Idioma","◎ Language"),use_container_width=True):
   if st.button("Português",key="l_pt",use_container_width=True):
    st.session_state["language_v29"]="Português";st.rerun()
   if st.button("English",key="l_en",use_container_width=True):
    st.session_state["language_v29"]="English";st.rerun()
-with tools[2]:
+with hdr[9]:
  with st.popover(tr("⚙ Preferências","⚙ Preferences"),use_container_width=True):
   st.caption(tr("Opções da interface","Interface options"))
 
@@ -1422,9 +1326,8 @@ if _route != "inicio" and _no_data_yet:
 if page == _inicio_label:
     _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
     if _home_img.exists():
-        _home64 = base64.b64encode(_home_img.read_bytes()).decode("ascii")
         st.markdown(
-            f'<img class="ca-home-image" src="data:image/jpeg;base64,{_home64}" />',
+            f'<img class="ca-home-image" src="data:image/jpeg;base64,{base64.b64encode(_home_img.read_bytes()).decode("ascii")}" />',
             unsafe_allow_html=True,
         )
     else:
