@@ -1507,7 +1507,9 @@ def _go(route):
     current = st.session_state.get("_ca_route", "inicio")
     if route != current:
         st.session_state["_ca_history"].append(current)
-        st.session_state["_ca_route"] = route
+    st.session_state["_ca_route"] = route
+    if "page" in st.query_params:
+        del st.query_params["page"]
 
 def _back():
     hist = st.session_state.get("_ca_history", [])
@@ -1525,7 +1527,9 @@ def _go(r):
     cur=st.session_state["_ca_route"]
     if r!=cur:
         st.session_state["_ca_history"].append(cur)
-        st.session_state["_ca_route"]=r
+    st.session_state["_ca_route"]=r
+    if "page" in st.query_params:
+        del st.query_params["page"]
 
 def _back():
     if st.session_state["_ca_history"]:
@@ -3009,9 +3013,4 @@ elif page_key == "request":
             "Request prepared. This version does not automatically send or store the form.",
         ))
 
-
-# GPIBA v22: acesso adicional à página Pessoas
-_ca_qp_page = st.query_params.get("page", "inicio")
-if _ca_qp_page == "people":
-    render_gpiba_people_page()
 
