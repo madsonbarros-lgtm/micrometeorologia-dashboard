@@ -1216,36 +1216,73 @@ def _back():
 
 st.markdown("""
 <style>
-/* Cabeçalho de navegação feito com widgets Streamlit: mantém a sessão viva. */
-div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor){
-    background:#063f31;
-    border:1px solid rgba(75,232,132,.18);
-    border-radius:10px;
-    padding:.28rem .35rem;
-    gap:.28rem;
-    position:relative;
-    z-index:9999;
+/* Cabeçalho Carbono em Ação.
+   Mantém widgets Streamlit para preservar sessão, uploads e callbacks. */
+.main .block-container{
+    max-width:none!important;
+    padding-left:0!important;
+    padding-right:0!important;
+    padding-top:0!important;
 }
-.ca-nav-anchor{display:none}
+
+div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor){
+    background:#064b39!important;
+    border:0!important;
+    border-bottom:1px solid rgba(91,235,145,.22)!important;
+    border-radius:0!important;
+    padding:.28rem .85rem!important;
+    gap:.35rem!important;
+    position:relative!important;
+    z-index:9999!important;
+    width:100%!important;
+    margin:0!important;
+    min-height:3.15rem!important;
+    align-items:center!important;
+}
+.ca-nav-anchor{display:none!important}
+
+div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) > div{
+    display:flex!important;
+    align-items:center!important;
+}
+
 div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button{
     background:transparent!important;
     color:#f5fff7!important;
     border:0!important;
+    box-shadow:none!important;
     border-radius:7px!important;
     min-height:2.35rem!important;
+    padding:.35rem .65rem!important;
     font-weight:600!important;
+    white-space:nowrap!important;
 }
 div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button:hover{
     background:#18a85d!important;
     color:#fff!important;
 }
+div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button:focus{
+    box-shadow:none!important;
+}
+
 div[data-testid="stPopoverBody"]{
     background:#064b39!important;
     border:1px solid rgba(100,240,150,.22)!important;
+    border-radius:8px!important;
+    z-index:10000!important;
 }
 div[data-testid="stPopoverBody"] button{
     width:100%!important;
     justify-content:flex-start!important;
+    color:#f5fff7!important;
+}
+div[data-testid="stPopoverBody"] button:hover{
+    background:#18a85d!important;
+}
+
+/* Conteúdo das páginas científicas recupera margens confortáveis. */
+.main .block-container > div[data-testid="stVerticalBlock"]{
+    width:100%;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1352,8 +1389,8 @@ if page == _inicio_label:
                 max-width:none!important;width:0!important;height:0!important;
             }}
             .carbono-home-only{{
-                position:fixed;left:21rem;top:4.3rem;right:0;bottom:0;
-                width:calc(100vw - 21rem);height:calc(100vh - 4.3rem);
+                position:fixed;left:21rem;top:3.15rem;right:0;bottom:0;
+                width:calc(100vw - 21rem);height:calc(100vh - 3.15rem);
                 background-image:url(data:image/jpeg;base64,{_home64});
                 background-size:100% 100%;background-position:center;
                 background-repeat:no-repeat;background-color:#063b2d;z-index:0;
@@ -1369,6 +1406,17 @@ if page == _inicio_label:
     else:
         st.warning("Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.")
     st.stop()
+
+# Espaçamento das páginas científicas; não afeta a tela Início.
+st.markdown("""
+<style>
+.main .block-container{
+    padding-left:1.5rem!important;
+    padding-right:1.5rem!important;
+    padding-bottom:2rem!important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Daqui para baixo, a lógica científica é exatamente a original:
 # Visão Geral continua sendo Visão Geral, não a imagem de abertura.
