@@ -1,3 +1,41 @@
+import streamlit as st
+st.markdown(r'''
+<style>
+/* CARBONO EM AÇÃO — correção do estado visual do cabeçalho.
+   Nenhum botão simples fica permanentemente verde após o clique. */
+.ca-nav button,
+.ca-nav [data-testid="stBaseButton-secondary"],
+.ca-nav [data-testid="stBaseButton-primary"],
+.ca-header button,
+.ca-header [data-testid="stBaseButton-secondary"],
+.ca-header [data-testid="stBaseButton-primary"] {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Verde somente durante interação */
+.ca-nav button:hover,
+.ca-header button:hover {
+    background: rgba(23, 184, 104, .92) !important;
+}
+
+/* Popovers/dropdowns: verde apenas enquanto o menu está aberto */
+.ca-nav [data-testid="stPopover"] > div > button[aria-expanded="true"],
+.ca-header [data-testid="stPopover"] > div > button[aria-expanded="true"],
+[data-testid="stPopover"] button[aria-expanded="true"] {
+    background: rgba(23, 184, 104, .92) !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Ao fechar, volta ao mesmo verde escuro do cabeçalho */
+[data-testid="stPopover"] button[aria-expanded="false"] {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+</style>
+''', unsafe_allow_html=True)
 import csv
 import base64
 import io
