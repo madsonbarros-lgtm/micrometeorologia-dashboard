@@ -1193,11 +1193,15 @@ div[data-testid="stPopoverBody"] [data-testid="stFileUploader"]{min-width:430px!
 div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
  background:#f5faf7!important;border-color:#9bc9ad!important
 }
+.ca-home-frame{
+ width:100vw!important;height:calc(100vh - 105px)!important;overflow:hidden!important;
+ margin:0!important;padding:0!important;background:#073d2d!important
+}
 .ca-home-image{
  display:block!important;width:100vw!important;max-width:none!important;
- height:calc(100vh - 105px)!important;
+ height:calc((100vh - 105px) * 1.136)!important;
  object-fit:fill!important;
- margin:0!important;padding:0!important
+ margin-top:calc((100vh - 105px) * -0.136)!important;padding:0!important
 }
 div[data-testid="stElementContainer"]:has(.ca-home-image),
 div[data-testid="stMarkdownContainer"]:has(.ca-home-image){margin:0!important;padding:0!important}
@@ -1380,16 +1384,16 @@ if _route != "inicio" and _no_data_yet:
         ))
 
 if page == _inicio_label:
-    _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
+    _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.png")
     if _home_img.exists():
         st.markdown(
-            f'<img class="ca-home-image" src="data:image/jpeg;base64,{base64.b64encode(_home_img.read_bytes()).decode("ascii")}" />',
+            f'<div class="ca-home-frame"><img class="ca-home-image" src="data:image/png;base64,{base64.b64encode(_home_img.read_bytes()).decode("ascii")}" /></div>',
             unsafe_allow_html=True,
         )
     else:
         st.warning(tr(
-            "Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.",
-            "File carbono_em_acao_home_aprovada.jpg not found."
+            "Arquivo carbono_em_acao_home_aprovada.png não encontrado.",
+            "File carbono_em_acao_home_aprovada.png not found."
         ))
     st.stop()
 
