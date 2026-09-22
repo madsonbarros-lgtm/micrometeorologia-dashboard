@@ -1035,41 +1035,237 @@ def load_processed_xlsx(file_bytes):
     return df, units, sheet
 
 # ============================================================
-# Uploads — 1 min carregado sob demanda para evitar estouro de memória
+# Cabeçalho principal + uploads
 # ============================================================
 
-st.sidebar.markdown("""
-<div class="ca-safe-brand">
+# Rotas são definidas antes da leitura dos arquivos para que a interface exista
+# mesmo sem upload.
+pages = {
+    "overview": tr("Visão Geral", "Overview"),
+    "tower": tr("Dados Originais da Torre", "Original Tower Data"),
+    "structure": tr("Estrutura Científica", "Scientific Structure"),
+    "compare": tr("Comparar Variáveis", "Compare Variables"),
+    "gapfill": tr("Preenchimento de Lacunas", "Gap Filling"),
+    "carbon": tr("Balanço de Carbono", "Carbon Balance"),
+    "qc": tr("Qualidade dos Dados", "Data Quality"),
+    "about": tr("Sobre os Dados", "About the Data"),
+    "request": tr("Solicitar Dados", "Request Data"),
+}
+_inicio_label = tr("Início", "Home")
+
+if "_ca_route" not in st.session_state:
+    st.session_state["_ca_route"] = "inicio"
+if "_ca_history" not in st.session_state:
+    st.session_state["_ca_history"] = []
+
+def _go(route):
+    current = st.session_state.get("_ca_route", "inicio")
+    if route != current:
+        st.session_state["_ca_history"].append(current)
+        st.session_state["_ca_route"] = route
+
+def _back():
+    hist = st.session_state.get("_ca_history", [])
+    if hist:
+        st.session_state["_ca_route"] = hist.pop()
+
+st.markdown("""
+<style>
+/* Carbono em Ação: layout sem sidebar permanente */
+section[data-testid="stSidebar"]{display:none!important}
+[data-testid="collapsedControl"]{display:none!important}
+header[data-testid="stHeader"]{background:transparent!important}
+.main .block-container{
+    max-width:none!important;
+    padding:5.25rem 1.5rem 2rem 1.5rem!important;
+}
+
+/* Marca fixa */
+.ca-top-brand{
+    position:fixed;left:1.35rem;top:.72rem;z-index:10002;
+    display:flex;align-items:center;gap:.65rem;color:#fff;
+    pointer-events:none;
+}
+.ca-top-brand .leaf{font-size:1.9rem;color:#45ef8c}
+.ca-top-brand b{display:block;font-size:1.08rem;letter-spacing:.02em}
+.ca-top-brand small{display:block;font-size:.64rem;line-height:1.18;color:#e8fff0}
+
+/* Toda a faixa superior */
+.ca-header-bg{
+    position:fixed;left:0;right:0;top:0;height:4.65rem;
+    background:#064b39;z-index:9997;
+    border-bottom:1px solid rgba(91,235,145,.22);
+    box-shadow:0 2px 10px rgba(0,0,0,.12);
+}
+
+/* Bloco Streamlit da navegação */
+div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor){
+    position:fixed!important;
+    left:21.5rem!important; right:22.5rem!important; top:.62rem!important;
+    z-index:10001!important;
+    background:transparent!important;
+    gap:.15rem!important;align-items:center!important;
+}
+.ca-main-nav-anchor{display:none!important}
+div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor) > div{
+    display:flex!important;align-items:center!important;min-width:0!important;
+}
+div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor) button{
+    background:transparent!important;color:#f5fff7!important;border:0!important;
+    box-shadow:none!important;border-radius:8px!important;min-height:2.65rem!important;
+    padding:.35rem .48rem!important;font-weight:650!important;white-space:nowrap!important;
+}
+div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor) button:hover{
+    background:#18a85d!important;color:#fff!important;
+}
+
+/* Controles da direita */
+div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){
+    position:fixed!important;right:1.15rem!important;top:.62rem!important;
+    width:21rem!important;z-index:10003!important;background:transparent!important;
+    gap:.25rem!important;align-items:center!important;
+}
+.ca-tools-anchor{display:none!important}
+div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor) button{
+    background:transparent!important;color:#f5fff7!important;
+    border:1px solid rgba(85,239,143,.28)!important;border-radius:8px!important;
+    min-height:2.65rem!important;box-shadow:none!important;white-space:nowrap!important;
+}
+div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor) button:hover{
+    background:#18a85d!important;color:#fff!important;
+}
+
+/* Dropdowns/painéis */
+div[data-testid="stPopoverBody"],
+div[data-testid="stPopoverBody"] > div,
+div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{
+    background:#064b39!important;color:#f5fff7!important;
+}
+div[data-testid="stPopoverBody"]{
+    border:1px solid rgba(100,240,150,.28)!important;border-radius:10px!important;
+    padding:.55rem!important;z-index:10010!important;
+    box-shadow:0 10px 28px rgba(0,0,0,.28)!important;
+}
+div[data-testid="stPopoverBody"] button{
+    color:#f5fff7!important;background:#075943!important;
+    border:1px solid rgba(255,255,255,.08)!important;
+}
+div[data-testid="stPopoverBody"] button p,
+div[data-testid="stPopoverBody"] button span,
+div[data-testid="stPopoverBody"] label,
+div[data-testid="stPopoverBody"] p{color:#f5fff7!important}
+div[data-testid="stPopoverBody"] button:hover{background:#18a85d!important}
+
+/* Upload dentro do painel Arquivos */
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"]{
+    background:#0a624a!important;border-radius:9px!important;padding:.45rem!important;
+}
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"]{
+    background:#0b7154!important;border-color:rgba(112,245,161,.42)!important;
+}
+div[data-testid="stPopoverBody"] [data-testid="stFileUploaderDropzone"] *{
+    color:#f5fff7!important;
+}
+
+/* Início usa toda a viewport abaixo do cabeçalho */
+@media(max-width:1500px){
+    .ca-top-brand small{display:none}
+    div[data-testid="stHorizontalBlock"]:has(.ca-main-nav-anchor){
+        left:14.5rem!important;right:20rem!important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.ca-tools-anchor){width:19rem!important}
+}
+</style>
+<div class="ca-header-bg"></div>
+<div class="ca-top-brand">
   <span class="leaf">❧</span>
   <span><b>CARBONO EM AÇÃO</b>
   <small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></span>
 </div>
 """, unsafe_allow_html=True)
 
-tower_files = st.sidebar.file_uploader(
-    tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
-    type=["dat"],
-    accept_multiple_files=True,
-    key="tower_dat_v34",
-    help=tr(
-        "Carregue os arquivos TOA5 de 1 min, 30 min e diário. "
-        "O arquivo de 1 min é carregado somente quando necessário para economizar memória.",
-        "Upload TOA5 1-min, 30-min and daily files. "
-        "The 1-min file is loaded only when needed to save memory.",
-    ),
-)
+# Navegação principal: widgets Streamlit preservam a sessão e os uploads.
+nav_cols = st.columns([.18, .95, 1.05, 1, 1, 1, 1.12], gap="small")
+with nav_cols[0]:
+    st.markdown('<span class="ca-main-nav-anchor"></span>', unsafe_allow_html=True)
+    if st.button("←", key="ca_back", help=tr("Voltar à página anterior", "Back to previous page"),
+                 disabled=not bool(st.session_state["_ca_history"])):
+        _back(); st.rerun()
+with nav_cols[1]:
+    if st.button(tr("⌂  Início","⌂  Home"), key="ca_home", use_container_width=True):
+        _go("inicio"); st.rerun()
+with nav_cols[2]:
+    if st.button(tr("▥  Visão Geral","▥  Overview"), key="ca_overview", use_container_width=True):
+        _go("overview"); st.rerun()
+with nav_cols[3]:
+    with st.popover(tr("▤  Dados  ▾","▤  Data  ▾"), use_container_width=True):
+        if st.button(pages["tower"], key="ca_tower", use_container_width=True):
+            _go("tower"); st.rerun()
+        if st.button(pages["structure"], key="ca_structure", use_container_width=True):
+            _go("structure"); st.rerun()
+with nav_cols[4]:
+    with st.popover(tr("⌁  Análises  ▾","⌁  Analyses  ▾"), use_container_width=True):
+        if st.button(pages["compare"], key="ca_compare", use_container_width=True):
+            _go("compare"); st.rerun()
+        if st.button(pages["gapfill"], key="ca_gapfill", use_container_width=True):
+            _go("gapfill"); st.rerun()
+        if st.button(pages["carbon"], key="ca_carbon", use_container_width=True):
+            _go("carbon"); st.rerun()
+with nav_cols[5]:
+    with st.popover(tr("♢  Qualidade  ▾","♢  Quality  ▾"), use_container_width=True):
+        if st.button(pages["qc"], key="ca_qc", use_container_width=True):
+            _go("qc"); st.rerun()
+with nav_cols[6]:
+    with st.popover(tr("ⓘ  Informações  ▾","ⓘ  Information  ▾"), use_container_width=True):
+        if st.button(pages["about"], key="ca_about", use_container_width=True):
+            _go("about"); st.rerun()
+        if st.button(pages["request"], key="ca_request", use_container_width=True):
+            _go("request"); st.rerun()
 
-processed_file = st.sidebar.file_uploader(
-    tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
-    type=["xlsx"],
-    key="processed_xlsx_v34",
-)
-
-st.sidebar.markdown(
-    """<div class="ca-sidebar-info">ⓘ &nbsp; Carregue os arquivos CR3000 da torre e, opcionalmente, a planilha de produtos processados.</div>""",
-    unsafe_allow_html=True,
-)
-
+# Controles à direita do mesmo cabeçalho.
+tool_cols = st.columns([1.05, .85, 1], gap="small")
+with tool_cols[0]:
+    st.markdown('<span class="ca-tools-anchor"></span>', unsafe_allow_html=True)
+    with st.popover(tr("☁  Arquivos","☁  Files"), use_container_width=True):
+        st.caption(tr(
+            "Carregue ou substitua os arquivos sem sair da página atual.",
+            "Upload or replace files without leaving the current page."
+        ))
+        tower_files = st.file_uploader(
+            tr("Dados originais CR3000 (.dat)", "Original CR3000 data (.dat)"),
+            type=["dat"], accept_multiple_files=True, key="tower_dat_v34",
+            help=tr(
+                "Carregue os arquivos TOA5 de 1 min, 30 min e diário. O arquivo de 1 min é carregado somente quando necessário.",
+                "Upload TOA5 1-min, 30-min and daily files. The 1-min file is loaded only when needed."
+            ),
+        )
+        processed_file = st.file_uploader(
+            tr("Produtos processados (.xlsx) — opcional", "Processed products (.xlsx) — optional"),
+            type=["xlsx"], key="processed_xlsx_v34",
+        )
+with tool_cols[1]:
+    with st.popover(tr("◎  Idioma","◎  Language"), use_container_width=True):
+        _language_widget = st.selectbox(
+            "Idioma / Language", ["Português", "English"],
+            index=0 if st.session_state.get("language_v29", "Português") == "Português" else 1,
+            key="language_header_widget",
+        )
+        if _language_widget != st.session_state.get("language_v29", "Português"):
+            st.session_state["language_v29"] = _language_widget
+            st.rerun()
+with tool_cols[2]:
+    with st.popover(tr("⚙  Preferências","⚙  Preferences"), use_container_width=True):
+        _table_widget = st.radio(
+            tr("Tabelas", "Tables"),
+            [tr("Controles próprios", "Custom controls"), tr("Nativa do Streamlit", "Native Streamlit")],
+            index=0 if CUSTOM_TABLES else 1,
+            key="table_header_widget",
+        )
+        if _table_widget != st.session_state.get(
+            "table_mode_v29", tr("Controles próprios", "Custom controls")
+        ):
+            st.session_state["table_mode_v29"] = _table_widget
+            st.rerun()
 
 if "_ecoflux_parsed_toa5" not in st.session_state:
     st.session_state["_ecoflux_parsed_toa5"] = {}
@@ -1097,7 +1293,7 @@ for f in tower_files or []:
         res = summary["resolution"]
 
         if res == "Desconhecida":
-            st.sidebar.warning(
+            st.warning(
                 tr(
                     f"{f.name}: resolução temporal não reconhecida automaticamente.",
                     f"{f.name}: temporal resolution could not be recognized automatically.",
@@ -1106,7 +1302,7 @@ for f in tower_files or []:
             continue
 
         if res in tower_file_map:
-            st.sidebar.warning(
+            st.warning(
                 tr(
                     f"Há mais de um arquivo reconhecido como {res}. O último selecionado será usado.",
                     f"More than one file was recognized as {res}. The last selected file will be used.",
@@ -1122,7 +1318,7 @@ for f in tower_files or []:
             parsed_cache[key] = parse_toa5_stream(f)
 
     except Exception as exc:
-        st.sidebar.error(f"{getattr(f, 'name', 'arquivo')}: {exc}")
+        st.error(f"{getattr(f, 'name', 'arquivo')}: {exc}")
 
 
 # O reconhecimento temporal continua sendo executado normalmente.
@@ -1166,7 +1362,7 @@ if processed_file is not None:
         pdf, punits, psheet = load_processed_xlsx(_uploaded_bytes(processed_file))
         processed = {"df": pdf, "units": punits, "sheet": psheet}
     except Exception as exc:
-        st.sidebar.error(tr(
+        st.error(tr(
             f"Erro no XLSX processado: {exc}",
             f"Processed XLSX error: {exc}",
         ))
@@ -1178,171 +1374,10 @@ _no_data_yet = not tower_file_map and processed is None
 _unrecognized_upload = bool(tower_files) and not tower_file_map
 
 # ============================================================
-# Navegação
+# Rota ativa
 # ============================================================
-
-pages = {
-    "overview": tr("Visão Geral", "Overview"),
-    "tower": tr("Dados Originais da Torre", "Original Tower Data"),
-    "structure": tr("Estrutura Científica", "Scientific Structure"),
-    "compare": tr("Comparar Variáveis", "Compare Variables"),
-    "gapfill": tr("Preenchimento de Lacunas", "Gap Filling"),
-    "carbon": tr("Balanço de Carbono", "Carbon Balance"),
-    "qc": tr("Qualidade dos Dados", "Data Quality"),
-    "about": tr("Sobre os Dados", "About the Data"),
-    "request": tr("Solicitar Dados", "Request Data"),
-}
-
-_inicio_label = tr("Início", "Home")
-_nav_options = [_inicio_label] + list(pages.values())
-
-# Navegação estável: usa widgets Streamlit, sem links HTML e sem recarregar o navegador.
-# Isso preserva a sessão e, portanto, os arquivos já enviados nos file_uploaders.
-if "_ca_route" not in st.session_state:
-    st.session_state["_ca_route"] = "inicio"
-if "_ca_history" not in st.session_state:
-    st.session_state["_ca_history"] = []
-
-def _go(route):
-    current = st.session_state.get("_ca_route", "inicio")
-    if route != current:
-        st.session_state["_ca_history"].append(current)
-        st.session_state["_ca_route"] = route
-
-def _back():
-    hist = st.session_state.get("_ca_history", [])
-    if hist:
-        st.session_state["_ca_route"] = hist.pop()
-
-st.markdown("""
-<style>
-/* Cabeçalho Carbono em Ação — V2.
-   Somente apresentação: rotas, uploads, session_state e análises permanecem intactos. */
-.main .block-container{
-    max-width:none!important;
-    padding-left:0!important;
-    padding-right:0!important;
-    padding-top:0!important;
-}
-
-/* Barra alinhada à área principal, sem a caixa flutuante estreita. */
-div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor){
-    background:#064b39!important;
-    border:0!important;
-    border-bottom:1px solid rgba(91,235,145,.22)!important;
-    border-radius:0!important;
-    padding:.30rem 1.05rem!important;
-    gap:.18rem!important;
-    position:relative!important;
-    z-index:9999!important;
-    width:100%!important;
-    max-width:none!important;
-    margin:0!important;
-    min-height:3.25rem!important;
-    align-items:center!important;
-}
-.ca-nav-anchor{display:none!important}
-
-div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) > div{
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    min-width:0!important;
-}
-
-div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button{
-    background:transparent!important;
-    color:#f5fff7!important;
-    border:0!important;
-    box-shadow:none!important;
-    border-radius:7px!important;
-    min-height:2.35rem!important;
-    padding:.35rem .55rem!important;
-    font-weight:600!important;
-    white-space:nowrap!important;
-}
-div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button:hover{
-    background:#18a85d!important;
-    color:#fff!important;
-}
-div[data-testid="stHorizontalBlock"]:has(.ca-nav-anchor) button:focus{
-    box-shadow:none!important;
-}
-
-/* Menus suspensos: o problema branco era contraste.
-   Força fundo verde e texto branco em todos os níveis do popover. */
-div[data-testid="stPopoverBody"],
-div[data-testid="stPopoverBody"] > div,
-div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{
-    background:#064b39!important;
-    color:#f5fff7!important;
-}
-div[data-testid="stPopoverBody"]{
-    border:1px solid rgba(100,240,150,.28)!important;
-    border-radius:9px!important;
-    padding:.35rem!important;
-    z-index:10000!important;
-    box-shadow:0 8px 24px rgba(0,0,0,.22)!important;
-}
-div[data-testid="stPopoverBody"] button{
-    width:100%!important;
-    justify-content:flex-start!important;
-    background:#075943!important;
-    color:#f5fff7!important;
-    border:1px solid rgba(255,255,255,.08)!important;
-    opacity:1!important;
-}
-div[data-testid="stPopoverBody"] button p,
-div[data-testid="stPopoverBody"] button span,
-div[data-testid="stPopoverBody"] button div{
-    color:#f5fff7!important;
-    opacity:1!important;
-}
-div[data-testid="stPopoverBody"] button:hover{
-    background:#18a85d!important;
-    color:#fff!important;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-nav_cols = st.columns([.15, 1, 1.15, 1, 1, 1.2, 1.35], gap="small")
-with nav_cols[0]:
-    st.markdown('<span class="ca-nav-anchor"></span>', unsafe_allow_html=True)
-    if st.button("←", key="ca_back", help=tr("Voltar à página anterior", "Back to previous page"),
-                 disabled=not bool(st.session_state["_ca_history"])):
-        _back()
-        st.rerun()
-with nav_cols[1]:
-    if st.button(tr("Início","Home"), key="ca_home", use_container_width=True):
-        _go("inicio"); st.rerun()
-with nav_cols[2]:
-    if st.button(tr("Visão Geral","Overview"), key="ca_overview", use_container_width=True):
-        _go("overview"); st.rerun()
-with nav_cols[3]:
-    with st.popover(tr("Dados ▾","Data ▾"), use_container_width=True):
-        if st.button(pages["tower"], key="ca_tower", use_container_width=True):
-            _go("tower"); st.rerun()
-        if st.button(pages["structure"], key="ca_structure", use_container_width=True):
-            _go("structure"); st.rerun()
-with nav_cols[4]:
-    with st.popover(tr("Análises ▾","Analyses ▾"), use_container_width=True):
-        if st.button(pages["compare"], key="ca_compare", use_container_width=True):
-            _go("compare"); st.rerun()
-        if st.button(pages["gapfill"], key="ca_gapfill", use_container_width=True):
-            _go("gapfill"); st.rerun()
-        if st.button(pages["carbon"], key="ca_carbon", use_container_width=True):
-            _go("carbon"); st.rerun()
-with nav_cols[5]:
-    with st.popover(tr("Qualidade ▾","Quality ▾"), use_container_width=True):
-        if st.button(pages["qc"], key="ca_qc", use_container_width=True):
-            _go("qc"); st.rerun()
-with nav_cols[6]:
-    with st.popover(tr("Informações ▾","Information ▾"), use_container_width=True):
-        if st.button(pages["about"], key="ca_about", use_container_width=True):
-            _go("about"); st.rerun()
-        if st.button(pages["request"], key="ca_request", use_container_width=True):
-            _go("request"); st.rerun()
+_no_data_yet = not tower_file_map and processed is None
+_unrecognized_upload = bool(tower_files) and not tower_file_map
 
 _route = st.session_state.get("_ca_route", "inicio")
 if _route not in {"inicio", *pages.keys()}:
@@ -1358,42 +1393,9 @@ if _route != "inicio" and _no_data_yet:
         ))
     else:
         st.info(tr(
-            "A interface está disponível. Para executar as análises científicas, carregue os arquivos CR3000 e, quando necessário, a planilha de produtos processados.",
-            "The interface is available. To run the scientific analyses, upload the CR3000 files and, when needed, the processed-products workbook.",
+            "A interface está disponível. Para executar as análises científicas, use Arquivos no cabeçalho para carregar os dados CR3000 e, quando necessário, a planilha processada.",
+            "The interface is available. To run scientific analyses, use Files in the header to upload CR3000 data and, when needed, the processed workbook.",
         ))
-
-st.sidebar.markdown('<div class="ca-side-divider"></div>', unsafe_allow_html=True)
-
-_language_widget = st.sidebar.selectbox(
-    "Idioma / Language",
-    ["Português", "English"],
-    index=0 if st.session_state.get("language_v29", "Português") == "Português" else 1,
-    key="language_bottom_widget",
-)
-if _language_widget != st.session_state.get("language_v29", "Português"):
-    st.session_state["language_v29"] = _language_widget
-    st.rerun()
-
-with st.sidebar.expander(tr("Preferências", "Preferences"), expanded=False):
-    _table_widget = st.radio(
-        tr("Tabelas", "Tables"),
-        [
-            tr("Controles próprios", "Custom controls"),
-            tr("Nativa do Streamlit", "Native Streamlit"),
-        ],
-        index=0 if CUSTOM_TABLES else 1,
-        key="table_bottom_widget",
-    )
-    if _table_widget != st.session_state.get(
-        "table_mode_v29", tr("Controles próprios", "Custom controls")
-    ):
-        st.session_state["table_mode_v29"] = _table_widget
-        st.rerun()
-
-st.sidebar.markdown(
-    """<div class="ca-side-footer">❧ &nbsp; <span>Ciência hoje,<br>florestas amanhã.</span></div>""",
-    unsafe_allow_html=True,
-)
 
 if page == _inicio_label:
     _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
@@ -1408,14 +1410,11 @@ if page == _inicio_label:
                 max-width:none!important;width:0!important;height:0!important;
             }}
             .carbono-home-only{{
-                position:fixed;left:21rem;top:3.25rem;right:0;bottom:0;
-                width:calc(100vw - 21rem);height:calc(100vh - 3.25rem);
+                position:fixed;left:0;top:4.65rem;right:0;bottom:0;
+                width:100vw;height:calc(100vh - 4.65rem);
                 background-image:url(data:image/jpeg;base64,{_home64});
                 background-size:100% 100%;background-position:center;
                 background-repeat:no-repeat;background-color:#063b2d;z-index:0;
-            }}
-            @media(max-width:1200px){{
-                .carbono-home-only{{left:18rem;width:calc(100vw - 18rem)}}
             }}
             </style>
             <div class="carbono-home-only"></div>
