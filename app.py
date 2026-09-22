@@ -286,6 +286,42 @@ div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"
 div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(10) button p::before{
  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63 1.7 1.7 0 0 0 10 3.08V3h4v.09A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9 1.7 1.7 0 0 0 20.92 10H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63 1.7 1.7 0 0 0 10 3.08V3h4v.09A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9 1.7 1.7 0 0 0 20.92 10H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z'/%3E%3C/svg%3E")
 }
+
+/* ===== CABEÇALHO v13: uniforme como a referência ===== */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) button{
+    background:transparent!important;
+    border:1px solid transparent!important;
+    box-shadow:none!important;
+    outline:none!important;
+}
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) button:hover{
+    background:rgba(18,181,105,.18)!important;
+    border-color:transparent!important;
+}
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) button:focus,
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) button:focus-visible{
+    box-shadow:none!important;
+    outline:none!important;
+}
+/* remove o destaque permanente de Início e o contorno exclusivo de Arquivos */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(2) button,
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stColumn"]:nth-child(8) button{
+    background:transparent!important;
+    border-color:transparent!important;
+}
+/* remove o chevron nativo/subscrito dos popovers */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) [data-testid="stPopover"] button svg:last-child{
+    display:none!important;
+}
+/* alinhamento uniforme dos rótulos e desenhos */
+div[data-testid="stHorizontalBlock"]:has(.header-anchor) button p{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:8px!important;
+    margin:0!important;
+    line-height:1.15!important;
+}
 </style>
     """,
     unsafe_allow_html=True,
@@ -1213,10 +1249,10 @@ active=st.session_state["_ca_route"]
 hdr=st.columns([3.25,.82,1.06,.94,1.04,1.05,1.20,1.05,.92,1.18],gap="small")
 with hdr[0]:
  st.markdown('''<span class="header-anchor"></span><div class="ca-brand-inline">
-<div class="ca-brand-logo"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-<path d="M13 52V20M8 52h10M10 20h6M13 20l7-8M13 20l-7-8"/><path d="M7 30h12M8 39h10"/>
-<path d="M31 39c2-13 13-20 25-18-1 13-9 24-23 25-6 0-10-3-10-8 0-5 4-9 8-11"/>
-<path d="M28 47c7-8 15-13 26-19"/>
+<div class="ca-brand-logo"><svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+<path d="M17 58V18M11 58h12M13 18h8M17 18l7-8M17 18l-7-8M11 30h12M12 41h10"/>
+<path d="M35 49c1-14 12-25 29-24-1 16-11 28-27 28-7 0-12-4-12-10 0-6 5-11 11-14"/>
+<path d="M31 57c8-11 18-18 31-25"/>
 </svg></div>
 <div class="ca-brand-copy"><b>CARBONO EM AÇÃO</b><small>Plataforma Inteligente de Monitoramento<br>de Carbono e Micrometeorologia</small></div></div>''',unsafe_allow_html=True)
 with hdr[1]:
@@ -1224,19 +1260,19 @@ with hdr[1]:
 with hdr[2]:
  if st.button(tr("Visão Geral","Overview"),key="n_over",use_container_width=True,type="primary" if active=="overview" else "secondary"): _go("overview");st.rerun()
 with hdr[3]:
- with st.popover(tr("Dados ⌄","Data ⌄"),use_container_width=True):
+ with st.popover(tr("Dados","Data"),use_container_width=True):
   if st.button(pages["tower"],key="n_tower",use_container_width=True): _go("tower");st.rerun()
   if st.button(pages["structure"],key="n_struct",use_container_width=True): _go("structure");st.rerun()
 with hdr[4]:
- with st.popover(tr("Análises ⌄","Analyses ⌄"),use_container_width=True):
+ with st.popover(tr("Análises","Analyses"),use_container_width=True):
   if st.button(pages["compare"],key="n_comp",use_container_width=True): _go("compare");st.rerun()
   if st.button(pages["gapfill"],key="n_gap",use_container_width=True): _go("gapfill");st.rerun()
   if st.button(pages["carbon"],key="n_carbon",use_container_width=True): _go("carbon");st.rerun()
 with hdr[5]:
- with st.popover(tr("Qualidade ⌄","Quality ⌄"),use_container_width=True):
+ with st.popover(tr("Qualidade","Quality"),use_container_width=True):
   if st.button(pages["qc"],key="n_qc",use_container_width=True): _go("qc");st.rerun()
 with hdr[6]:
- with st.popover(tr("Informações ⌄","Information ⌄"),use_container_width=True):
+ with st.popover(tr("Informações","Information"),use_container_width=True):
   if st.button(pages["about"],key="n_about",use_container_width=True): _go("about");st.rerun()
   if st.button(pages["request"],key="n_req",use_container_width=True): _go("request");st.rerun()
 with hdr[7]:
@@ -1244,13 +1280,13 @@ with hdr[7]:
   tower_files=st.file_uploader(tr("Dados originais CR3000 (.dat)","Original CR3000 data (.dat)"),type=["dat"],accept_multiple_files=True,key="tower_dat_v34")
   processed_file=st.file_uploader(tr("Produtos processados (.xlsx) — opcional","Processed products (.xlsx) — optional"),type=["xlsx"],key="processed_xlsx_v34")
 with hdr[8]:
- with st.popover(tr("Idioma ⌄","Language ⌄"),use_container_width=True):
+ with st.popover(tr("Idioma","Language"),use_container_width=True):
   if st.button("Português",key="l_pt",use_container_width=True):
    st.session_state["language_v29"]="Português";st.rerun()
   if st.button("English",key="l_en",use_container_width=True):
    st.session_state["language_v29"]="English";st.rerun()
 with hdr[9]:
- with st.popover(tr("Preferências ⌄","Preferences ⌄"),use_container_width=True):
+ with st.popover(tr("Preferências","Preferences"),use_container_width=True):
   st.caption(tr("Opções da interface","Interface options"))
 
 tower_files=tower_files or []
