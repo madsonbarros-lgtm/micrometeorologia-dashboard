@@ -1204,37 +1204,45 @@ def _back():
 
 st.markdown("""
 <style>
-section[data-testid="stSidebar"],[data-testid="collapsedControl"]{display:none!important}
-header[data-testid="stHeader"]{background:transparent!important}
-.main .block-container{max-width:none!important;padding:6rem 1.3rem 2rem!important}
-.ca-head{position:fixed;inset:0 0 auto 0;height:5.3rem;background:#07533f;z-index:9990}
-.ca-brand{position:fixed;left:1.4rem;top:.75rem;z-index:10000;color:white;pointer-events:none}
-.ca-brand b{font-size:1.15rem}.ca-brand small{display:block;font-size:.65rem;margin-top:.2rem}
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor){
- position:fixed!important;left:19rem!important;right:24rem!important;top:.7rem!important;
- z-index:10005!important;gap:.18rem!important;align-items:center!important}
-.nav-anchor,.tool-anchor{display:none!important}
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button{
- color:white!important;background:transparent!important;border:0!important;border-radius:8px!important;
- min-height:2.7rem!important;font-weight:650!important;white-space:nowrap!important}
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button:hover,
-div[data-testid="stHorizontalBlock"]:has(.nav-anchor) button[kind="primary"]{background:#18a85d!important}
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor){
- position:fixed!important;right:1rem!important;top:.7rem!important;width:22rem!important;
- z-index:10006!important;gap:.2rem!important}
-div[data-testid="stHorizontalBlock"]:has(.tool-anchor) button{
- color:white!important;background:transparent!important;border:1px solid #21b96d!important;
- border-radius:8px!important;min-height:2.7rem!important;white-space:nowrap!important}
-div[data-testid="stPopoverBody"],div[data-testid="stPopoverBody"]>div,
-div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlock"]{background:#064b39!important;color:white!important}
-div[data-testid="stPopoverBody"] button{width:100%!important;color:white!important;background:#075943!important}
-div[data-testid="stPopoverBody"] label,div[data-testid="stPopoverBody"] p,
-div[data-testid="stPopoverBody"] span{color:white!important}
+section[data-testid="stSidebar"], [data-testid="collapsedControl"] {display:none!important;}
+header[data-testid="stHeader"] {background:#07533f!important;}
+.main .block-container {
+    max-width:none!important;
+    padding:0 1.25rem 2rem 1.25rem!important;
+}
+.ca-stable-brand {
+    margin:0 -1.25rem .35rem -1.25rem;
+    padding:.85rem 1.5rem .75rem 1.5rem;
+    background:linear-gradient(90deg,#07533f 0%,#006746 52%,#005239 100%);
+    color:white;
+    border-bottom:1px solid rgba(91,235,145,.22);
+}
+.ca-stable-brand b {font-size:1.35rem;letter-spacing:.01em;}
+.ca-stable-brand small {display:block;font-size:.72rem;margin-top:.2rem;color:#eafff0;}
+/* Navegação permanece no fluxo normal da página: nada fica sobreposto. */
+div[data-testid="stHorizontalBlock"] button {
+    min-height:2.65rem;
+}
+div[data-testid="stPopoverBody"] {
+    z-index:99999!important;
+}
+div[data-testid="stPopoverBody"] [data-testid="stFileUploader"] {
+    min-width:340px;
+}
+.ca-home-wrap {
+    margin:0 -1.25rem 0 -1.25rem;
+}
+.ca-home-wrap img {
+    display:block;
+    width:100%;
+    height:auto;
+}
 </style>
-<div class="ca-head"></div>
-<div class="ca-brand"><b>❧ &nbsp;CARBONO EM AÇÃO</b>
-<small>Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia</small></div>
-""",unsafe_allow_html=True)
+<div class="ca-stable-brand">
+  <b>❧ &nbsp;CARBONO EM AÇÃO</b>
+  <small>Plataforma Inteligente de Monitoramento de Carbono e Micrometeorologia</small>
+</div>
+""", unsafe_allow_html=True)
 
 active=st.session_state["_ca_route"]
 n=st.columns([.16,.9,1.1,.9,1,1,1.12],gap="small")
@@ -1411,31 +1419,14 @@ if _route != "inicio" and _no_data_yet:
 if page == _inicio_label:
     _home_img = Path(__file__).with_name("carbono_em_acao_home_aprovada.jpg")
     if _home_img.exists():
-        _home64 = base64.b64encode(_home_img.read_bytes()).decode("ascii")
-        st.markdown(
-            f"""
-            <style>
-            header[data-testid="stHeader"]{{background:transparent!important}}
-            .main .block-container:has(.carbono-home-only){{
-                position:static!important;margin:0!important;padding:0!important;
-                max-width:none!important;width:0!important;height:0!important;
-            }}
-            .carbono-home-only{{
-                position:fixed;left:0;top:5.3rem;right:0;bottom:0;
-                width:100vw;height:calc(100vh - 5.3rem);
-                background-image:url(data:image/jpeg;base64,{_home64});
-                background-size:100% 100%;background-position:center;
-                background-repeat:no-repeat;background-color:#063b2d;z-index:0;
-            }}
-            </style>
-            <div class="carbono-home-only"></div>
-            """,
-            unsafe_allow_html=True,
-        )
+        # Imagem no fluxo normal do Streamlit: não cria camada sobre os menus/botões.
+        st.image(str(_home_img), use_container_width=True)
     else:
-        st.warning("Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.")
+        st.warning(tr(
+            "Arquivo carbono_em_acao_home_aprovada.jpg não encontrado.",
+            "File carbono_em_acao_home_aprovada.jpg not found."
+        ))
     st.stop()
-
 
 # Espaçamento das páginas científicas; não afeta a tela Início.
 st.markdown("""
